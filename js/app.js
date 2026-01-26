@@ -757,16 +757,13 @@ class SnapSpotApp {
 
   /**
    * Updates the visibility of the rotation control button based on map type.
-   * SVG maps (Phase 1) do not support rotation, so hide the button.
+   * Phase 2: SVG maps now support rotation, so controls are always visible.
    */
   updateRotationControlsVisibility () {
     const toggleMapRotationBtn = document.getElementById('btn-toggle-map-rotation')
-    if (toggleMapRotationBtn && this.mapRenderer) {
-      if (this.mapRenderer.isSvgMap) {
-        toggleMapRotationBtn.style.display = 'none'
-      } else {
-        toggleMapRotationBtn.style.display = ''
-      }
+    if (toggleMapRotationBtn) {
+      // Phase 2: All map types support rotation
+      toggleMapRotationBtn.style.display = ''
     }
   }
 

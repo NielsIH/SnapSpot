@@ -25,7 +25,7 @@ export class MapRenderer {
     this._highlightTimeout = null
     // Map Rotation -- This is the actual rotation angle applied to the *image bitmap*
     this.currentMapRotation = 0 // Stored rotation in degrees (0, 90, 180, 270)
-    // SVG Support -- Track if current map is SVG (Phase 1: no rotation for SVG)
+    // SVG Support -- Track if current map is SVG (Phase 2: full rotation support)
     this.isSvgMap = false
 
     // Marker size settings
@@ -169,18 +169,17 @@ export class MapRenderer {
 
       return new Promise((resolve, reject) => {
         const img = new Image()
-        
-        // Detect SVG maps (Phase 1: SVG support without rotation)
+
+        // Detect SVG maps (Phase 2: Full SVG support with rotation)
         this.isSvgMap = (mapData.fileType === 'image/svg+xml')
-        
+
         img.onload = () => {
           this.originalImageData = img // Store reference to original Image object (unrotated)
 
-          // For SVG, skip canvas pre-rotation (Phase 1: no rotation support)
+          // For SVG, use the original image directly (rotation applied via canvas transforms)
           if (this.isSvgMap) {
             this.imageData = img
-            this.currentMapRotation = 0 // Force rotation to 0 for SVG
-            console.log('SVG map loaded - rotation disabled for Phase 1')
+            console.log('SVG map loaded with rotation support (Phase 2)')
           } else {
             // Create the initial rotated bitmap using the currentMapRotation setting
             this.imageData = this._getRotatedImageCanvas(this.originalImageData, this.currentMapRotation)
@@ -226,7 +225,8 @@ export class MapRenderer {
 
   /**
    * Calculate scale and position to fit image to screen.
-   * MODIFIED: Uses this.imageData.width/height directly (as it's already rotated).
+   * For SVG: calculates dimensions based on current rotation.
+   * For raster: uses pre-rotated canvas dimensions.
    */
   fitToScreen () {
     if (!this.imageData || !this.canvas) {
@@ -236,9 +236,26 @@ export class MapRenderer {
 
     const canvasWidth = this.canvas.width
     const canvasHeight = this.canvas.height
-    // Dimensions are directly from the (potentially rotated) imageData canvas
-    const effectiveContentWidth = this.imageData.width
-    const effectiveContentHeight = this.imageData.height
+
+    let effectiveContentWidth, effectiveContentHeight
+
+    if (this.isSvgMap) {
+      // For SVG, calculate effective dimensions based on rotation
+      const imgWidth = this.originalImageData.naturalWidth
+      const imgHeight = this.originalImageData.naturalHeight
+
+      if (this.currentMapRotation === 90 || this.currentMapRotation === 270) {
+        effectiveContentWidth = imgHeight
+        effectiveContentHeight = imgWidth
+      } else {
+        effectiveContentWidth = imgWidth
+        effectiveContentHeight = imgHeight
+      }
+    } else {
+      // For raster, use the pre-rotated canvas dimensions
+      effectiveContentWidth = this.imageData.width
+      effectiveContentHeight = this.imageData.height
+    }
 
     console.log(`MapRenderer: fitToScreen - Canvas: ${canvasWidth}x${canvasHeight}, Image: ${effectiveContentWidth}x${effectiveContentHeight}.`)
 
@@ -289,18 +306,57 @@ export class MapRenderer {
 
   /**
    * Render the map image.
-   * MODIFIED: Simplified to draw the already rotated imageData (HTMLCanvasElement).
+   * For raster images: draws the pre-rotated canvas bitmap.
+   * For SVG images: applies rotation via canvas transform to preserve vector quality.
    */
   renderImage () {
     if (!this.imageData) return
 
-    this.ctx.drawImage(
-      this.imageData,
-      this.offsetX,
-      this.offsetY,
-      this.imageData.width * this.scale,
-      this.imageData.height * this.scale
-    )
+    if (this.isSvgMap) {
+      // SVG with CSS transform rotation (Phase 2)
+      this.ctx.save()
+
+      // Calculate dimensions based on rotation
+      const imgWidth = this.originalImageData.naturalWidth
+      const imgHeight = this.originalImageData.naturalHeight
+
+      let rotatedWidth = imgWidth
+      let rotatedHeight = imgHeight
+
+      if (this.currentMapRotation === 90 || this.currentMapRotation === 270) {
+        rotatedWidth = imgHeight
+        rotatedHeight = imgWidth
+      }
+
+      // Calculate the center point for rotation
+      const centerX = this.offsetX + (rotatedWidth * this.scale) / 2
+      const centerY = this.offsetY + (rotatedHeight * this.scale) / 2
+
+      // Apply transformations
+      this.ctx.translate(centerX, centerY)
+      this.ctx.rotate(this.currentMapRotation * Math.PI / 180)
+      this.ctx.scale(this.scale, this.scale)
+
+      // Draw image centered on rotation point
+      this.ctx.drawImage(
+        this.imageData,
+        -imgWidth / 2,
+        -imgHeight / 2,
+        imgWidth,
+        imgHeight
+      )
+
+      this.ctx.restore()
+    } else {
+      // Raster image (already pre-rotated canvas)
+      this.ctx.drawImage(
+        this.imageData,
+        this.offsetX,
+        this.offsetY,
+        this.imageData.width * this.scale,
+        this.imageData.height * this.scale
+      )
+    }
   }
 
   /**
@@ -442,16 +498,6 @@ export class MapRenderer {
       return
     }
 
-    // Phase 1: Disable rotation for SVG maps
-    if (this.isSvgMap) {
-      console.warn('Rotation not supported for SVG maps in Phase 1')
-      // Notify the app if available
-      if (window.app && typeof window.app.showNotification === 'function') {
-        window.app.showNotification('Map rotation is not available for SVG files', 'warning')
-      }
-      return
-    }
-
     if (!this.originalImageData) {
       // If no original image is loaded, just update the rotation property.
       // It will be applied when an image is eventually loaded.
@@ -484,7 +530,12 @@ export class MapRenderer {
 
     // --- 2. Update the map's rotation and re-create the rotated image ---
     this.currentMapRotation = degrees
-    this.imageData = this._getRotatedImageCanvas(this.originalImageData, this.currentMapRotation)
+
+    // For SVG, update rotation property only (rotation applied via transform in renderImage)
+    // For raster images, recreate the rotated canvas bitmap
+    if (!this.isSvgMap) {
+      this.imageData = this._getRotatedImageCanvas(this.originalImageData, this.currentMapRotation)
+    }
 
     // --- 3. Adjust canvas size (if responsive container changes dimensions) ---
     // This will update this.canvas.width/height if the container dictates a change.
@@ -522,11 +573,31 @@ export class MapRenderer {
    */
   getMapBounds () {
     if (!this.imageData) return null
+
+    let width, height
+
+    if (this.isSvgMap) {
+      // For SVG, calculate dimensions based on rotation
+      const imgWidth = this.originalImageData.naturalWidth
+      const imgHeight = this.originalImageData.naturalHeight
+
+      if (this.currentMapRotation === 90 || this.currentMapRotation === 270) {
+        width = imgHeight * this.scale
+        height = imgWidth * this.scale
+      } else {
+        width = imgWidth * this.scale
+        height = imgHeight * this.scale
+      }
+    } else {
+      width = this.imageData.width * this.scale
+      height = this.imageData.height * this.scale
+    }
+
     return {
       x: this.offsetX,
       y: this.offsetY,
-      width: this.imageData.width * this.scale, // Use imageData.width
-      height: this.imageData.height * this.scale, // Use imageData.height
+      width,
+      height,
       scale: this.scale
     }
   }
