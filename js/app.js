@@ -756,6 +756,21 @@ class SnapSpotApp {
   }
 
   /**
+   * Updates the visibility of the rotation control button based on map type.
+   * SVG maps (Phase 1) do not support rotation, so hide the button.
+   */
+  updateRotationControlsVisibility () {
+    const toggleMapRotationBtn = document.getElementById('btn-toggle-map-rotation')
+    if (toggleMapRotationBtn && this.mapRenderer) {
+      if (this.mapRenderer.isSvgMap) {
+        toggleMapRotationBtn.style.display = 'none'
+      } else {
+        toggleMapRotationBtn.style.display = ''
+      }
+    }
+  }
+
+  /**
    * Toggles the display size of markers.
    */
   toggleMarkerSize () {

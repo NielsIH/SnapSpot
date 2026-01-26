@@ -140,6 +140,16 @@ export const StorageManager = {
       // CRITICAL: Call render once more AFTER markers are set, to ensure they are drawn.
       app.mapRenderer.render()
 
+      // Update rotation controls visibility based on map type (hide for SVG in Phase 1)
+      if (typeof app.updateRotationControlsVisibility === 'function') {
+        app.updateRotationControlsVisibility()
+      }
+
+      // Show notification for SVG maps about rotation limitation
+      if (mapData.fileType === 'image/svg+xml') {
+        app.showNotification('SVG map loaded. Vector quality preserved at all zoom levels. Note: Rotation not available.', 'info')
+      }
+
       app.updateAppStatus(`Map displayed: ${mapData.name}`)
     } catch (error) {
       console.error('Failed to display map:', error)

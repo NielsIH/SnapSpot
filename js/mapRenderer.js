@@ -25,6 +25,8 @@ export class MapRenderer {
     this._highlightTimeout = null
     // Map Rotation -- This is the actual rotation angle applied to the *image bitmap*
     this.currentMapRotation = 0 // Stored rotation in degrees (0, 90, 180, 270)
+    // SVG Support -- Track if current map is SVG (Phase 1: no rotation for SVG)
+    this.isSvgMap = false
 
     // Marker size settings
     this.markerSizeSettings = {
@@ -167,11 +169,22 @@ export class MapRenderer {
 
       return new Promise((resolve, reject) => {
         const img = new Image()
+        
+        // Detect SVG maps (Phase 1: SVG support without rotation)
+        this.isSvgMap = (mapData.fileType === 'image/svg+xml')
+        
         img.onload = () => {
           this.originalImageData = img // Store reference to original Image object (unrotated)
 
-          // Create the initial rotated bitmap using the currentMapRotation setting
-          this.imageData = this._getRotatedImageCanvas(this.originalImageData, this.currentMapRotation)
+          // For SVG, skip canvas pre-rotation (Phase 1: no rotation support)
+          if (this.isSvgMap) {
+            this.imageData = img
+            this.currentMapRotation = 0 // Force rotation to 0 for SVG
+            console.log('SVG map loaded - rotation disabled for Phase 1')
+          } else {
+            // Create the initial rotated bitmap using the currentMapRotation setting
+            this.imageData = this._getRotatedImageCanvas(this.originalImageData, this.currentMapRotation)
+          }
 
           this.resizeCanvas()
           this.fitToScreen()
@@ -202,6 +215,7 @@ export class MapRenderer {
       this.imageData = null // Clear the rotated bitmap (canvas element)
       this.originalImageData = null // Clear original image reference
       this.markers = [] // Clear markers for placeholder
+      this.isSvgMap = false // Reset SVG flag for placeholder
 
       this.render()
     } catch (error) {
@@ -425,6 +439,16 @@ export class MapRenderer {
     const validDegrees = [0, 90, 180, 270]
     if (!validDegrees.includes(degrees)) {
       console.warn('MapRenderer: Invalid rotation degrees:', degrees, '. Must be 0, 90, 180, or 270.')
+      return
+    }
+
+    // Phase 1: Disable rotation for SVG maps
+    if (this.isSvgMap) {
+      console.warn('Rotation not supported for SVG maps in Phase 1')
+      // Notify the app if available
+      if (window.app && typeof window.app.showNotification === 'function') {
+        window.app.showNotification('Map rotation is not available for SVG files', 'warning')
+      }
       return
     }
 

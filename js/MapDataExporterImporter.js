@@ -613,34 +613,46 @@ export class MapDataExporterImporter {
       app.updateAppStatus('Processing and saving map image...')
 
       // --- NEW STEP: Process the image for storage ---
-      const processedImageBlob = await app.imageProcessor.processImage(originalFile, {
-        maxWidth: app.imageCompressionSettings.map.maxWidth, // Max width for storing
-        maxHeight: app.imageCompressionSettings.map.maxHeight, // Max height for storing
-        quality: app.imageCompressionSettings.map.quality, // JPEG quality
-        // You can consider 'image/webp' here if you want, but check browser compatibility for Canvas toBlob
-        outputFormat: originalFile.type.startsWith('image/') ? originalFile.type : 'image/jpeg'
-      })
+      // Skip compression for SVG files to preserve vector quality
+      const processedImageBlob = (originalFile.type === 'image/svg+xml')
+        ? originalFile // Use original SVG file as-is
+        : await app.imageProcessor.processImage(originalFile, {
+          maxWidth: app.imageCompressionSettings.map.maxWidth, // Max width for storing
+          maxHeight: app.imageCompressionSettings.map.maxHeight, // Max height for storing
+          quality: app.imageCompressionSettings.map.quality, // JPEG quality
+          // You can consider 'image/webp' here if you want, but check browser compatibility for Canvas toBlob
+          outputFormat: originalFile.type.startsWith('image/') ? originalFile.type : 'image/jpeg'
+        })
 
       console.log('Original size:', originalFile.size, 'Processed size:', processedImageBlob.size)
 
       // We need to update mapData with the *new* dimensions and size of the processed image
-      // To get the new dimensions easily, we can load the blob back into an image temporarily
-      const processedImg = await new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(processedImageBlob)
-        const img = new Image()
-        img.onload = () => {
-          URL.revokeObjectURL(url)
-          resolve(img)
-        }
-        img.onerror = reject
-        img.src = url
-      })
+      // For SVG files, we already have the correct dimensions from metadata extraction
+      // For raster images, we load the blob to get new dimensions after compression
+      if (originalFile.type === 'image/svg+xml') {
+        // SVG: Use original metadata dimensions (already extracted by getSvgMetadata)
+        mapData.fileSize = processedImageBlob.size
+        mapData.fileType = processedImageBlob.type
+        console.log('SVG file preserved - dimensions from metadata:', mapData.width, 'x', mapData.height)
+      } else {
+        // Raster: Load the processed blob to get new dimensions
+        const processedImg = await new Promise((resolve, reject) => {
+          const url = URL.createObjectURL(processedImageBlob)
+          const img = new Image()
+          img.onload = () => {
+            URL.revokeObjectURL(url)
+            resolve(img)
+          }
+          img.onerror = reject
+          img.src = url
+        })
 
-      // Update mapData with the processed image details
-      mapData.width = processedImg.width
-      mapData.height = processedImg.height
-      mapData.fileSize = processedImageBlob.size
-      mapData.fileType = processedImageBlob.type
+        // Update mapData with the processed image details
+        mapData.width = processedImg.width
+        mapData.height = processedImg.height
+        mapData.fileSize = processedImageBlob.size
+        mapData.fileType = processedImageBlob.type
+      }
       // -----------------------------------------------
 
       // If app is set as active, deactivate other maps first
