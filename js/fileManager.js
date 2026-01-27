@@ -277,8 +277,19 @@ export class FileManager {
             // Fall back to viewBox
             const viewBox = svgElement.getAttribute('viewBox')
             if (viewBox) {
-              const [, , vbWidth, vbHeight] = viewBox.split(/\s+/).map(parseFloat)
+              const [, , vbWidth, vbHeight] = viewBox.split(/[\s,]+/).map(parseFloat)
               width = vbWidth
+
+              // Validate dimensions (same as raster images)
+              if (width > this.maxDimension || height > this.maxDimension) {
+                reject(new Error(`SVG too large: ${width}x${height}. Maximum dimension: ${this.maxDimension}px`))
+                return
+              }
+
+              if (width < this.minDimension || height < this.minDimension) {
+                reject(new Error(`SVG too small: ${width}x${height}. Minimum dimension: ${this.minDimension}px`))
+                return
+              }
               height = vbHeight
             } else {
               // Default dimensions if neither exists

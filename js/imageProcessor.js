@@ -152,7 +152,8 @@ export class ImageProcessor {
             const canvas = document.createElement('canvas')
             const ctx = canvas.getContext('2d')
 
-            let { width, height } = img
+            let width = img.naturalWidth || img.width
+            let height = img.naturalHeight || img.height
 
             // Calculate new dimensions to fit within maxSize while maintaining aspect ratio
             if (width > height) {
