@@ -4,10 +4,14 @@
  * Delegates lifecycle management to ModalManager.
  */
 
-/* global document DOMParser requestAnimationFrame */
+/* global document DOMParser requestAnimationFrame localStorage */
 
 export function createSearchModal (modalManager, callbacks, onClose, initialQuery = '') {
   console.log('SearchModal: Creating new Search Modal.')
+  // Get saved checkbox state from localStorage (default to true if not set)
+  const savedActiveMapOnly = localStorage.getItem('searchActiveMapOnly')
+  const isActiveMapChecked = savedActiveMapOnly === null ? true : savedActiveMapOnly === 'true'
+  console.log('SearchModal: savedActiveMapOnly from localStorage:', savedActiveMapOnly, 'isActiveMapChecked:', isActiveMapChecked)
   const modalHtml = `
     <div class="modal search-modal" id="search-modal">
       <div class="modal-backdrop"></div>
@@ -26,6 +30,10 @@ export function createSearchModal (modalManager, callbacks, onClose, initialQuer
               <button class="btn btn-primary" id="execute-search-btn" title="Search">
                 <span class="btn-text">Search</span>
               </button>
+              <label class="checkbox-option active-map-filter">
+                <input type="checkbox" id="search-active-map-only" ${isActiveMapChecked ? 'checked' : ''} />
+                <span>Active map</span>
+              </label>
             </div>
             <div class="search-file-input-group">
               <button type="button" class="btn btn-yellow" id="search-file-btn">

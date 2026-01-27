@@ -3,7 +3,7 @@
  * @fileoverview Manages the search modal and its functionality.
  */
 
-/* globals document confirm */
+/* globals document confirm localStorage */
 
 import { UIRenderer } from './ui/uiRenderer.js'
 import { FileManager } from './fileManager.js'
@@ -19,6 +19,7 @@ export class SearchManager {
     this.searchResultsContainer = null
     this.searchInitialMessage = null
     this.searchOptionsContainer = null
+    this.searchActiveMapOnly = null
     this.fileManager = new FileManager()
 
     this.performSearch = this.performSearch.bind(this)
@@ -32,7 +33,16 @@ export class SearchManager {
     this.clearSearchTextBtn = modalElement.querySelector('#clear-search-text-btn')
     this.searchResultsContainer = modalElement.querySelector('#search-results-container')
     this.searchInitialMessage = modalElement.querySelector('#search-initial-message')
+    this.searchActiveMapOnly = modalElement.querySelector('#search-active-map-only')
     // this.searchOptionsContainer = modalElement.querySelector('#search-options-container') // Assuming this is part of the modal for future use
+
+    // Save checkbox state to localStorage when changed
+    if (this.searchActiveMapOnly) {
+      this.searchActiveMapOnly.addEventListener('change', () => {
+        localStorage.setItem('searchActiveMapOnly', this.searchActiveMapOnly.checked)
+        console.log('SearchManager: Saved searchActiveMapOnly state:', this.searchActiveMapOnly.checked)
+      })
+    }
 
     this.handleSearchInput()
   }
@@ -119,13 +129,18 @@ export class SearchManager {
       return
     }
 
-    console.log(`SearchManager: Performing search for: "${query}"`)
+    // Get the active map only filter state
+    const activeMapOnly = this.searchActiveMapOnly?.checked ?? true
+
+    console.log(`SearchManager: Performing search for: "${query}" activeMapOnly: ${activeMapOnly}`)
     this.searchResultsContainer.innerHTML = '<p class="text-secondary text-center">Searching...</p>'
     this.searchInitialMessage.classList.add('hidden')
 
     // Fetch both map and photo results
+    // Maps are always searched across all maps
     const mapResults = await this.appCallbacks.searchMaps(query)
-    const photoResults = await this.appCallbacks.searchPhotos(query)
+    // Photos are filtered by active map only if checkbox is checked
+    const photoResults = await this.appCallbacks.searchPhotos(query, activeMapOnly)
 
     this._displayResults(mapResults, photoResults) // Modified to pass both
   }

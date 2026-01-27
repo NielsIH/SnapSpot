@@ -104,3 +104,26 @@
   flex-direction: column;
   gap: var(--spacing-sm);
 }
+
+/* Active Map Filter Checkbox */
+.search-input-group .checkbox-option.active-map-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  margin: 0;
+}
+
+.search-input-group .checkbox-option.active-map-filter input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.search-input-group .checkbox-option.active-map-filter span {
+  user-select: none;
+}

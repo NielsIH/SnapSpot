@@ -212,6 +212,11 @@ All tasks for the Safari Blob Storage Fix are now complete.
 - ✅ Unified search across map names, descriptions, and file names.
 - ✅ Search by Image File (via selection) for map lookup.
 - ✅ "Clear Search" functionality (X button) within the search input.
+- ✅ **Active Map Filter**: Configurable search scope control with persistent state:
+  - Toggle "Active map" checkbox to filter photos to the current active map only.
+  - When OFF, photos are searched across all maps.
+  - Maps are always searched across the entire database.
+  - Preference is saved in browser localStorage and preserved across sessions.
 - ✅ Map thumbnail/image click in search results and settings list opens image viewer.
 - ✅ Photo search by filename and display in search results with thumbnails.
 - ✅ "Show on Map" action for photo search results, switching to map, panning to and highlighting the associated marker.

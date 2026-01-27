@@ -8,7 +8,7 @@ export async function searchMaps (app, query) {
   console.log('App: Performing map search for query:', query)
   const lowerCaseQuery = query.toLowerCase()
 
-  // 1. Get all maps from storage (now includes markerCount from storage.getAllMaps())
+  // 1. Always get all maps (maps are never filtered by active map)
   const allMapsWithCounts = await app.storage.getAllMaps()
 
   // 2. Filter raw maps first (cheap string ops)
@@ -46,12 +46,34 @@ export async function searchMaps (app, query) {
   return filteredMaps
 }
 
-export async function searchPhotos (app, query) {
+export async function searchPhotos (app, query, activeMapOnly = true) {
   if (!query) {
     return []
   }
   const searchTerm = query.toLowerCase()
-  const allEnrichedPhotos = await app.storage.getAllPhotosWithContext()
+
+  const currentMapId = app.currentMap?.id
+  console.log(`App: searchPhotos called with activeMapOnly=${activeMapOnly}, currentMapId=${currentMapId}`)
+
+  // Get all photos with context
+  const allPhotos = await app.storage.getAllPhotosWithContext()
+  console.log(`App: Total photos in database: ${allPhotos.length}`)
+
+  // Filter by active map if activeMapOnly is true AND there's an active map
+  let allEnrichedPhotos
+  if (activeMapOnly && currentMapId) {
+    // Filter to only photos from the active map
+    allEnrichedPhotos = allPhotos.filter(photo => photo.mapId === currentMapId)
+    console.log(`App: Filtered to ${allEnrichedPhotos.length} photos from active map (ID: ${currentMapId})`)
+  } else {
+    // Search across all maps (either checkbox is OFF or no active map)
+    allEnrichedPhotos = allPhotos
+    if (activeMapOnly && !currentMapId) {
+      console.log(`App: No active map, searching across all ${allPhotos.length} photos`)
+    } else {
+      console.log(`App: Searching across all ${allPhotos.length} photos`)
+    }
+  }
 
   // Filter raw photos first (cheap string ops)
   const matchingPhotosRaw = allEnrichedPhotos.filter(photo =>

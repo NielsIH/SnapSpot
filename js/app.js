@@ -36,7 +36,7 @@ class SnapSpotApp {
     this.modalManager = new ModalManager()
     this.searchManager = new SearchManager(this.modalManager, {
       searchMaps: (query) => searchMaps(this, query),
-      searchPhotos: (query) => searchPhotos(this, query),
+      searchPhotos: (query, activeMapOnly) => searchPhotos(this, query, activeMapOnly),
       deleteMap: (mapId) => StorageManager.deleteMap(this, mapId),
       exportHtmlReport: (mapId) => this.exportHtmlReport(mapId),
       exportJsonMap: (mapId) => this.exportJsonMap(mapId),
