@@ -7,7 +7,7 @@
  * File Manager for handling image uploads and processing
  */
 
-/* global document, window, Image crypto FileReader */
+/* global document, window, Image, crypto, FileReader, DOMParser */
 export class FileManager {
   constructor () {
     // Supported file formats
@@ -184,6 +184,12 @@ export class FileManager {
    * @returns {Promise<Object>} - Image metadata object
    */
   async getImageMetadata (file) {
+    // Handle SVG files separately
+    if (file.type === 'image/svg+xml') {
+      return this.getSvgMetadata(file)
+    }
+
+    // Existing raster image logic
     return new Promise((resolve, reject) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
@@ -232,6 +238,83 @@ export class FileManager {
       }
 
       img.src = url
+    })
+  }
+
+  /**
+   * Extract dimensions from SVG file
+   * @param {File} file - SVG file
+   * @returns {Promise<Object>} Metadata object with width, height, aspectRatio
+   */
+  async getSvgMetadata (file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+
+      reader.onload = (e) => {
+        try {
+          const svgText = e.target.result
+          const parser = new DOMParser()
+          const svgDoc = parser.parseFromString(svgText, 'image/svg+xml')
+          const svgElement = svgDoc.documentElement
+
+          // Check for parsing errors
+          const parserError = svgDoc.querySelector('parsererror')
+          if (parserError) {
+            reject(new Error('Invalid SVG file'))
+            return
+          }
+
+          let width, height
+
+          // Try to get width/height from attributes
+          const widthAttr = svgElement.getAttribute('width')
+          const heightAttr = svgElement.getAttribute('height')
+
+          if (widthAttr && heightAttr) {
+            width = parseFloat(widthAttr)
+            height = parseFloat(heightAttr)
+          } else {
+            // Fall back to viewBox
+            const viewBox = svgElement.getAttribute('viewBox')
+            if (viewBox) {
+              const [, , vbWidth, vbHeight] = viewBox.split(/[\s,]+/).map(parseFloat)
+              width = vbWidth
+
+              // Validate dimensions (same as raster images)
+              if (width > this.maxDimension || height > this.maxDimension) {
+                reject(new Error(`SVG too large: ${width}x${height}. Maximum dimension: ${this.maxDimension}px`))
+                return
+              }
+
+              if (width < this.minDimension || height < this.minDimension) {
+                reject(new Error(`SVG too small: ${width}x${height}. Minimum dimension: ${this.minDimension}px`))
+                return
+              }
+              height = vbHeight
+            } else {
+              // Default dimensions if neither exists
+              width = 1920
+              height = 1080
+              console.warn('SVG has no width/height or viewBox, using defaults:', { width, height })
+            }
+          }
+
+          resolve({
+            width,
+            height,
+            aspectRatio: width / height,
+            fileSize: file.size,
+            fileName: file.name,
+            fileType: file.type,
+            lastModified: new Date(file.lastModified)
+          })
+        } catch (error) {
+          reject(new Error(`Failed to parse SVG: ${error.message}`))
+        }
+      }
+
+      reader.onerror = () => reject(new Error('Failed to read SVG file'))
+      reader.readAsText(file)
     })
   }
 

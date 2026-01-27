@@ -128,6 +128,7 @@ export class ImageProcessor {
    * Generates a small thumbnail Data URL from an image Blob for display in lists.
    * This method uses createImageBitmap for efficient scaling on the main thread
    * and minimizes memory overhead compared to full Image element loading.
+   * For SVG files, it uses an Image element to preserve vector quality.
    * @param {Blob} imageBlob - The original image Blob from storage.
    * @param {number} maxSize - The maximum dimension (width or height) for the thumbnail.
    * @param {string} outputFormat - The output MIME type (e.g., 'image/jpeg', 'image/webp').
@@ -140,6 +141,62 @@ export class ImageProcessor {
       throw new Error('generateThumbnailDataUrl: Invalid input, imageBlob must be a Blob.')
     }
 
+    // Special handling for SVG files
+    if (imageBlob.type === 'image/svg+xml') {
+      return new Promise((resolve, reject) => {
+        const img = new Image()
+        const url = URL.createObjectURL(imageBlob)
+
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas')
+            const ctx = canvas.getContext('2d')
+
+            let width = img.naturalWidth || img.width
+            let height = img.naturalHeight || img.height
+
+            // Calculate new dimensions to fit within maxSize while maintaining aspect ratio
+            if (width > height) {
+              if (width > maxSize) {
+                height = (height * maxSize) / width
+                width = maxSize
+              }
+            } else {
+              if (height > maxSize) {
+                width = (width * maxSize) / height
+                height = maxSize
+              }
+            }
+
+            canvas.width = width
+            canvas.height = height
+
+            console.log(`DEBUG(imageProcessor): Drawing SVG to canvas for thumbnail. Canvas dimensions: ${canvas.width}x${canvas.height}`)
+            ctx.drawImage(img, 0, 0, width, height)
+
+            const dataUrl = canvas.toDataURL(outputFormat, quality)
+            console.log(`DEBUG(imageProcessor): SVG thumbnail Data URL generated. Length: ${dataUrl.length}`)
+
+            URL.revokeObjectURL(url)
+            resolve(dataUrl)
+          } catch (error) {
+            console.error('DEBUG(imageProcessor): Error generating SVG thumbnail:', error)
+            URL.revokeObjectURL(url)
+            reject(error)
+          }
+        }
+
+        img.onerror = (error) => {
+          console.error('DEBUG(imageProcessor): Error loading SVG for thumbnail:', error)
+          URL.revokeObjectURL(url)
+          reject(new Error('Failed to load SVG image for thumbnail'))
+        }
+
+        img.src = url
+      })
+    }
+
+    // Standard handling for raster images
     try {
       console.log('DEBUG(imageProcessor): Calling createImageBitmap with Blob:', imageBlob)
       const bitmap = await createImageBitmap(imageBlob)

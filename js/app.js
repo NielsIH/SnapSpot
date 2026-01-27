@@ -756,6 +756,18 @@ class SnapSpotApp {
   }
 
   /**
+   * Updates the visibility of the rotation control button based on map type.
+   * Phase 2: SVG maps now support rotation, so controls are always visible.
+   */
+  updateRotationControlsVisibility () {
+    const toggleMapRotationBtn = document.getElementById('btn-toggle-map-rotation')
+    if (toggleMapRotationBtn) {
+      // Phase 2: All map types support rotation
+      toggleMapRotationBtn.style.display = ''
+    }
+  }
+
+  /**
    * Toggles the display size of markers.
    */
   toggleMarkerSize () {
