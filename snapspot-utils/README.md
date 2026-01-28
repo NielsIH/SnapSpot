@@ -46,14 +46,33 @@ These are **desktop-only** tools designed for occasional workstation use. For da
 
 ## Getting Started
 
-### Option 1: Local File Access
+**📘 Full Guide:** [Running Locally Documentation](docs/RUNNING_LOCALLY.md)
+
+### Option 1: Simple HTTP Server (Recommended)
+
+```bash
+# Navigate to the snapspot-utils directory
+cd snapspot-utils
+
+# Start a local HTTP server (Node.js required)
+npx http-server -p 8080 --cors
+
+# Open in your browser
+# http://localhost:8080
+```
+
+The index page will show all available utilities. Click on a tile to launch a tool.
+
+### Option 2: Local File Access
+
+Some features may require an HTTP server due to browser CORS restrictions. For best results, use Option 1.
 
 1. Clone or download this repository
-2. Open `snapspot-utils/index.html` in your browser
-3. Select a tool to launch
-4. No installation or server required!
+2. Start an HTTP server in the `snapspot-utils` directory
+3. Open `http://localhost:8080` in your browser
+4. Select a tool to launch
 
-### Option 2: Hosted Version *(future)*
+### Option 3: Hosted Version *(future)*
 
 Visit the hosted utilities site (URL TBD after deployment).
 
@@ -132,20 +151,24 @@ snapspot-utils/
 
 ## Development Status
 
-### Current Phase: Planning ✅
+### Current Phase: Phase 1 Complete ✅ → Phase 2 Next ⏳
 
 - [x] Feature branch created
 - [x] Project structure defined
 - [x] Architecture documented
 - [x] Implementation plan created
-- [ ] Phase 1: Core Transformation (not started)
-- [ ] Phase 2: Format Handlers (not started)
-- [ ] Phase 3: Shared Utilities (not started)
-- [ ] Phase 4: UI Foundation (not started)
-- [ ] Phase 5: Migration Tool (not started)
-- [ ] Phase 6: Testing & Polish (not started)
+- [x] **Phase 1: Core Transformation ✅ COMPLETE**
+  - [x] Linear algebra utilities
+  - [x] Affine transformation calculation
+  - [x] Transform validation & quality metrics
+  - [x] Unit tests with browser-based test runner
+- [ ] Phase 2: Format Handlers (next)
+- [ ] Phase 3: Shared Utilities
+- [ ] Phase 4: UI Foundation
+- [ ] Phase 5: Migration Tool
+- [ ] Phase 6: Testing & Polish
 
-**Estimated Completion:** 12-17 days from start
+**Estimated Completion:** 10-14 days remaining
 
 ---
 

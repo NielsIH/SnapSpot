@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapSpot Utilities Suite</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 50px;
+      color: white;
+    }
+
+    h1 {
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .subtitle {
+      font-size: 20px;
+      opacity: 0.9;
+      margin-bottom: 10px;
+    }
+
+    .version {
+      font-size: 14px;
+      opacity: 0.7;
+    }
+
+    .tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+      margin-bottom: 40px;
+    }
+
+    .tile {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+      position: relative;
+    }
+
+    .tile:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+    }
+
+    .tile.disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .tile.disabled:hover {
+      transform: none;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    .tile-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+
+    .tile-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #2c3e50;
+    }
+
+    .tile-description {
+      color: #7f8c8d;
+      margin-bottom: 15px;
+      line-height: 1.6;
+    }
+
+    .tile-status {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-active {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-dev {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status-soon {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    footer {
+      text-align: center;
+      color: white;
+      margin-top: 50px;
+      padding: 20px;
+      opacity: 0.8;
+    }
+
+    footer a {
+      color: white;
+      text-decoration: underline;
+    }
+
+    .info-box {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .info-box h2 {
+      color: #2c3e50;
+      margin-bottom: 15px;
+      font-size: 24px;
+    }
+
+    .info-box ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .info-box li {
+      padding: 8px 0;
+      color: #555;
+    }
+
+    .info-box li:before {
+      content: "✓ ";
+      color: #2ecc71;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🛠️ SnapSpot Utilities Suite</h1>
+      <p class="subtitle">Desktop tools for advanced SnapSpot data operations</p>
+      <p class="version">Version 1.0 | Phase 1 Complete</p>
+    </header>
+
+    <div class="info-box">
+      <h2>🚀 Quick Start</h2>
+      <ul>
+        <li><strong>No installation required</strong> - All tools run in your browser</li>
+        <li><strong>Privacy-first</strong> - All processing happens locally, your data never leaves your computer</li>
+        <li><strong>Desktop optimized</strong> - Designed for mouse and keyboard workflows</li>
+        <li><strong>Standalone</strong> - Works offline, no server needed</li>
+      </ul>
+    </div>
+
+    <div class="tiles">
+      <!-- Test Runner -->
+      <a href="core/transformation/__tests__/test-runner.html" class="tile">
+        <div class="tile-icon">🧪</div>
+        <div class="tile-title">Test Runner</div>
+        <div class="tile-description">
+          Run unit tests for core transformation modules. Includes tests for affine transformations, matrix calculations, and validation.
+        </div>
+        <span class="tile-status status-active">Active</span>
+      </a>
+
+      <!-- Map Migrator -->
+      <div class="tile disabled">
+        <div class="tile-icon">🗺️</div>
+        <div class="tile-title">Map Migrator</div>
+        <div class="tile-description">
+          Transform marker coordinates from one map to another using reference point alignment. Perfect for upgrading to new floor plans.
+        </div>
+        <span class="tile-status status-dev">In Development</span>
+      </div>
+
+      <!-- Format Converter -->
+      <div class="tile disabled">
+        <div class="tile-icon">🔄</div>
+        <div class="tile-title">Format Converter</div>
+        <div class="tile-description">
+          Export your SnapSpot data to various formats including GeoJSON, CSV, and KML for use with other mapping tools.
+        </div>
+        <span class="tile-status status-soon">Coming Soon</span>
+      </div>
+
+      <!-- Batch Processor -->
+      <div class="tile disabled">
+        <div class="tile-icon">⚡</div>
+        <div class="tile-title">Batch Processor</div>
+        <div class="tile-description">
+          Perform bulk operations on multiple maps at once. Rename markers, update categories, or apply transformations in batch.
+        </div>
+        <span class="tile-status status-soon">Coming Soon</span>
+      </div>
+
+      <!-- Data Analyzer -->
+      <div class="tile disabled">
+        <div class="tile-icon">📊</div>
+        <div class="tile-title">Data Analyzer</div>
+        <div class="tile-description">
+          Visualize statistics and insights from your SnapSpot data. View marker distributions, heatmaps, and usage patterns.
+        </div>
+        <span class="tile-status status-soon">Coming Soon</span>
+      </div>
+
+      <!-- Documentation -->
+      <a href="https://github.com/NielsIH/SnapSpot" class="tile" target="_blank" rel="noopener">
+        <div class="tile-icon">📖</div>
+        <div class="tile-title">Documentation</div>
+        <div class="tile-description">
+          View technical documentation, architecture guides, and implementation details on GitHub.
+        </div>
+        <span class="tile-status status-active">Active</span>
+      </a>
+    </div>
+
+    <footer>
+      <p>Built to extend <a href="https://github.com/NielsIH/SnapSpot" target="_blank" rel="noopener">SnapSpot</a> - A Progressive Web App for photo mapping</p>
+      <p style="margin-top: 10px; font-size: 14px;">All processing happens locally in your browser. No data is uploaded or tracked.</p>
+    </footer>
+  </div>
+</body>
+</html>
