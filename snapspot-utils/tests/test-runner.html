@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapSpot Utilities - All Tests</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
+
+    .subtitle {
+      color: rgba(255, 255, 255, 0.9);
+      text-align: center;
+      margin-bottom: 3rem;
+      font-size: 1.1rem;
+    }
+
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .test-card {
+      background: white;
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s, box-shadow 0.2s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .test-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .test-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e5e7eb;
+    }
+
+    .test-icon {
+      font-size: 3rem;
+    }
+
+    .test-info h2 {
+      font-size: 1.5rem;
+      color: #1f2937;
+      margin-bottom: 0.25rem;
+    }
+
+    .test-phase {
+      color: #6b7280;
+      font-size: 0.875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .test-description {
+      color: #4b5563;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+    }
+
+    .test-stats {
+      display: flex;
+      gap: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.75rem;
+      font-weight: bold;
+      color: #667eea;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.25rem;
+    }
+
+    .info-box {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .info-box h3 {
+      color: #1f2937;
+      margin-bottom: 1rem;
+      font-size: 1.25rem;
+    }
+
+    .info-box p {
+      color: #4b5563;
+      line-height: 1.6;
+    }
+
+    footer {
+      text-align: center;
+      color: white;
+      margin-top: 3rem;
+      opacity: 0.8;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 SnapSpot Utilities Test Suite</h1>
+    <p class="subtitle">Comprehensive testing for all phases</p>
+
+    <div class="info-box">
+      <h3>📋 Test Organization</h3>
+      <p>
+        Each phase has its own dedicated test runner optimized for that phase's testing patterns.
+        Click on a phase below to run its tests in a new tab.
+      </p>
+    </div>
+
+    <div class="test-grid">
+      <!-- Phase 1 Tests -->
+      <a href="../core/transformation/__tests__/test-runner.html" target="_blank" class="test-card">
+        <div class="test-header">
+          <div class="test-icon">⚡</div>
+          <div class="test-info">
+            <h2>Phase 1</h2>
+            <div class="test-phase">Core Transformation</div>
+          </div>
+        </div>
+        <div class="test-description">
+          Tests for affine transformation engine, matrix calculations, and validation utilities.
+          Pure mathematical functions with zero dependencies.
+        </div>
+        <div class="test-stats">
+          <div class="stat">
+            <div class="stat-value">44</div>
+            <div class="stat-label">Tests</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">2</div>
+            <div class="stat-label">Suites</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">✅</div>
+            <div class="stat-label">Status</div>
+          </div>
+        </div>
+      </a>
+
+      <!-- Phase 2 Tests -->
+      <a href="../core/formats/snapspot/__tests__/test-runner.html" target="_blank" class="test-card">
+        <div class="test-header">
+          <div class="test-icon">📦</div>
+          <div class="test-info">
+            <h2>Phase 2</h2>
+            <div class="test-phase">Format Handlers</div>
+          </div>
+        </div>
+        <div class="test-description">
+          Tests for SnapSpot export parser, writer, and validator.
+          Includes round-trip integrity and performance tests.
+        </div>
+        <div class="test-stats">
+          <div class="stat">
+            <div class="stat-value">22</div>
+            <div class="stat-label">Tests</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">4</div>
+            <div class="stat-label">Suites</div>
+          </div>
+          <div class="stat">
+            <div class="stat-value">✅</div>
+            <div class="stat-label">Status</div>
+          </div>
+        </div>
+      </a>
+    </div>
+
+    <div class="info-box">
+      <h3>💡 Quick Start</h3>
+      <p>
+        <strong>Run All Tests:</strong> Open each phase test runner in separate tabs and click "Run Tests".<br>
+        <strong>Total Coverage:</strong> 66 tests across 2 phases (44 + 22)<br>
+        <strong>Performance:</strong> All tests run in < 5 seconds
+      </p>
+    </div>
+
+    <footer>
+      <p>All tests run locally in your browser • No data is uploaded</p>
+    </footer>
+  </div>
+</body>
+</html>

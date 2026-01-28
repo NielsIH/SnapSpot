@@ -160,12 +160,15 @@ The transformation is calculated using least-squares solution for overdetermined
 
 Open `__tests__/test-runner.html` in a browser to run the test suite.
 
-Or import test modules directly:
+The tests use the unified test framework from `shared/test-framework.js`:
 
 ```javascript
-import './__tests__/affine-transform.test.js'
-import './__tests__/transform-validator.test.js'
+import { allTests } from './__tests__/tests.js'
 ```
+
+Test suites included:
+- Affine Transform Tests (23 tests)
+- Transform Validator Tests (21 tests)
 
 ## Performance
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phase 1: Core Transformation - Tests</title>
+  <title>Phase 2: SnapSpot Format Handlers - Tests</title>
   <style>
     * {
       margin: 0;
@@ -197,8 +197,8 @@
 </head>
 <body>
   <div class="container">
-    <h1 id="pageTitle">Phase 1: Core Transformation</h1>
-    <p class="subtitle" id="pageSubtitle">Testing affine transformations and validation tools</p>
+    <h1 id="pageTitle">Phase 2: SnapSpot Format Handlers</h1>
+    <p class="subtitle" id="pageSubtitle">Testing validator, parser, writer, and integration workflows</p>
 
     <div class="controls">
       <button id="runTests">Run All Tests</button>
@@ -235,8 +235,8 @@
   </div>
 
   <script type="module">
-    import { testRunner, updateUI } from '../../../shared/test-framework.js'
-    import { allTests } from './tests.js' // Your test file
+    import { testRunner, updateUI } from '../../../../shared/test-framework.js'
+    import { allTests } from './integration.test.js'
 
     let isRunning = false
 

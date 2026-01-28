@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phase 1: Core Transformation - Tests</title>
+  <title>SnapSpot Utilities - Tests</title>
   <style>
     * {
       margin: 0;
@@ -197,8 +197,8 @@
 </head>
 <body>
   <div class="container">
-    <h1 id="pageTitle">Phase 1: Core Transformation</h1>
-    <p class="subtitle" id="pageSubtitle">Testing affine transformations and validation tools</p>
+    <h1 id="pageTitle">Test Runner</h1>
+    <p class="subtitle" id="pageSubtitle">Run tests and view results</p>
 
     <div class="controls">
       <button id="runTests">Run All Tests</button>
@@ -248,11 +248,11 @@
 
       console.clear()
       console.log('%c🧪 Test Run Started', 'font-size: 16px; font-weight: bold; color: #667eea')
-      console.log('='.repeat(60))
+      console.log('=''.repeat(60))
 
       const results = await testRunner.runSuites(allTests)
 
-      console.log('='.repeat(60))
+      console.log('=''.repeat(60))
       if (results.allPassed) {
         console.log('%c✅ All tests passed!', 'font-size: 14px; font-weight: bold; color: #10b981')
       } else {
