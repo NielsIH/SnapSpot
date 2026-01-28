@@ -62,7 +62,7 @@
 .app-container {
   max-width: 1800px;
   margin: 0 auto;
-  padding: var(--spacing-lg, 24px);
+  padding: var(--spacing-md, 16px);
 }
 
 /* ============================================================================
@@ -73,8 +73,8 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl, 32px);
-  padding-bottom: var(--spacing-md, 16px);
+  margin-bottom: var(--spacing-md, 16px);
+  padding-bottom: var(--spacing-sm, 8px);
   border-bottom: var(--border-width, 1px) solid var(--color-border, #e0e0e0);
 }
 
@@ -160,7 +160,7 @@ header h1 {
 canvas {
   display: block;
   width: 100%;
-  height: 480px;
+  height: 360px;
   background: 
     repeating-conic-gradient(#f9fafb 0% 25%, white 0% 50%) 
     0 0 / 20px 20px;
@@ -272,18 +272,18 @@ canvas:not([data-loaded="true"]) {
    ============================================================================ */
 
 .reference-points-section {
-  margin-bottom: var(--spacing-xl, 32px);
+  margin-bottom: var(--spacing-md, 16px);
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-md, 16px);
+  margin-bottom: var(--spacing-sm, 8px);
 }
 
 .section-header h2 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--color-text, #1f2937);
   margin: 0;
@@ -323,7 +323,7 @@ thead {
 
 th {
   text-align: left;
-  padding: var(--spacing-md, 16px);
+  padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
   font-weight: 600;
   color: var(--color-text, #1f2937);
   border-bottom: var(--border-width, 1px) solid var(--color-border, #e0e0e0);
@@ -351,13 +351,13 @@ tbody tr.empty-state:hover {
 }
 
 td {
-  padding: var(--spacing-md, 16px);
+  padding: var(--spacing-sm, 8px) var(--spacing-md, 16px);
   color: var(--color-text, #1f2937);
 }
 
 .empty-message {
   text-align: center;
-  padding: var(--spacing-xl, 32px);
+  padding: var(--spacing-lg, 24px);
   color: var(--color-text-secondary, #6b7280);
 }
 
@@ -459,8 +459,8 @@ kbd {
   background: var(--color-surface, white);
   border: var(--border-width, 1px) solid var(--color-border, #e0e0e0);
   border-radius: var(--border-radius, 8px);
-  padding: var(--spacing-lg, 24px);
-  margin-bottom: var(--spacing-xl, 32px);
+  padding: var(--spacing-md, 16px);
+  margin-bottom: var(--spacing-md, 16px);
   box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.1));
 }
 
@@ -469,16 +469,16 @@ kbd {
 }
 
 .metrics-panel h2 {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
-  margin-bottom: var(--spacing-md, 16px);
+  margin-bottom: var(--spacing-sm, 8px);
   color: var(--color-text, #1f2937);
 }
 
 .metrics-grid {
   display: grid;
-  gap: var(--spacing-sm, 8px);
-  margin-bottom: var(--spacing-lg, 24px);
+  gap: var(--spacing-xs, 4px);
+  margin-bottom: var(--spacing-md, 16px);
 }
 
 .metric-row {
@@ -584,10 +584,17 @@ kbd {
    ============================================================================ */
 
 .actions {
+  position: sticky;
+  bottom: 0;
+  background: white;
+  border-top: 2px solid var(--color-border, #e0e0e0);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   justify-content: center;
   gap: var(--spacing-md, 16px);
-  padding: var(--spacing-xl, 32px) 0;
+  padding: var(--spacing-md, 16px) 0;
+  margin: 0 calc(-1 * var(--spacing-md, 16px));
+  z-index: 10;
 }
 
 .btn {

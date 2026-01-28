@@ -33,12 +33,16 @@ export class CanvasRenderer {
     this.image = null
     this.imageWidth = 0
     this.imageHeight = 0
+    this.currentBlob = null // Track current loaded blob
 
     // Interaction state
     this.isPanning = false
     this.lastMouseX = 0
     this.lastMouseY = 0
     this.panEnabled = false
+
+    // Callback for redrawing overlays after pan/zoom
+    this.onRedraw = null
 
     // Bind event handlers
     this._onWheel = this._onWheel.bind(this)
@@ -54,18 +58,19 @@ export class CanvasRenderer {
    * @param {string} fit - Fit mode: 'contain', 'cover', 'fill'
    * @returns {Promise<void>}
    */
-  async renderImage (imageSource, fit = 'contain') {
+  async renderImage (imageSource, fit = 'contain', resetView = true) {
     // Load image
     const img = await this._loadImage(imageSource)
     this.image = img
     this.imageWidth = img.width
     this.imageHeight = img.height
 
-    // Reset view
-    this.resetView()
-
-    // Fit to canvas
-    this._fitImage(fit)
+    // Only reset view if requested (first load)
+    if (resetView) {
+      this.resetView()
+      // Fit to canvas
+      this._fitImage(fit)
+    }
 
     // Draw
     this._draw()
@@ -142,8 +147,16 @@ export class CanvasRenderer {
    */
   screenToCanvas (screenX, screenY) {
     const rect = this.canvas.getBoundingClientRect()
-    const x = (screenX - rect.left - this.state.panX) / this.state.zoom
-    const y = (screenY - rect.top - this.state.panY) / this.state.zoom
+
+    // Convert from display (CSS) coordinates to internal canvas coordinates
+    const displayX = screenX - rect.left
+    const displayY = screenY - rect.top
+    const canvasX = displayX * (this.canvas.width / rect.width)
+    const canvasY = displayY * (this.canvas.height / rect.height)
+
+    // Apply reverse pan/zoom transformation
+    const x = (canvasX - this.state.panX) / this.state.zoom
+    const y = (canvasY - this.state.panY) / this.state.zoom
     return { x, y }
   }
 
@@ -155,8 +168,18 @@ export class CanvasRenderer {
    */
   canvasToScreen (canvasX, canvasY) {
     const rect = this.canvas.getBoundingClientRect()
-    const x = canvasX * this.state.zoom + this.state.panX + rect.left
-    const y = canvasY * this.state.zoom + this.state.panY + rect.top
+
+    // Apply pan/zoom transformation to get internal canvas coordinates
+    const internalX = canvasX * this.state.zoom + this.state.panX
+    const internalY = canvasY * this.state.zoom + this.state.panY
+
+    // Convert from internal canvas coordinates to display (CSS) coordinates
+    const displayX = internalX * (rect.width / this.canvas.width)
+    const displayY = internalY * (rect.height / this.canvas.height)
+
+    // Add canvas offset to get absolute screen coordinates
+    const x = displayX + rect.left
+    const y = displayY + rect.top
     return { x, y }
   }
 
@@ -234,6 +257,11 @@ export class CanvasRenderer {
 
     // Restore context
     this.ctx.restore()
+
+    // Call redraw callback if set (for overlays like markers)
+    if (this.onRedraw) {
+      this.onRedraw()
+    }
   }
 
   /**
@@ -245,13 +273,15 @@ export class CanvasRenderer {
    * @param {number} options.size - Marker size (diameter)
    * @param {string} options.label - Marker label
    * @param {number} options.opacity - Marker opacity (0-1)
+   * @param {string} options.style - Marker style ('circle' or 'crosshair')
    */
   drawMarker (x, y, options = {}) {
     const {
       color = '#ff0000',
       size = 24,
       label = '',
-      opacity = 1.0
+      opacity = 1.0,
+      style = 'circle'
     } = options
 
     // Convert to screen coordinates
@@ -262,22 +292,86 @@ export class CanvasRenderer {
     this.ctx.save()
     this.ctx.globalAlpha = opacity
 
-    // Draw circle
-    this.ctx.beginPath()
-    this.ctx.arc(screenX, screenY, screenSize / 2, 0, Math.PI * 2)
-    this.ctx.fillStyle = color
-    this.ctx.fill()
-    this.ctx.strokeStyle = '#ffffff'
-    this.ctx.lineWidth = 2
-    this.ctx.stroke()
+    if (style === 'crosshair') {
+      // Draw crosshair for precise positioning
+      const crosshairSize = screenSize * 0.8 // Reduced from 1.5
+      const lineWidth = Math.max(1, this.state.zoom * 1.2) // Reduced from 2
 
-    // Draw label
-    if (label) {
-      this.ctx.fillStyle = '#ffffff'
-      this.ctx.font = `bold ${Math.max(10, screenSize * 0.5)}px sans-serif`
-      this.ctx.textAlign = 'center'
-      this.ctx.textBaseline = 'middle'
-      this.ctx.fillText(label, screenX, screenY)
+      // Draw outer white outline for visibility
+      this.ctx.strokeStyle = '#ffffff'
+      this.ctx.lineWidth = lineWidth + 1 // Reduced from lineWidth + 2
+      this.ctx.beginPath()
+      this.ctx.moveTo(screenX - crosshairSize, screenY)
+      this.ctx.lineTo(screenX + crosshairSize, screenY)
+      this.ctx.moveTo(screenX, screenY - crosshairSize)
+      this.ctx.lineTo(screenX, screenY + crosshairSize)
+      this.ctx.stroke()
+
+      // Draw colored crosshair
+      this.ctx.strokeStyle = color
+      this.ctx.lineWidth = lineWidth
+      this.ctx.beginPath()
+      this.ctx.moveTo(screenX - crosshairSize, screenY)
+      this.ctx.lineTo(screenX + crosshairSize, screenY)
+      this.ctx.moveTo(screenX, screenY - crosshairSize)
+      this.ctx.lineTo(screenX, screenY + crosshairSize)
+      this.ctx.stroke()
+
+      // Draw center dot
+      this.ctx.fillStyle = color
+      this.ctx.beginPath()
+      this.ctx.arc(screenX, screenY, Math.max(2, lineWidth * 0.8), 0, Math.PI * 2) // Smaller center dot
+      this.ctx.fill()
+      this.ctx.strokeStyle = '#ffffff'
+      this.ctx.lineWidth = 1
+      this.ctx.stroke()
+
+      // Draw label with background for readability
+      if (label) {
+        const fontSize = Math.max(12, screenSize * 0.6)
+        this.ctx.font = `bold ${fontSize}px sans-serif`
+        this.ctx.textAlign = 'center'
+        this.ctx.textBaseline = 'middle'
+
+        // Position label below crosshair
+        const labelY = screenY + crosshairSize + fontSize
+
+        // Draw background
+        const metrics = this.ctx.measureText(label)
+        const padding = 4
+        const bgWidth = metrics.width + padding * 2
+        const bgHeight = fontSize + padding * 2
+
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
+        this.ctx.fillRect(
+          screenX - bgWidth / 2,
+          labelY - bgHeight / 2,
+          bgWidth,
+          bgHeight
+        )
+
+        // Draw text
+        this.ctx.fillStyle = '#ffffff'
+        this.ctx.fillText(label, screenX, labelY)
+      }
+    } else {
+      // Draw circle (default)
+      this.ctx.beginPath()
+      this.ctx.arc(screenX, screenY, screenSize / 2, 0, Math.PI * 2)
+      this.ctx.fillStyle = color
+      this.ctx.fill()
+      this.ctx.strokeStyle = '#ffffff'
+      this.ctx.lineWidth = 2
+      this.ctx.stroke()
+
+      // Draw label
+      if (label) {
+        this.ctx.fillStyle = '#ffffff'
+        this.ctx.font = `bold ${Math.max(10, screenSize * 0.5)}px sans-serif`
+        this.ctx.textAlign = 'center'
+        this.ctx.textBaseline = 'middle'
+        this.ctx.fillText(label, screenX, screenY)
+      }
     }
 
     this.ctx.restore()
@@ -432,7 +526,9 @@ export class CanvasRenderer {
       this.isPanning = false
       this.canvas.removeEventListener('mousemove', this._onMouseMove)
       this.canvas.removeEventListener('mouseup', this._onMouseUp)
-      this.canvas.style.cursor = 'default'
+
+      // Don't reset cursor - let the application manage it
+      // this.canvas.style.cursor will be managed by the UI controller
     }
   }
 

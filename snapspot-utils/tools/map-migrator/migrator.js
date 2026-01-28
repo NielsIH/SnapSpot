@@ -73,17 +73,32 @@ export class MapMigrator {
         return
       }
 
-      // Extract source and target points
-      const sourcePoints = state.referencePairs.map(pair => pair.source)
-      const targetPoints = state.referencePairs.map(pair => pair.target)
+      // Extract source and target points and convert from normalized (0-1) to pixels
+      const sourceMapWidth = state.sourceMap.width
+      const sourceMapHeight = state.sourceMap.height
+      const targetMapWidth = state.targetMap.width
+      const targetMapHeight = state.targetMap.height
 
-      console.log('Calculating transformation with', sourcePoints.length, 'point pairs')
+      const sourcePoints = state.referencePairs.map(pair => ({
+        x: pair.source.x * sourceMapWidth,
+        y: pair.source.y * sourceMapHeight
+      }))
 
-      // Calculate transformation matrix
-      const matrix = calculateAffineMatrix(sourcePoints, targetPoints)
+      const targetPoints = state.referencePairs.map(pair => ({
+        x: pair.target.x * targetMapWidth,
+        y: pair.target.y * targetMapHeight
+      }))
 
-      // Calculate RMSE
-      const rmse = calculateRMSE(state.referencePairs, matrix)
+      // Calculate transformation matrix (in pixel space)
+      const result = calculateAffineMatrix(sourcePoints, targetPoints)
+      const matrix = result.matrix
+
+      // Calculate RMSE (convert pairs to pixel space for validation)
+      const pixelPairs = state.referencePairs.map((pair, i) => ({
+        source: sourcePoints[i],
+        target: targetPoints[i]
+      }))
+      const rmse = calculateRMSE(pixelPairs, matrix)
 
       // Detect anomalies
       const anomalies = detectAnomalies(matrix)
@@ -92,9 +107,7 @@ export class MapMigrator {
       this.ui.setTransformMatrix(matrix)
 
       // Display metrics
-      this._displayMetrics(matrix, rmse, anomalies)
-
-      console.log('Transformation calculated:', { matrix, rmse, anomalies })
+      this._displayMetrics(matrix, rmse, anomalies, result.determinant)
     } catch (error) {
       console.error('Error calculating transformation:', error)
       this._showError('Transformation Failed', error.message)
@@ -105,14 +118,14 @@ export class MapMigrator {
    * Display transformation metrics
    * @private
    */
-  _displayMetrics (matrix, rmseData, anomalies) {
+  _displayMetrics (matrix, rmseData, anomalies, determinant) {
     // Show metrics panel
     this.metricsPanel.classList.remove('hidden')
 
-    // Calculate metric values
-    const scaleX = Math.sqrt(matrix[0][0] ** 2 + matrix[1][0] ** 2)
-    const scaleY = Math.sqrt(matrix[0][1] ** 2 + matrix[1][1] ** 2)
-    const rotation = Math.atan2(matrix[1][0], matrix[0][0]) * (180 / Math.PI)
+    // Calculate metric values from matrix {a, b, c, d, e, f}
+    const scaleX = Math.sqrt(matrix.a ** 2 + matrix.c ** 2)
+    const scaleY = Math.sqrt(matrix.b ** 2 + matrix.d ** 2)
+    const rotation = Math.atan2(matrix.c, matrix.a) * (180 / Math.PI)
 
     // Display RMSE
     const rmseClass = rmseData < 5 ? 'good' : rmseData < 15 ? 'warning' : 'error'
@@ -139,7 +152,7 @@ export class MapMigrator {
       warnings.push('Unequal scaling detected - maps may have different aspect ratios')
     }
 
-    const shear = matrix[0][1] + matrix[1][0]
+    const shear = matrix.b + matrix.c
     if (Math.abs(shear) > 0.1) {
       warnings.push('Shear transformation detected - maps may be skewed')
     }
@@ -173,9 +186,15 @@ export class MapMigrator {
    * @private
    */
   _formatMatrix (matrix) {
-    return matrix.map(row =>
-      '[' + row.map(val => val.toFixed(6).padStart(12)).join(', ') + ']'
-    ).join('\n')
+    // Format affine matrix {a, b, c, d, e, f} as:
+    // [a  b  e]
+    // [c  d  f]
+    // [0  0  1]
+    return [
+      `[${matrix.a.toFixed(6).padStart(12)}, ${matrix.b.toFixed(6).padStart(12)}, ${matrix.e.toFixed(6).padStart(12)}]`,
+      `[${matrix.c.toFixed(6).padStart(12)}, ${matrix.d.toFixed(6).padStart(12)}, ${matrix.f.toFixed(6).padStart(12)}]`,
+      '[           0,            0,            1]'
+    ].join('\n')
   }
 
   /**
@@ -218,19 +237,23 @@ export class MapMigrator {
     // Transform and draw all markers
     const markers = state.sourceMap.markers
     const matrix = state.transformMatrix
+    const sourceMapWidth = state.sourceMap.width
+    const sourceMapHeight = state.sourceMap.height
     const targetImageWidth = state.targetMap.width
     const targetImageHeight = state.targetMap.height
 
     markers.forEach(marker => {
-      // Transform marker position
-      const transformed = applyTransform({ x: marker.x, y: marker.y }, matrix)
+      // Convert from normalized (0-1) to source pixel coordinates
+      const sourcePixel = {
+        x: marker.x * sourceMapWidth,
+        y: marker.y * sourceMapHeight
+      }
 
-      // Convert map coordinates (0-1) to canvas coordinates (image pixels)
-      const canvasX = transformed.x * targetImageWidth
-      const canvasY = transformed.y * targetImageHeight
+      // Transform marker position (result is in target pixel coordinates)
+      const transformed = applyTransform(sourcePixel, matrix)
 
       // Draw transformed marker
-      renderer.drawMarker(canvasX, canvasY, {
+      renderer.drawMarker(transformed.x, transformed.y, {
         color: 'rgba(255, 0, 0, 0.5)',
         size: 8,
         opacity: 0.5
@@ -239,19 +262,23 @@ export class MapMigrator {
 
     // Draw error vectors for reference points
     state.referencePairs.forEach((pair, index) => {
-      // Transform source point
-      const transformed = applyTransform(pair.source, matrix)
+      // Convert source from normalized to pixels
+      const sourcePixel = {
+        x: pair.source.x * sourceMapWidth,
+        y: pair.source.y * sourceMapHeight
+      }
 
-      // Convert map coordinates (0-1) to canvas coordinates (image pixels)
-      const transformedCanvasX = transformed.x * targetImageWidth
-      const transformedCanvasY = transformed.y * targetImageHeight
+      // Transform source point
+      const transformed = applyTransform(sourcePixel, matrix)
+
+      // Convert target from normalized to pixels
       const targetCanvasX = pair.target.x * targetImageWidth
       const targetCanvasY = pair.target.y * targetImageHeight
 
       // Draw error line
       renderer.drawLine(
-        transformedCanvasX,
-        transformedCanvasY,
+        transformed.x,
+        transformed.y,
         targetCanvasX,
         targetCanvasY,
         {
@@ -276,8 +303,6 @@ export class MapMigrator {
         return
       }
 
-      console.log('Generating migrated export...')
-
       // Show progress
       this.exportBtn.disabled = true
       this.exportBtn.textContent = 'Generating...'
@@ -287,24 +312,44 @@ export class MapMigrator {
       const matrix = state.transformMatrix
 
       // Transform all markers
-      const transformedMarkers = sourceExport.markers.map(marker => {
-        const transformed = applyTransform({ x: marker.x, y: marker.y }, matrix)
+      // Note: markers in state are normalized (0-1), need to convert to pixels for transformation
+      const transformedMarkers = state.sourceMap.markers.map((marker, index) => {
+        // Convert from normalized (0-1) to source pixel coordinates
+        const sourcePixel = {
+          x: marker.x * state.sourceMap.width,
+          y: marker.y * state.sourceMap.height
+        }
+
+        // Apply transformation (result is in target pixel coordinates)
+        const transformed = applyTransform(sourcePixel, matrix)
 
         // Clamp to target map bounds
         const clampedX = Math.max(0, Math.min(state.targetMap.width, transformed.x))
         const clampedY = Math.max(0, Math.min(state.targetMap.height, transformed.y))
 
+        // Get original marker from source export (by index, which should match)
+        const originalMarker = sourceExport.markers[index] || {}
+
+        // Preserve all original marker properties, only update coordinates
         return {
-          ...marker,
+          ...originalMarker,
           x: Math.round(clampedX),
           y: Math.round(clampedY),
-          mapId: 'migrated-map' // Will be updated by writer
+          // Ensure required fields exist
+          photoIds: originalMarker.photoIds || [],
+          label: originalMarker.label || '',
+          createdDate: originalMarker.createdDate,
+          lastModified: new Date().toISOString()
         }
       })
 
       // Check for out-of-bounds markers
       const outOfBounds = transformedMarkers.filter((m, i) => {
-        const orig = applyTransform({ x: sourceExport.markers[i].x, y: sourceExport.markers[i].y }, matrix)
+        const sourcePixel = {
+          x: state.sourceMap.markers[i].x * state.sourceMap.width,
+          y: state.sourceMap.markers[i].y * state.sourceMap.height
+        }
+        const orig = applyTransform(sourcePixel, matrix)
         return orig.x < 0 || orig.x > state.targetMap.width ||
                orig.y < 0 || orig.y > state.targetMap.height
       })
@@ -321,24 +366,59 @@ export class MapMigrator {
         }
       }
 
-      // Create new map object with target image
+      // Create new map metadata object (without image data - that's passed separately)
       const newMap = {
         id: 'migrated-map',
         name: `${sourceExport.map.name} (Migrated)`,
         width: state.targetMap.width,
         height: state.targetMap.height,
-        imageData: await this._blobToDataURL(state.targetMap.blob),
-        hash: this._generateHash()
+        description: `Migrated from ${sourceExport.map.name}`,
+        fileName: state.targetMap.name || 'target-map.png'
       }
 
       // Keep all photos unchanged
       const photos = sourceExport.photos || []
 
       // Build export using Phase 2 writer
-      const exportData = buildExport(newMap, transformedMarkers, photos, {
-        sourceApp: 'SnapSpot Map Migrator',
-        timestamp: new Date().toISOString()
-      })
+      // Signature: buildExport(map, mapImage, markers, photos, options)
+      const writerOutput = await buildExport(
+        newMap,
+        state.targetMap.blob, // Pass blob as separate parameter
+        transformedMarkers,
+        photos,
+        {
+          sourceApp: 'SnapSpot Map Migrator',
+          preserveMapId: false
+        }
+      )
+
+      // Transform to SnapSpot PWA format (writer.js uses different property names)
+      const writerData = JSON.parse(writerOutput)
+      const exportData = JSON.stringify({
+        version: writerData.version,
+        type: 'SnapSpotDataExport', // Correct type name
+        sourceApp: writerData.sourceApp,
+        timestamp: writerData.exportDate, // Rename exportDate to timestamp
+
+        map: {
+          id: writerData.map.id,
+          name: writerData.map.name,
+          description: newMap.description || '',
+          fileName: newMap.fileName,
+          width: writerData.map.width,
+          height: writerData.map.height,
+          fileSize: state.targetMap.blob.size,
+          fileType: state.targetMap.blob.type,
+          createdDate: writerData.map.created, // Rename created to createdDate
+          lastModified: writerData.map.modified, // Rename modified to lastModified
+          isActive: true,
+          imageHash: writerData.map.hash, // Rename hash to imageHash
+          imageData: writerData.map.imageData
+        },
+
+        markers: writerData.markers,
+        photos: writerData.photos
+      }, null, 2)
 
       // Generate filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
@@ -349,8 +429,6 @@ export class MapMigrator {
 
       // Show success
       alert(`Export generated successfully!\n\nFile: ${filename}\nMarkers: ${transformedMarkers.length}`)
-
-      console.log('Export generated:', filename)
 
       // Reset button
       this.exportBtn.disabled = false

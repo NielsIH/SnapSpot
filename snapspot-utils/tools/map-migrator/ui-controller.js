@@ -33,6 +33,14 @@ export class UIController {
     this.sourceRenderer = new CanvasRenderer(this.sourceCanvas)
     this.targetRenderer = new CanvasRenderer(this.targetCanvas)
 
+    // Enable pan and zoom for both canvases
+    this.sourceRenderer.enablePanZoom()
+    this.targetRenderer.enablePanZoom()
+
+    // Set up redraw callbacks to maintain markers during pan/zoom
+    this.sourceRenderer.onRedraw = () => this._drawSourceOverlays()
+    this.targetRenderer.onRedraw = () => this._drawTargetOverlays()
+
     // Application state
     this.state = {
       sourceExport: null,
@@ -123,6 +131,14 @@ export class UIController {
     // Point management
     this.clearPointsBtn.addEventListener('click', () => this._onClearPoints())
 
+    // Use event delegation for delete buttons since they're dynamically created
+    this.pointsTbody.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-delete')) {
+        const index = parseInt(e.target.dataset.index)
+        this._removePoint(index)
+      }
+    })
+
     // Help modal
     this.helpBtn.addEventListener('click', () => this._showHelp())
     this.closeHelpBtn.addEventListener('click', () => this._hideHelp())
@@ -140,7 +156,7 @@ export class UIController {
    */
   _resizeCanvases () {
     const width = 600
-    const height = 400
+    const height = 360
 
     this.sourceCanvas.width = width
     this.sourceCanvas.height = height
@@ -236,30 +252,42 @@ export class UIController {
       // Extract map image
       const mapImage = exportData.mapImage
 
+      // Render map first to get actual dimensions
+      await this.sourceRenderer.renderImage(mapImage, 'contain')
+
+      // Get actual rendered dimensions (SVGs may have different metadata dimensions)
+      const actualWidth = this.sourceRenderer.imageWidth
+      const actualHeight = this.sourceRenderer.imageHeight
+
+      // Normalize marker coordinates from pixels to 0-1 range
+      const normalizedMarkers = exportData.markers.map(marker => ({
+        ...marker,
+        x: marker.x / actualWidth,
+        y: marker.y / actualHeight
+      }))
+
       // Store in state
       this.state.sourceExport = exportData
       this.state.sourceMap = {
         blob: mapImage,
-        width: exportData.map.width,
-        height: exportData.map.height,
+        width: actualWidth,
+        height: actualHeight,
         name: exportData.map.name,
-        markers: exportData.markers
+        markers: normalizedMarkers
       }
 
-      // Render map
-      await this._renderSourceMap()
+      // Redraw with markers
+      this._renderSourceMap()
 
       // Update UI
       this._hideDropZone(this.sourceDrop)
       this._showInfo(this.sourceInfo)
       this.sourceName.textContent = exportData.map.name
-      this.sourceSize.textContent = `${exportData.map.width} × ${exportData.map.height}px`
+      this.sourceSize.textContent = `${actualWidth} × ${actualHeight}px`
       this.sourceMarkers.textContent = exportData.markers.length
 
       // Update canvas cursor
       this._updateCanvasCursors()
-
-      console.log('Source export loaded:', exportData.map.name)
     } catch (error) {
       console.error('Error loading source file:', error)
       this._showError('Failed to load source file', error.message)
@@ -306,8 +334,6 @@ export class UIController {
 
       // Update canvas cursor
       this._updateCanvasCursors()
-
-      console.log('Target image loaded:', file.name)
     } catch (error) {
       console.error('Error loading target file:', error)
       this._showError('Failed to load target file', error.message)
@@ -343,9 +369,12 @@ export class UIController {
    * @private
    */
   async _renderSourceMap () {
-    await this.sourceRenderer.renderImage(this.state.sourceMap.blob, 'contain')
-    this._drawSourceMarkers()
-    this._drawReferencePairs('source')
+    // Only reset view on first load
+    const isFirstLoad = this.sourceRenderer.currentBlob !== this.state.sourceMap.blob
+    this.sourceRenderer.currentBlob = this.state.sourceMap.blob
+
+    await this.sourceRenderer.renderImage(this.state.sourceMap.blob, 'contain', isFirstLoad)
+    // Overlays are drawn automatically via onRedraw callback
   }
 
   /**
@@ -353,8 +382,101 @@ export class UIController {
    * @private
    */
   async _renderTargetMap () {
-    await this.targetRenderer.renderImage(this.state.targetMap.blob, 'contain')
+    // Only reset view on first load
+    const isFirstLoad = this.targetRenderer.currentBlob !== this.state.targetMap.blob
+    this.targetRenderer.currentBlob = this.state.targetMap.blob
+
+    await this.targetRenderer.renderImage(this.state.targetMap.blob, 'contain', isFirstLoad)
+    // Overlays are drawn automatically via onRedraw callback
+  }
+
+  /**
+   * Draw all overlays on source canvas (markers + reference points)
+   * Called automatically after pan/zoom via onRedraw callback
+   * @private
+   */
+  _drawSourceOverlays () {
+    this._drawSourceMarkers()
+    this._drawReferencePairs('source')
+  }
+
+  /**
+   * Draw all overlays on target canvas (reference points only)
+   * Called automatically after pan/zoom via onRedraw callback
+   * @private
+   */
+  _drawTargetOverlays () {
     this._drawReferencePairs('target')
+
+    // Also draw preview markers if preview is active
+    if (this.state.previewActive) {
+      this._drawPreviewMarkers()
+    }
+  }
+
+  /**
+   * Draw preview markers on target canvas
+   * @private
+   */
+  _drawPreviewMarkers () {
+    const matrix = this.state.transformMatrix
+    if (!matrix) return
+
+    const markers = this.state.sourceMap.markers
+    const sourceMapWidth = this.state.sourceMap.width
+    const sourceMapHeight = this.state.sourceMap.height
+    const targetImageWidth = this.state.targetMap.width
+    const targetImageHeight = this.state.targetMap.height
+
+    // Import applyTransform
+    import('../../core/transformation/affine-transform.js').then(({ applyTransform }) => {
+      markers.forEach(marker => {
+        // Convert from normalized (0-1) to source pixel coordinates
+        const sourcePixel = {
+          x: marker.x * sourceMapWidth,
+          y: marker.y * sourceMapHeight
+        }
+
+        // Transform marker position (result is in target pixel coordinates)
+        // drawMarker expects image pixel coordinates, not canvas coordinates
+        const transformed = applyTransform(sourcePixel, matrix)
+
+        // Draw transformed marker (pass image pixels directly)
+        this.targetRenderer.drawMarker(transformed.x, transformed.y, {
+          color: 'rgba(255, 0, 0, 0.5)',
+          size: 6,
+          opacity: 0.5
+        })
+      })
+
+      // Draw error vectors for reference points
+      this.state.referencePairs.forEach((pair, index) => {
+        // Convert source from normalized to pixels
+        const sourcePixel = {
+          x: pair.source.x * sourceMapWidth,
+          y: pair.source.y * sourceMapHeight
+        }
+
+        // Transform source point (result is in target pixel coordinates)
+        const transformed = applyTransform(sourcePixel, matrix)
+
+        // Convert target from normalized to image pixels
+        const targetPixelX = pair.target.x * targetImageWidth
+        const targetPixelY = pair.target.y * targetImageHeight
+
+        // Draw error line (drawLine also expects image pixel coordinates)
+        this.targetRenderer.drawLine(
+          transformed.x,
+          transformed.y,
+          targetPixelX,
+          targetPixelY,
+          {
+            color: 'rgba(255, 0, 0, 0.7)',
+            width: 1.5
+          }
+        )
+      })
+    })
   }
 
   /**
@@ -367,9 +489,9 @@ export class UIController {
     const markers = this.state.sourceMap.markers
 
     markers.forEach(marker => {
-      // Convert map coordinates (0-1) to canvas coordinates (image pixels)
-      const canvasX = marker.x * this.sourceImageWidth
-      const canvasY = marker.y * this.sourceImageHeight
+      // Convert map coordinates (0-1) to canvas coordinates using renderer's dimensions
+      const canvasX = marker.x * this.sourceRenderer.imageWidth
+      const canvasY = marker.y * this.sourceRenderer.imageHeight
 
       // Draw small dot for each marker
       this.sourceRenderer.drawMarker(canvasX, canvasY, {
@@ -386,37 +508,37 @@ export class UIController {
    */
   _drawReferencePairs (canvasType) {
     const renderer = canvasType === 'source' ? this.sourceRenderer : this.targetRenderer
-    const imageWidth = canvasType === 'source' ? this.sourceImageWidth : this.targetImageWidth
-    const imageHeight = canvasType === 'source' ? this.sourceImageHeight : this.targetImageHeight
 
     this.state.referencePairs.forEach((pair, index) => {
       const point = canvasType === 'source' ? pair.source : pair.target
-      
-      // Convert map coordinates (0-1) to canvas coordinates (image pixels)
-      const canvasX = point.x * imageWidth
-      const canvasY = point.y * imageHeight
+
+      // Convert map coordinates (0-1) to canvas coordinates using renderer's dimensions
+      const canvasX = point.x * renderer.imageWidth
+      const canvasY = point.y * renderer.imageHeight
 
       // Color for this pair
       const hue = (index * 137.5) % 360
       const color = `hsl(${hue}, 70%, 50%)`
 
-      // Draw marker with number
+      // Draw crosshair marker with number
       renderer.drawMarker(canvasX, canvasY, {
         color,
-        size: 24,
-        label: String(index + 1)
+        size: 20,
+        label: String(index + 1),
+        style: 'crosshair'
       })
     })
 
     // Draw pending source point if exists
     if (canvasType === 'source' && this.state.pendingSourcePoint) {
-      const canvasX = this.state.pendingSourcePoint.x * imageWidth
-      const canvasY = this.state.pendingSourcePoint.y * imageHeight
+      const canvasX = this.state.pendingSourcePoint.x * renderer.imageWidth
+      const canvasY = this.state.pendingSourcePoint.y * renderer.imageHeight
 
       renderer.drawMarker(canvasX, canvasY, {
         color: '#ff9800',
-        size: 24,
-        label: '?'
+        size: 20,
+        label: '?',
+        style: 'crosshair'
       })
     }
   }
@@ -435,17 +557,29 @@ export class UIController {
       return // Disable during preview
     }
 
+    // Don't place marker if user is panning (Ctrl+click or middle button)
+    if (e.ctrlKey || e.button === 1 || this.sourceRenderer.isPanning) {
+      return
+    }
+
     if (this.state.nextClickTarget !== 'source') {
       this._showError('Click target map next', 'Please click the matching location on the target map to complete the pair.')
       return
     }
 
     // Get image coordinates
-    const rect = this.sourceCanvas.getBoundingClientRect()
-    const screenX = e.clientX - rect.left
-    const screenY = e.clientY - rect.top
+    // Convert screen coordinates to canvas coordinates (image pixels)
+    const canvasPoint = this.sourceRenderer.screenToCanvas(e.clientX, e.clientY)
 
-    const imagePoint = this.sourceRenderer.screenPointToMap(screenX, screenY)
+    // Clamp to image bounds
+    const clampedX = Math.max(0, Math.min(this.sourceRenderer.imageWidth, canvasPoint.x))
+    const clampedY = Math.max(0, Math.min(this.sourceRenderer.imageHeight, canvasPoint.y))
+
+    // Convert to map coordinates (0-1 normalized using renderer's actual dimensions)
+    const imagePoint = {
+      x: clampedX / this.sourceRenderer.imageWidth,
+      y: clampedY / this.sourceRenderer.imageHeight
+    }
 
     // Store pending source point
     this.state.pendingSourcePoint = imagePoint
@@ -456,8 +590,6 @@ export class UIController {
 
     // Update cursor
     this._updateCanvasCursors()
-
-    console.log('Source point selected:', imagePoint)
   }
 
   /**
@@ -474,6 +606,11 @@ export class UIController {
       return // Disable during preview
     }
 
+    // Don't place marker if user is panning (Ctrl+click or middle button)
+    if (e.ctrlKey || e.button === 1 || this.targetRenderer.isPanning) {
+      return
+    }
+
     if (this.state.nextClickTarget !== 'target') {
       this._showError('Click source map next', 'Please click a location on the source map first.')
       return
@@ -485,11 +622,18 @@ export class UIController {
     }
 
     // Get image coordinates
-    const rect = this.targetCanvas.getBoundingClientRect()
-    const screenX = e.clientX - rect.left
-    const screenY = e.clientY - rect.top
+    // Convert screen coordinates to canvas coordinates (image pixels)
+    const canvasPoint = this.targetRenderer.screenToCanvas(e.clientX, e.clientY)
 
-    const imagePoint = this.targetRenderer.screenPointToMap(screenX, screenY)
+    // Clamp to image bounds
+    const clampedX = Math.max(0, Math.min(this.targetRenderer.imageWidth, canvasPoint.x))
+    const clampedY = Math.max(0, Math.min(this.targetRenderer.imageHeight, canvasPoint.y))
+
+    // Convert to map coordinates (0-1 normalized using renderer's actual dimensions)
+    const imagePoint = {
+      x: clampedX / this.targetRenderer.imageWidth,
+      y: clampedY / this.targetRenderer.imageHeight
+    }
 
     // Create pair
     const pair = {
@@ -508,8 +652,6 @@ export class UIController {
     this._renderTargetMap()
     this._updateCanvasCursors()
     this._updateButtonStates()
-
-    console.log('Point pair added:', pair)
   }
 
   /**
@@ -544,16 +686,12 @@ export class UIController {
 
         row.innerHTML = `
           <td><span class="point-number" style="color: ${color}">●</span> ${index + 1}</td>
-          <td>(${Math.round(pair.source.x)}, ${Math.round(pair.source.y)})</td>
-          <td>(${Math.round(pair.target.x)}, ${Math.round(pair.target.y)})</td>
+          <td>(${Math.round(pair.source.x * (this.state.sourceMap?.width || 1))}, ${Math.round(pair.source.y * (this.state.sourceMap?.height || 1))})</td>
+          <td>(${Math.round(pair.target.x * (this.state.targetMap?.width || 1))}, ${Math.round(pair.target.y * (this.state.targetMap?.height || 1))})</td>
           <td>
             <button class="btn-delete" data-index="${index}" title="Delete this point pair">×</button>
           </td>
         `
-
-        // Add delete handler
-        const deleteBtn = row.querySelector('.btn-delete')
-        deleteBtn.addEventListener('click', () => this._removePoint(index))
 
         tbody.appendChild(row)
       })
@@ -579,8 +717,6 @@ export class UIController {
     this._renderSourceMap()
     this._renderTargetMap()
     this._updateButtonStates()
-
-    console.log('Point pair removed:', index)
   }
 
   /**
@@ -603,8 +739,6 @@ export class UIController {
       this._updateCanvasCursors()
       this._updateButtonStates()
       this._hideMetrics()
-
-      console.log('All points cleared')
     }
   }
 
