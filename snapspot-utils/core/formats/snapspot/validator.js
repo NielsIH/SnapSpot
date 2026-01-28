@@ -15,13 +15,14 @@ export const SUPPORTED_VERSIONS = ['1.1']
 
 /**
  * Required fields for each object type in export
+ * Updated to match actual SnapSpot PWA export format v1.1
  * @constant {Object}
  */
 export const SCHEMA = {
-  root: ['version', 'type', 'sourceApp', 'exportDate', 'map', 'markers'],
-  map: ['id', 'name', 'imageData', 'width', 'height', 'hash', 'created', 'modified'],
-  marker: ['id', 'x', 'y', 'label', 'created'],
-  photo: ['id', 'markerId', 'imageData', 'caption', 'created']
+  root: ['version', 'type', 'sourceApp', 'timestamp', 'map', 'markers'],
+  map: ['id', 'name', 'imageData', 'width', 'height', 'imageHash', 'createdDate', 'lastModified'],
+  marker: ['id', 'x', 'y', 'description', 'createdDate'],
+  photo: ['id', 'markerId', 'imageData', 'fileName', 'fileType', 'fileSize', 'createdDate']
 }
 
 /**
@@ -174,9 +175,10 @@ export function validateExportFile (exportData) {
     )
   }
 
-  // Validate type field
-  if (exportData.type !== 'snapspot-export') {
-    errors.push(`Invalid export type: ${exportData.type}. Expected 'snapspot-export'`)
+  // Validate type field (accept both old and new format)
+  const validTypes = ['snapspot-export', 'SnapSpotDataExport'];
+  if (!validTypes.includes(exportData.type)) {
+    errors.push(`Invalid export type: ${exportData.type}. Expected '${validTypes.join("' or '")}'`)
   }
 
   // Validate map object

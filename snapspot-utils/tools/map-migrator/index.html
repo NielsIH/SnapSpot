@@ -170,16 +170,60 @@
     </div>
   </div>
 
-  <!-- Help modal (to be styled and scripted in Phase 5) -->
+  <!-- Help modal -->
   <div id="help-modal" class="modal hidden">
     <div class="modal-content">
       <h2>How to Use Map Migrator</h2>
-      <p>This tool transforms marker coordinates from an old map to a new map.</p>
-      <button class="btn" id="close-help">Close</button>
+      <div style="text-align: left; max-width: 600px; margin: 0 auto;">
+        <h3>Step 1: Load Files</h3>
+        <ul>
+          <li>Drop your SnapSpot export (.json) on the left panel</li>
+          <li>Drop your new map image on the right panel</li>
+        </ul>
+
+        <h3>Step 2: Select Reference Points</h3>
+        <ul>
+          <li>Click on a recognizable feature in the source map</li>
+          <li>Click the same feature in the target map</li>
+          <li>Repeat for at least 3 matching locations</li>
+          <li>Use landmarks like building corners, road intersections, etc.</li>
+        </ul>
+
+        <h3>Step 3: Calculate & Export</h3>
+        <ul>
+          <li>Click "Calculate Transformation" to compute the mapping</li>
+          <li>Review the metrics and warnings</li>
+          <li>Click "Preview" to see where markers will be placed</li>
+          <li>Click "Generate Export" to download the migrated file</li>
+        </ul>
+
+        <h3>Keyboard Shortcuts</h3>
+        <ul>
+          <li><kbd>Ctrl+O</kbd> - Load source export</li>
+          <li><kbd>Ctrl+M</kbd> - Load target map</li>
+          <li><kbd>Ctrl+Z</kbd> or <kbd>Delete</kbd> - Remove last point</li>
+          <li><kbd>Esc</kbd> - Cancel pending point</li>
+          <li><kbd>Space</kbd> - Calculate transformation</li>
+          <li><kbd>Ctrl+P</kbd> - Toggle preview</li>
+          <li><kbd>Ctrl+S</kbd> - Generate export</li>
+        </ul>
+      </div>
+      <button class="btn" id="close-help" style="margin-top: 20px;">Close</button>
     </div>
   </div>
 
-  <!-- Scripts will be added in Phase 5 -->
-  <!-- <script type="module" src="app.js"></script> -->
+  <!-- Scripts -->
+  <script type="module">
+    import { MapMigrator } from './migrator.js'
+    import { UIController } from './ui-controller.js'
+
+    // Initialize
+    const ui = new UIController('source-canvas', 'target-canvas')
+    const migrator = new MapMigrator(ui)
+
+    migrator.init()
+
+    console.log('Map Migrator loaded')
+  </script>
 </body>
 </html>

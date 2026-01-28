@@ -17,7 +17,7 @@ const basicTests = {
   tests: [
     {
       name: 'Simple assertion test',
-      run() {
+      run () {
         const result = 1 + 1
         assert.equal(result, 2, 'Math should work')
       }
@@ -25,7 +25,7 @@ const basicTests = {
 
     {
       name: 'Testing with closeTo for floating point',
-      run() {
+      run () {
         const result = 0.1 + 0.2
         assert.closeTo(result, 0.3, 1e-10, 'Should handle floating point')
       }
@@ -33,7 +33,7 @@ const basicTests = {
 
     {
       name: 'Async test example',
-      async run() {
+      async run () {
         const promise = Promise.resolve(42)
         const result = await promise
         assert.equal(result, 42, 'Promises should work')
@@ -42,7 +42,7 @@ const basicTests = {
 
     {
       name: 'Testing exceptions',
-      run() {
+      run () {
         const throwError = () => {
           throw new Error('Expected error')
         }
@@ -60,7 +60,7 @@ const advancedTests = {
   tests: [
     {
       name: 'Deep equality test',
-      run() {
+      run () {
         const obj1 = { a: 1, b: 2 }
         const obj2 = { a: 1, b: 2 }
         assert.deepEqual(obj1, obj2, 'Objects should be equal')
@@ -69,7 +69,7 @@ const advancedTests = {
 
     {
       name: 'Async exception test',
-      async run() {
+      async run () {
         const asyncThrow = async () => {
           throw new Error('Async error')
         }

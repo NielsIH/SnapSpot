@@ -21,7 +21,7 @@ const rmseTests = {
   tests: [
     {
       name: 'Returns 0 for perfect transformation',
-      run() {
+      run () {
         const pairs = [
           { source: { x: 0, y: 0 }, target: { x: 10, y: 20 } },
           { source: { x: 100, y: 0 }, target: { x: 110, y: 20 } },
@@ -40,7 +40,7 @@ const rmseTests = {
     },
     {
       name: 'Calculates correct error for imperfect fit',
-      run() {
+      run () {
         const source = [
           { x: 0, y: 0 },
           { x: 100, y: 0 },
@@ -70,7 +70,7 @@ const rmseTests = {
     },
     {
       name: 'Handles empty array',
-      run() {
+      run () {
         const matrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }
         const rmse = calculateRMSE([], matrix)
 
@@ -88,7 +88,7 @@ const anomalyTests = {
   tests: [
     {
       name: 'Identifies identity transformation',
-      run() {
+      run () {
         const matrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }
         const anomalies = detectAnomalies(matrix)
 
@@ -103,7 +103,7 @@ const anomalyTests = {
     },
     {
       name: 'Identifies reflection (negative determinant)',
-      run() {
+      run () {
         const matrix = { a: -1, b: 0, c: 0, d: 1, e: 0, f: 0 }
         const anomalies = detectAnomalies(matrix)
 
@@ -112,7 +112,7 @@ const anomalyTests = {
     },
     {
       name: 'Identifies extreme scaling (large)',
-      run() {
+      run () {
         const matrix = { a: 10, b: 0, c: 0, d: 1, e: 0, f: 0 }
         const anomalies = detectAnomalies(matrix)
 
@@ -121,7 +121,7 @@ const anomalyTests = {
     },
     {
       name: 'Identifies extreme scaling (small)',
-      run() {
+      run () {
         const matrix = { a: 0.1, b: 0, c: 0, d: 1, e: 0, f: 0 }
         const anomalies = detectAnomalies(matrix)
 
@@ -130,7 +130,7 @@ const anomalyTests = {
     },
     {
       name: 'Calculates scale factors correctly',
-      run() {
+      run () {
         const matrix = { a: 3, b: 0, c: 0, d: 2, e: 0, f: 0 }
         const anomalies = detectAnomalies(matrix)
 
@@ -140,7 +140,7 @@ const anomalyTests = {
     },
     {
       name: 'Identifies degenerate matrix',
-      run() {
+      run () {
         const matrix = { a: 1, b: 2, c: 2, d: 4, e: 0, f: 0 }
         const anomalies = detectAnomalies(matrix)
 
@@ -149,7 +149,7 @@ const anomalyTests = {
     },
     {
       name: 'Calculates rotation angle',
-      run() {
+      run () {
         // 90-degree rotation
         const matrix = { a: 0, b: -1, c: 1, d: 0, e: 0, f: 0 }
         const anomalies = detectAnomalies(matrix)
@@ -168,7 +168,7 @@ const distributionTests = {
   tests: [
     {
       name: 'Accepts well-distributed triangle points',
-      run() {
+      run () {
         const points = [
           { x: 0, y: 0 },
           { x: 100, y: 0 },
@@ -184,7 +184,7 @@ const distributionTests = {
     },
     {
       name: 'Detects collinear points',
-      run() {
+      run () {
         const points = [
           { x: 0, y: 0 },
           { x: 100, y: 100 },
@@ -200,7 +200,7 @@ const distributionTests = {
     },
     {
       name: 'Detects duplicate points',
-      run() {
+      run () {
         const points = [
           { x: 50, y: 50 },
           { x: 50, y: 50 },
@@ -214,7 +214,7 @@ const distributionTests = {
     },
     {
       name: 'Accepts fewer than 3 points',
-      run() {
+      run () {
         const points = [
           { x: 0, y: 0 },
           { x: 100, y: 100 }
@@ -227,7 +227,7 @@ const distributionTests = {
     },
     {
       name: 'Handles square distribution',
-      run() {
+      run () {
         const points = [
           { x: 0, y: 0 },
           { x: 100, y: 0 },
@@ -243,7 +243,7 @@ const distributionTests = {
     },
     {
       name: 'Handles L-shape distribution',
-      run() {
+      run () {
         const points = [
           { x: 0, y: 0 },
           { x: 100, y: 0 },
@@ -270,7 +270,7 @@ const suggestionTests = {
   tests: [
     {
       name: 'Suggests corners for empty points',
-      run() {
+      run () {
         const bounds = { width: 1000, height: 800 }
         const suggestions = suggestAdditionalPoints([], bounds)
 
@@ -287,7 +287,7 @@ const suggestionTests = {
     },
     {
       name: 'Identifies empty quadrants',
-      run() {
+      run () {
         const bounds = { width: 1000, height: 800 }
         const points = [
           { x: 100, y: 100 } // Only in top-left quadrant
@@ -308,13 +308,13 @@ const suggestionTests = {
     },
     {
       name: 'Suggests corners when quadrants are covered',
-      run() {
+      run () {
         const bounds = { width: 1000, height: 800 }
         const points = [
           { x: 250, y: 200 }, // Top-left quadrant
           { x: 750, y: 200 }, // Top-right quadrant
           { x: 250, y: 600 }, // Bottom-left quadrant
-          { x: 750, y: 600 }  // Bottom-right quadrant
+          { x: 750, y: 600 } // Bottom-right quadrant
         ]
 
         const suggestions = suggestAdditionalPoints(points, bounds)
@@ -328,7 +328,7 @@ const suggestionTests = {
     },
     {
       name: 'Handles null/undefined points',
-      run() {
+      run () {
         const bounds = { width: 1000, height: 800 }
         const suggestions = suggestAdditionalPoints(null, bounds)
 
@@ -346,7 +346,7 @@ const integrationTests = {
   tests: [
     {
       name: 'Full workflow: transform + validate quality',
-      run() {
+      run () {
         // Create a good transformation
         const source = [
           { x: 0, y: 0 },
@@ -377,7 +377,7 @@ const integrationTests = {
     },
     {
       name: 'Full workflow: detect problematic transformation',
-      run() {
+      run () {
         // Create collinear points (bad)
         const source = [
           { x: 0, y: 0 },
