@@ -79,9 +79,64 @@ Each `IMPLEMENTATION_PHASE_X.md` must have this structure:
 2. **Create the actual code files** listed in deliverables
    - Follow the file paths specified in the document
    - Include JSDoc comments
-   - Write tests alongside implementation
+   - Write tests alongside implementation (see [Testing Guide](TESTING_GUIDE.md))
 
-3. **Update main README.md** only for:
+3. **Write tests using the unified framework**
+   - **Complete Guide:** See [docs/TESTING_GUIDE.md](TESTING_GUIDE.md)
+   - Create `your-module/__tests__/tests.js` with test suites
+   - Copy test runner from existing phase (Phase 1, 2, or 3)
+   - All tests must use the same format:
+     ```javascript
+     const testSuite = {
+       name: 'Suite Name',
+       tests: [
+         {
+           name: 'Test description',
+           run () {  // or async run () for async tests
+             assert.equal(actual, expected, 'Optional message')
+           }
+         }
+       ]
+     }
+     export const allTests = [testSuite]
+     ```
+   - Tests must use `run ()` or `async run ()`, NOT `fn: ()` or other formats
+   - Run tests locally and ensure all pass before phase completion
+
+4. **Fix JavaScript Standard Style linting errors**
+   
+   After creating or modifying JavaScript files, run the linter:
+   
+   ```powershell
+   # Check for linting errors
+   npm run lint
+   
+   # Auto-fix most issues
+   npm run lint:fix
+   ```
+   
+   **When to lint:**
+   - After creating new `.js` files
+   - After modifying existing `.js` files
+   - Before committing code
+   - Before marking a phase as complete
+   
+   **Common auto-fixable issues:**
+   - Missing semicolons or extra semicolons
+   - Incorrect indentation (2 spaces)
+   - Trailing whitespace
+   - Missing spaces around operators
+   - Quote style (single vs double)
+   
+   **Manual fixes required for:**
+   - Unused variables (remove or prefix with `_`)
+   - Missing `new` keyword for constructors
+   - Undefined variables
+   - Unreachable code
+   
+   **Tip:** Run `npm run lint:fix` first, then address any remaining errors manually.
+
+5. **Update main README.md** only for:
    - Major feature additions visible to users
    - Changes to getting started instructions
    - New tool availability
@@ -94,13 +149,27 @@ Each `IMPLEMENTATION_PHASE_X.md` must have this structure:
    - ❌ `PHASE_X_SUMMARY.md`
    - All information goes in `IMPLEMENTATION_PHASE_X.md`
 
-2. **Duplicate information** across multiple files
+2. **Use different test formats** - All phases MUST use:
+   - Same test structure (`run ()` method)
+   - Same test runner layout (copy from Phase 1/2/3)
+   - Same console output format
+   - Import from `shared/test-framework.js`
 
-3. **Update other phase documents** unless dependencies require it
+3. **Duplicate information** across multiple files
+
+4. **Update other phase documents** unless dependencies require it
 
 ---
 
 ## Completing a Phase
+
+**Before marking a phase as complete, verify:**
+
+- [ ] All code files created and working
+- [ ] All tests passing (`npm run lint` shows 0 errors)
+- [ ] All linting errors fixed (`npm run lint` shows 0 errors)
+- [ ] Documentation updated in phase file
+- [ ] Test runner card added to unified test runner
 
 When all tasks in a phase are complete, update **ONLY** these files:
 
@@ -125,6 +194,12 @@ Add completion sections:
 **Total Tests:** X
 **Passed:** X ✅
 **Failed:** 0
+
+**Test Suites:**
+- Suite 1: X tests ✅
+- Suite 2: X tests ✅
+
+All tests passing. See test runner at `module/__tests__/test-runner.html`
 
 ## Performance Metrics
 | Operation | Target | Actual | Status |
@@ -152,25 +227,48 @@ Pure mathematical transformation engine with no dependencies.
 
 Update the pre-implementation checklist:
 ```markdown
-- [x] Phase X complete
-- [ ] Begin Phase Y
-```
-
-### 3. Add Tests to Unified Test Runner
+- Complete Guide:** [docs/TESTING_GUIDE.md](TESTING_GUIDE.md)
 
 **File:** `snapspot-utils/tests/test-runner.html`
 
-Add your test imports at the top of the script section:
-```javascript
-// Import Phase X tests
-import { allTests as phaseXTests } from '../core/module/__tests__/test-suite.test.js'
+Add your phase test card following the existing format (copy from Phase 1/2/3):
+
+```html
+<a href="../your-module/__tests__/test-runner.html" target="_blank" class="test-card">
+  <div class="test-header">
+    <div class="test-icon">🔧</div>
+    <div class="test-info">
+      <h2>Phase X</h2>
+      <div class="test-phase">Module Name</div>
+    </div>
+  </div>
+  <div class="test-description">
+    Brief description of what this phase tests.
+  </div>
+  <div class="test-stats">
+    <div class="stat">
+      <div class="stat-value">27</div>
+      <div class="stat-label">Tests</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">2</div>
+      <div class="stat-label">Suites</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">✅</div>
+      <div class="stat-label">Status</div>
+    </div>
+  </div>
+</a>
 ```
 
-Add to the `testsByPhase` object:
-```javascript
-const testsByPhase = {
-  'Phase 1: Core Transformation': {
-    'Affine Transform': phase1AffineTests.tests || [],
+Update the total test count in the "Quick Start" box.
+
+**Test Format Requirements:**
+- Tests MUST use `run ()` or `async run ()` methods
+- Tests MUST use the unified test framework from `shared/test-framework.js`
+- Test runner HTML MUST match the layout/style of Phase 1/2/3
+- Console logging MUST follow the same format (see existing phases) 'Affine Transform': phase1AffineTests.tests || [],
     'Transform Validator': phase1ValidatorTests.tests || []
   },
   'Phase 2: Format Handlers': phase2Tests,
