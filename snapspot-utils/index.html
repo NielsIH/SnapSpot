@@ -168,14 +168,76 @@
       font-weight: bold;
       margin-right: 8px;
     }
+
+    /* Desktop-only warning */
+    .desktop-warning {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      color: white;
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .warning-content {
+      max-width: 500px;
+      padding: 40px;
+    }
+
+    .warning-content h2 {
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+
+    .warning-content ul {
+      text-align: left;
+      margin: 20px 0;
+      padding-left: 30px;
+      line-height: 1.8;
+    }
+
+    .warning-content p {
+      font-size: 16px;
+      line-height: 1.6;
+      opacity: 0.9;
+    }
+
+    /* Show warning on small screens */
+    @media (max-width: 1279px) {
+      .desktop-warning {
+        display: flex;
+      }
+      .container {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
+  <!-- Desktop-only warning for small screens -->
+  <div class="desktop-warning">
+    <div class="warning-content">
+      <h2>⚠ Desktop Required</h2>
+      <p>SnapSpot Utilities requires a desktop computer with:</p>
+      <ul>
+        <li>Screen width of 1280px or larger</li>
+        <li>Mouse and keyboard</li>
+      </ul>
+      <p>Please access from a laptop or desktop computer.</p>
+    </div>
+  </div>
+
   <div class="container">
     <header>
       <h1>🛠️ SnapSpot Utilities Suite</h1>
       <p class="subtitle">Desktop tools for advanced SnapSpot data operations</p>
-      <p class="version">Version 1.0 | Phase 3 Complete</p>
+      <p class="version">Version 1.0 | Phase 4 Complete</p>
     </header>
 
     <div class="info-box">
@@ -200,14 +262,14 @@
       </a>
 
       <!-- Map Migrator -->
-      <div class="tile disabled">
+      <a href="tools/map-migrator/index.html" class="tile">
         <div class="tile-icon">🗺️</div>
         <div class="tile-title">Map Migrator</div>
         <div class="tile-description">
           Transform marker coordinates from one map to another using reference point alignment. Perfect for upgrading to new floor plans.
         </div>
-        <span class="tile-status status-dev">In Development</span>
-      </div>
+        <span class="tile-status status-active">Available</span>
+      </a>
 
       <!-- Format Converter -->
       <div class="tile disabled">

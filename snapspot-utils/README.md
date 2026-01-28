@@ -18,7 +18,7 @@ Transform marker coordinates from one map to another using reference point align
 - Migrating to updated floor plans
 - Moving markers between different scans of the same location
 
-**Status:** In Development  
+**Status:** Available  
 **Guide:** [Map Migrator Documentation](docs/map-migrator-guide.md) *(available after Phase 6)*
 
 ### Coming Soon
@@ -55,10 +55,11 @@ These are **desktop-only** tools designed for occasional workstation use. For da
 cd snapspot-utils
 
 # Start a local HTTP server (Node.js required)
-npx http-server -p 8080 --cors
+# Use port 8081 to avoid conflicts with main SnapSpot PWA service worker
+npx http-server -p 8081 --cors
 
 # Open in your browser
-# http://localhost:8080
+# http://localhost:8081
 ```
 
 The index page will show all available utilities. Click on a tile to launch a tool.
@@ -69,7 +70,7 @@ Some features may require an HTTP server due to browser CORS restrictions. For b
 
 1. Clone or download this repository
 2. Start an HTTP server in the `snapspot-utils` directory
-3. Open `http://localhost:8080` in your browser
+3. Open `http://localhost:8081` in your browser (use port 8081 to avoid PWA conflicts)
 4. Select a tool to launch
 
 ### Option 3: Hosted Version *(future)*
@@ -146,12 +147,50 @@ snapspot-utils/
 - **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **Technical Specs:** [docs/SPECIFICATIONS.md](docs/SPECIFICATIONS.md)
 - **Implementation Plan:** [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md)
+- **Running Locally:** [docs/RUNNING_LOCALLY.md](docs/RUNNING_LOCALLY.md)
+
+---
+
+## Troubleshooting
+
+### Wrong Page Loads (SnapSpot Main App Instead of Utilities)
+
+**Problem:** When accessing `http://localhost:8080/index.html`, you see the main SnapSpot PWA instead of the utilities page, even though the server is running from the `snapspot-utils` directory.
+
+**Cause:** The main SnapSpot app is a Progressive Web App (PWA) with a service worker that aggressively caches pages. Service workers operate at the origin level (domain + port), so if you previously ran the main SnapSpot app on port 8080, its service worker is still active and serving cached content.
+
+**Solutions:**
+
+1. **Use Port 8081 (Recommended):**
+   ```bash
+   npx http-server -p 8081 --cors
+   ```
+   Access at `http://localhost:8081` - Different port = no service worker conflict
+
+2. **Clear Service Workers in DevTools:**
+   - Open browser DevTools (F12)
+   - Go to **Application** tab → **Service Workers**
+   - Find any localhost service workers
+   - Click **Unregister**
+   - Reload the page (Ctrl+R)
+
+3. **Use Incognito/Private Browsing:**
+   - Ctrl+Shift+N (Chrome/Edge) or Ctrl+Shift+P (Firefox)
+   - No cached service workers from previous sessions
+
+4. **Hard Refresh (Temporary):**
+   - Ctrl+F5 (Windows) or Cmd+Shift+R (Mac)
+   - Bypasses cache, but normal reload may revert
+
+### Other Common Issues
+
+See [docs/RUNNING_LOCALLY.md](docs/RUNNING_LOCALLY.md) for more troubleshooting help including CORS errors, module loading issues, and test runner problems.
 
 ---
 
 ## Development Status
 
-### Current Phase: Phase 3 Complete ✅ → Phase 4 Next ⏳
+### Current Phase: Phase 4 Complete ✅ → Phase 5 Next ⏳
 
 - [x] Feature branch created
 - [x] Project structure defined
@@ -172,12 +211,16 @@ snapspot-utils/
   - [x] File loading utilities
   - [x] CSS framework and variables
   - [x] Unit tests (27 tests)
-- [ ] Phase 4: UI Foundation (next)
-- [ ] Phase 5: Migration Tool
+- [x] **Phase 4: UI Foundation ✅ COMPLETE**
+  - [x] Suite landing page with desktop warning
+  - [x] Map Migrator HTML structure
+  - [x] Dual-canvas layout with responsive design
+  - [x] Tool-specific CSS styling (973 lines)
+- [ ] Phase 5: Migration Tool Logic (next)
 - [ ] Phase 6: Testing & Polish
 
 **Total Tests:** 93 tests passing across 3 phases  
-**Estimated Completion:** 7-10 days remaining
+**Estimated Completion:** 5-7 days remaining
 
 ---
 

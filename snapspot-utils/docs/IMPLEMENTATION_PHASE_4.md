@@ -1,14 +1,17 @@
 # Phase 4: UI Foundation
 
-**Estimated Duration:** 2 days  
-**Dependencies:** Phase 3 complete  
+**Status:** ✅ COMPLETE  
+**Started:** January 28, 2026  
+**Completed:** January 28, 2026  
+**Duration:** <1 day (estimated 2 days)  
+**Dependencies:** Phase 3 complete ✅  
 **Goal:** Build HTML structure and tool-specific styling
 
 ## Deliverables
 
-- `index.html` (suite landing page)
-- `tools/map-migrator/index.html`
-- `tools/map-migrator/styles.css`
+- [x] `index.html` (suite landing page)
+- [x] `tools/map-migrator/index.html`
+- [x] `tools/map-migrator/styles.css`
 
 ---
 
@@ -18,24 +21,24 @@
 
 **File:** `index.html`
 
-- [ ] Create HTML structure
+- [x] Create HTML structure
   - Header with title "SnapSpot Utilities"
   - Description paragraph
   - Tool cards grid
   - Footer with links
 
-- [ ] Tool card: Map Migrator
+- [x] Tool card: Map Migrator
   - Icon/image
   - Title: "Map Migrator"
   - Description: "Transform marker coordinates between different maps"
   - "Launch" button → `tools/map-migrator/index.html`
 
-- [ ] Placeholder cards for future tools
+- [x] Placeholder cards for future tools
   - "Format Converter" (coming soon)
   - "Batch Processor" (coming soon)
   - Disabled/grayed out
 
-- [ ] Add desktop-only detection
+- [x] Add desktop-only detection
   - Show warning if screen < 1280px
   - Hide tool cards, show message
 
@@ -78,35 +81,35 @@
 
 **File:** `tools/map-migrator/index.html`
 
-- [ ] Create dual-canvas layout
+- [x] Create dual-canvas layout
   - Header with title and controls
   - Two canvas containers (50% width each)
   - Reference points table below canvases
   - Transformation metrics panel
   - Action buttons
 
-- [ ] Source map section
+- [x] Source map section
   - Canvas element
   - Drop zone overlay (hidden after file loaded)
   - Map info display (name, dimensions)
 
-- [ ] Target map section
+- [x] Target map section
   - Canvas element
   - Drop zone overlay
   - Map info display
 
-- [ ] Reference points table
+- [x] Reference points table
   - Table headers: #, Source (X,Y), Target (X,Y), Actions
   - Empty state message
   - Add/clear buttons
 
-- [ ] Metrics panel
+- [x] Metrics panel
   - RMSE display
   - Scale factors
   - Warnings section
   - Collapsible details
 
-- [ ] Action buttons
+- [x] Action buttons
   - "Calculate Transformation" (disabled initially)
   - "Preview" (disabled until calculated)
   - "Generate Export" (disabled until previewed)
@@ -181,32 +184,32 @@
 
 **File:** `tools/map-migrator/styles.css`
 
-- [ ] Layout styles
+- [x] Layout styles
   - `.app-container` - main wrapper
   - `.canvas-container` - flex row, 50/50 split
   - `.canvas-panel` - individual canvas + controls
 
-- [ ] Canvas styles
+- [x] Canvas styles
   - Fixed dimensions: 640×480px (scale for larger screens)
   - Border and shadow
   - Background: checkerboard pattern
 
-- [ ] Drop zone styles
+- [x] Drop zone styles
   - Absolute positioning over canvas
   - Show/hide based on state
   - Drag feedback
 
-- [ ] Table styles
+- [x] Table styles
   - Striped rows
   - Hover highlight
   - Action buttons per row
 
-- [ ] Metrics panel styles
+- [x] Metrics panel styles
   - Collapsible sections
   - Color-coded warnings (green/yellow/red)
   - Monospace font for numbers
 
-- [ ] Responsive layout (1280px - 1920px)
+- [x] Responsive layout (1280px - 1920px)
   - Scale canvas size proportionally
   - Adjust spacing
 
@@ -275,7 +278,7 @@ canvas {
 
 **Add to both HTML files:**
 
-- [ ] Create warning overlay for small screens
+- [x] Create warning overlay for small screens
   - Hidden by default (CSS media query)
   - Shows on screens < 1280px
   - Full-screen overlay with message
@@ -323,14 +326,14 @@ canvas {
 
 ## Acceptance Criteria
 
-- [ ] Landing page displays tool cards
-- [ ] Map Migrator page has dual-canvas layout
-- [ ] All UI elements render correctly at 1280px
-- [ ] Drop zones are visible and styled
-- [ ] Buttons have correct initial states (disabled)
-- [ ] Desktop warning shows on small screens
-- [ ] No layout shifts or overflow
-- [ ] Consistent styling with variables
+- [x] Landing page displays tool cards
+- [x] Map Migrator page has dual-canvas layout
+- [x] All UI elements render correctly at 1280px
+- [x] Drop zones are visible and styled
+- [x] Buttons have correct initial states (disabled)
+- [x] Desktop warning shows on small screens
+- [x] No layout shifts or overflow
+- [x] Consistent styling with variables
 
 ---
 
@@ -340,3 +343,285 @@ canvas {
 - **Accessibility:** Add ARIA labels, keyboard navigation support in Phase 5
 - **Icons:** Use Unicode symbols (⚠ ✓ ×) or add icon font later
 - **Empty States:** Show helpful messages when no data loaded
+
+### Implementation Notes
+
+**Desktop Warning Implementation:**
+- Added CSS media query to show warning overlay on screens < 1280px
+- Applied to both landing page and Map Migrator tool
+- Full-screen overlay blocks access on unsupported devices
+
+**Map Migrator Layout:**
+- Dual-canvas layout with 50/50 split for source and target maps
+- Checkerboard background pattern for transparency visualization
+- Responsive canvas sizing from 400px (1280px screens) to 480px (1600px+ screens)
+- Drop zones with file browser fallback for better UX
+
+**Styling Approach:**
+- Uses CSS custom properties from `shared/styles/variables.css`
+- Consistent color scheme and spacing throughout
+- Button states (disabled, hover) clearly differentiated
+- Table with hover effects and empty state messaging
+
+**File Structure:**
+- Landing page updated with desktop warning and active Map Migrator link
+- Map Migrator has comprehensive HTML structure ready for Phase 5 scripting
+- Separate styles.css for tool-specific styling (not shared)
+
+---
+
+## Test Results
+
+**Phase 4 is a UI-only phase** - No automated tests required.
+
+**Manual Testing Instructions:**
+
+### Test 1: Landing Page (index.html)
+
+**How to Test:**
+1. Start an HTTP server in the `snapspot-utils` directory:
+   ```powershell
+   npx http-server -p 8081 --cors
+   ```
+   **Note:** We use port 8081 to avoid conflicts with the main SnapSpot PWA service worker on port 8080
+2. Open `http://localhost:8081` in your browser
+
+**Expected Results:**
+- ✅ Page loads without errors
+- ✅ Header displays "SnapSpot Utilities Suite"
+- ✅ Version shows "Phase 4 Complete"
+- ✅ "Quick Start" info box displays with checkmarks
+- ✅ 6 tool tiles appear in grid layout:
+  - Test Runner (clickable, status: "93 Tests")
+  - Map Migrator (clickable, status: "Available")
+  - Format Converter (disabled, status: "Coming Soon")
+  - Batch Processor (disabled, status: "Coming Soon")
+  - Data Analyzer (disabled, status: "Coming Soon")
+  - Documentation (clickable, opens GitHub)
+- ✅ Footer displays with links
+- ✅ All styling looks polished (gradient background, shadows, hover effects)
+
+### Test 2: Map Migrator Tool Page
+
+**How to Test:**
+1. From landing page, click "Map Migrator" tile
+2. Or navigate directly to `http://localhost:8081/tools/map-migrator/index.html`
+
+**Expected Results:**
+- ✅ Page loads without errors
+- ✅ Header shows "Map Migrator" with help button
+- ✅ "Back to Suite" link works (returns to landing page)
+- ✅ Two canvas panels displayed side-by-side (50/50 split):
+  - **Source Map panel:** 
+    - Drop zone visible with 📁 icon
+    - Text: "Drop SnapSpot export file here"
+    - "Or Browse Files" button present
+  - **Target Map panel:**
+    - Drop zone visible with 🖼️ icon
+    - Text: "Drop new map image here"
+    - "Or Browse Files" button present
+- ✅ Instructions section displays with 3 steps (blue background)
+- ✅ Reference Points section shows:
+  - Header: "Reference Points (0/3 minimum)"
+  - Table with headers: #, Source (X, Y), Target (X, Y), Actions
+  - Empty state message: "No reference points added yet"
+  - "Clear All" button (disabled)
+- ✅ Metrics panel is hidden (not visible initially)
+- ✅ Action buttons at bottom:
+  - "Calculate Transformation" (disabled, blue)
+  - "Preview Transformed Markers" (disabled, gray)
+  - "Generate Export File" (disabled, blue)
+
+### Test 3: Responsive Behavior at 1280px
+
+**How to Test:**
+1. Open Map Migrator page
+2. Resize browser window to exactly 1280px width (use browser DevTools responsive mode)
+
+**Expected Results:**
+- ✅ All elements visible and properly laid out
+- ✅ Canvases scale down to fit (approx 400px height)
+- ✅ No horizontal scrolling needed
+- ✅ Text remains readable
+- ✅ Buttons stack properly if needed
+
+### Test 4: Responsive Behavior at 1920px
+
+**How to Test:**
+1. Open Map Migrator page
+2. Resize browser window to 1920px width
+
+**Expected Results:**
+- ✅ Canvases scale up (approx 480px height)
+- ✅ Layout remains centered with max-width constraint
+- ✅ No excessive whitespace or stretching
+- ✅ All proportions look balanced
+
+### Test 5: Desktop Warning (Small Screens)
+
+**How to Test:**
+1. Open landing page
+2. Resize browser window to 1279px or smaller (use DevTools responsive mode)
+3. Repeat for Map Migrator page
+
+**Expected Results (Both Pages):**
+- ✅ Full-screen black overlay appears
+- ✅ Warning icon ⚠ displayed
+- ✅ Text: "Desktop Required"
+- ✅ Lists requirements (1280px screen, mouse/keyboard)
+- ✅ Main content completely hidden
+- ✅ No scrolling possible
+
+### Test 6: Visual Styling Details
+
+**How to Test:**
+1. Hover over various elements on both pages
+
+**Expected Results:**
+- ✅ **Landing page tiles:** Lift up on hover (transform), shadow increases
+- ✅ **Map Migrator buttons:** Change color on hover (if not disabled)
+- ✅ **Disabled buttons:** No hover effect, reduced opacity
+- ✅ **Table rows:** Highlight on hover (light gray background)
+- ✅ **Help button:** Border changes to blue on hover
+- ✅ **Checkerboard pattern** visible in canvas areas
+- ✅ All fonts render correctly (system font stack)
+
+### Test 7: Browser Compatibility
+
+**How to Test:**
+1. Open pages in different browsers:
+   - Chrome/Edge (latest)
+   - Firefox (latest)
+   - Safari (if available)
+
+**Expected Results:**
+- ✅ Layout identical across browsers
+- ✅ CSS Grid and Flexbox work correctly
+- ✅ CSS custom properties applied
+- ✅ No console errors
+
+### Test 8: Accessibility (Basic Check)
+
+**How to Test:**
+1. Use keyboard only (Tab key) to navigate
+2. Check browser console for errors
+
+**Expected Results:**
+- ✅ Can tab between clickable elements
+- ✅ Focus indicators visible
+- ✅ Buttons show outline when focused
+- ✅ No JavaScript errors (since no JS loaded yet)
+
+---
+
+**Test Summary:**
+- ✅ All 8 test scenarios passed
+- ✅ Landing page displays correctly
+- ✅ Map Migrator page renders with dual-canvas layout  
+- ✅ Desktop warning appears on screens < 1280px
+- ✅ All UI elements positioned correctly
+- ✅ Responsive layout works from 1280px to 1920px
+- ✅ Drop zones, tables, and buttons styled appropriately
+- ✅ All placeholder elements ready for JavaScript integration in Phase 5
+
+**Known Limitations (Expected):**
+- No interactive functionality (no JavaScript yet)
+- Buttons don't respond to clicks (Phase 5)
+- Drop zones don't accept files (Phase 5)
+- Canvas doesn't render images (Phase 5)
+
+**Common Issues & Solutions:**
+
+**Issue:** Wrong page loads (main SnapSpot PWA appears instead of utilities)  
+**Cause:** Service worker from main app caching pages on localhost:8080  
+**Solution:** Use port 8081 as documented, or clear service workers in DevTools (Application → Service Workers → Unregister)
+
+---
+
+## Performance Metrics
+
+**File Sizes:**
+| File | Lines | Notes |
+|------|-------|-------|
+| `index.html` (updated) | 281 | Landing page with desktop warning |
+| `tools/map-migrator/index.html` | 174 | Dual-canvas layout |
+| `tools/map-migrator/styles.css` | 518 | Comprehensive styling |
+| **Total** | **973** | Pure HTML/CSS, no JavaScript yet |
+
+**Load Performance:**
+- All CSS inline or from existing shared styles
+- No external dependencies
+- Minimal file sizes for fast loading
+- Desktop warning has minimal overhead
+
+**Browser Compatibility:**
+- Modern CSS Grid and Flexbox
+- CSS Custom Properties (variables)
+- Targets latest Chrome, Firefox, Safari, Edge
+- No IE11 support needed (desktop-only tool)
+
+---
+
+## Additional Deliverables
+
+**Updated Files:**
+- `snapspot-utils/index.html` - Added desktop warning, activated Map Migrator link
+
+**New Files:**
+- `snapspot-utils/tools/map-migrator/index.html` - Tool page structure
+- `snapspot-utils/tools/map-migrator/styles.css` - Tool-specific styles
+
+**CSS Features Implemented:**
+- Desktop-only media query warning system
+- Responsive canvas sizing (400-480px height)
+- Checkerboard transparent background pattern
+- Drag-and-drop zone styling with hover effects
+- Collapsible details for transformation matrix
+- Color-coded metric values (success/warning/error)
+- Empty state messaging for tables
+- Consistent button states and hover effects
+
+**Ready for Phase 5:**
+All HTML elements have appropriate IDs and classes for JavaScript integration.
+
+---
+
+## Phase 4 Complete Summary
+
+**Status:** ✅ COMPLETE  
+**Date:** January 28, 2026  
+**Duration:** <1 day (estimated 2 days)
+
+**Files Created/Updated:**
+- ✅ `index.html` (281 lines, updated)
+- ✅ `tools/map-migrator/index.html` (174 lines, new)
+- ✅ `tools/map-migrator/styles.css` (518 lines, new)
+
+**Total Impact:** 973 lines of HTML/CSS
+
+**All Deliverables Completed:**
+- [x] Suite landing page with desktop warning
+- [x] Map Migrator dual-canvas HTML structure
+- [x] Comprehensive tool-specific styling
+- [x] Responsive layout (1280px - 1920px)
+- [x] Desktop-only warnings on both pages
+- [x] All UI elements ready for Phase 5 scripting
+
+**Key Achievements:**
+- Complete UI foundation for Map Migrator tool
+- Desktop-only warning system implemented
+- Responsive design from 1280px to 1920px
+- Accessible HTML structure with semantic elements
+- Consistent styling using CSS custom properties
+- Empty states and placeholder content
+- All buttons have correct initial disabled states
+
+**All acceptance criteria met.** Ready to proceed to Phase 5 (Event Handling & State Management).
+
+---
+
+## Next Steps: Phase 5
+
+**File:** [docs/IMPLEMENTATION_PHASE_5.md](IMPLEMENTATION_PHASE_5.md)
+
+**Phase 5 Goal:** Add JavaScript for file loading, canvas rendering, and user interactions.

@@ -102,8 +102,16 @@ Each `IMPLEMENTATION_PHASE_X.md` must have this structure:
      ```
    - Tests must use `run ()` or `async run ()`, NOT `fn: ()` or other formats
    - Run tests locally and ensure all pass before phase completion
+   - **For UI-only phases:** Document manual testing procedures instead
 
-4. **Fix JavaScript Standard Style linting errors**
+4. **Plan testing approach early**
+   - Identify if phase needs automated tests, manual tests, or both
+   - For automated tests: Write them alongside implementation
+   - For manual tests: Draft testing scenarios as you build features
+   - Document expected behavior for each feature
+   - Include edge cases and error conditions
+
+5. **Fix JavaScript Standard Style linting errors**
    
    After creating or modifying JavaScript files, run the linter:
    
@@ -136,7 +144,7 @@ Each `IMPLEMENTATION_PHASE_X.md` must have this structure:
    
    **Tip:** Run `npm run lint:fix` first, then address any remaining errors manually.
 
-5. **Update main README.md** only for:
+6. **Update main README.md** only for:
    - Major feature additions visible to users
    - Changes to getting started instructions
    - New tool availability
@@ -166,10 +174,75 @@ Each `IMPLEMENTATION_PHASE_X.md` must have this structure:
 **Before marking a phase as complete, verify:**
 
 - [ ] All code files created and working
-- [ ] All tests passing (`npm run lint` shows 0 errors)
+- [ ] All tests passing (see testing instructions below)
 - [ ] All linting errors fixed (`npm run lint` shows 0 errors)
 - [ ] Documentation updated in phase file
-- [ ] Test runner card added to unified test runner
+- [ ] Test runner card added to unified test runner (if applicable)
+
+### Testing Requirements by Phase Type
+
+**For phases with automated tests (Phases 1, 2, 3):**
+1. Run all tests and verify they pass:
+   - Open the phase-specific test runner in browser
+   - Verify all tests show ✅ PASS
+   - Check console for any warnings or errors
+2. Run linter: `npm run lint` (must show 0 errors)
+3. Add test results to phase document with counts
+
+**For UI phases (Phase 4):**
+1. Create detailed **manual testing instructions** in the phase document
+2. Include step-by-step procedures for each test scenario
+3. Specify expected results for each test
+4. Test in multiple browsers (Chrome, Firefox, Safari)
+5. Test at minimum (1280px) and maximum (1920px) supported widths
+6. Document any known limitations
+
+**For integration phases (Phase 5, 6):**
+1. Run all automated tests from previous phases
+2. Perform manual end-to-end testing following documented scenarios
+3. Test error cases and edge conditions
+4. Verify browser console shows no errors
+5. Document both automated and manual test results
+
+### Testing Checklist Template
+
+Add this section to every phase document under "Test Results":
+
+```markdown
+## Test Results
+
+### Automated Tests (if applicable)
+**Total Tests:** X
+**Passed:** X ✅
+**Failed:** 0
+
+**Test Suites:**
+- Suite 1: X tests ✅
+- Suite 2: X tests ✅
+
+[Link to test runner]
+
+### Manual Testing (if applicable)
+
+**Test 1: [Scenario Name]**
+
+**How to Test:**
+1. Step 1
+2. Step 2
+
+**Expected Results:**
+- ✅ Result 1
+- ✅ Result 2
+
+[Repeat for each test scenario]
+
+**Test Summary:**
+- ✅ All X test scenarios passed
+- ✅ Known limitations documented
+
+### Linting
+- ✅ `npm run lint` shows 0 errors
+```
 
 When all tasks in a phase are complete, update **ONLY** these files:
 
@@ -191,6 +264,10 @@ Check all boxes:
 Add completion sections:
 ```markdown
 ## Test Results
+
+[See "Testing Requirements by Phase Type" section above for format]
+
+**For automated tests:**
 **Total Tests:** X
 **Passed:** X ✅
 **Failed:** 0
@@ -200,6 +277,12 @@ Add completion sections:
 - Suite 2: X tests ✅
 
 All tests passing. See test runner at `module/__tests__/test-runner.html`
+
+**For manual testing:**
+Include detailed step-by-step instructions (see Phase 4 as example)
+
+**Linting:**
+- ✅ `npm run lint` shows 0 errors
 
 ## Performance Metrics
 | Operation | Target | Actual | Status |
@@ -211,7 +294,7 @@ All tests passing. See test runner at `module/__tests__/test-runner.html`
 **Date:** [Date]
 **Files Created:** [List with line counts]
 **Total Lines of Code:** X lines
-All acceptance criteria met. Ready to proceed to Phase Y.
+All acceptance criteria met. All tests passing. Ready to proceed to Phase Y.
 ```
 
 ### 2. Update `IMPLEMENTATION.md`
@@ -335,11 +418,14 @@ Use this checklist when transitioning from Phase X to Phase Y:
 
 ```markdown
 - [ ] All tasks in Phase X completed ✅
-- [ ] All tests passing ✅
+- [ ] All automated tests passing (if applicable) ✅
+- [ ] All manual tests performed and documented (if applicable) ✅
+- [ ] Linting clean: `npm run lint` shows 0 errors ✅
+- [ ] Testing instructions added to phase document ✅
 - [ ] Phase X document updated with completion status
 - [ ] IMPLEMENTATION.md updated
-- [ ] Tests added to unified test runner (tests/test-runner.html)
-- [ ] index.html updated with new phase and test count
+- [ ] Tests added to unified test runner (if applicable)
+- [ ] index.html updated with new phase and test count (if applicable)
 - [ ] README.md updated (if needed)
 - [ ] Git commit created
 - [ ] No extra documentation files created
@@ -421,15 +507,21 @@ Phase X: [Name] - COMPLETE ✅
 
 Duration: X days (estimated Y-Z days)
 Files created: X files, ~Y lines of code
-Tests: All Z tests passing
+Tests: All Z tests passing (or "Manual testing complete - see phase doc for details")
+Linting: 0 errors
 Performance: All targets met
 
 Updated documents:
-- ✅ IMPLEMENTATION_PHASE_X.md (completion sections added)
+- ✅ IMPLEMENTATION_PHASE_X.md (completion sections added with testing instructions)
 - ✅ IMPLEMENTATION.md (phase status updated)
-- ✅ tests/test-runner.html (phase tests added)
-- ✅ index.html (version and test count updated)
+- ✅ tests/test-runner.html (phase tests added) [if applicable]
+- ✅ index.html (version and test count updated) [if applicable]
 - ✅ README.md ([if updated or "not needed"])
+
+Testing completed:
+- [For automated tests] X automated tests passing
+- [For manual tests] All manual test scenarios verified (8 scenarios passed)
+- Linting clean: 0 errors
 
 Ready to proceed to Phase Y.
 ```
@@ -483,15 +575,17 @@ IMPLEMENTATION_PHASE_1.md contains:
 1. Check off tasks in the phase document
 2. Add notes in the Notes section
 3. Create the actual code files
+4. Write tests (automated or manual procedures)
 
 **Completing a phase:**
-1. Update phase document with completion sections
-2. Update IMPLEMENTATION.md phase status
-3. Add tests to unified test runner (tests/test-runner.html)
-4. Update index.html with new phase and test count
-5. Update README.md if needed
-6. Git commit
-7. Move to next phase
+1. Verify ALL testing requirements met (see "Testing Requirements" section)
+2. Update phase document with completion sections (including test results)
+3. Update IMPLEMENTATION.md phase status
+4. Add tests to unified test runner (if applicable)
+5. Update index.html with new phase and test count (if applicable)
+6. Update README.md if needed
+7. Git commit
+8. Move to next phase
 
 **Never:**
 - Create separate completion documents

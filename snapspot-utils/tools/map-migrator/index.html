@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Map Migrator - SnapSpot Utilities</title>
+  <link rel="stylesheet" href="../../shared/styles/variables.css">
+  <link rel="stylesheet" href="../../shared/styles/common.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Desktop-only warning for small screens -->
+  <div class="desktop-warning">
+    <div class="warning-content">
+      <h2>⚠ Desktop Required</h2>
+      <p>This tool requires a desktop computer with:</p>
+      <ul>
+        <li>Screen width of 1280px or larger</li>
+        <li>Mouse and keyboard</li>
+      </ul>
+      <p>Please access from a laptop or desktop computer.</p>
+    </div>
+  </div>
+
+  <!-- Main application container -->
+  <div class="app-container">
+    <header>
+      <div class="header-left">
+        <a href="../../index.html" class="back-link">← Back to Suite</a>
+        <h1>Map Migrator</h1>
+      </div>
+      <button id="help-btn" class="btn-icon" title="Help">?</button>
+    </header>
+
+    <!-- Dual canvas layout -->
+    <div class="canvas-container">
+      <!-- Source map panel -->
+      <div class="canvas-panel">
+        <h2>Source Map</h2>
+        <div class="canvas-wrapper">
+          <div class="drop-zone" id="source-drop">
+            <div class="drop-zone-content">
+              <div class="drop-icon">📁</div>
+              <p class="drop-text">Drop SnapSpot export file here</p>
+              <p class="drop-hint">(.json file from SnapSpot app)</p>
+              <button class="btn btn-secondary" id="source-file-btn">Or Browse Files</button>
+              <input type="file" id="source-file-input" accept=".json" style="display: none;">
+            </div>
+          </div>
+          <canvas id="source-canvas"></canvas>
+          <div class="map-info" id="source-info" style="display: none;">
+            <span class="info-label">Map:</span>
+            <span class="info-value" id="source-name">-</span>
+            <span class="info-label">Size:</span>
+            <span class="info-value" id="source-size">-</span>
+            <span class="info-label">Markers:</span>
+            <span class="info-value" id="source-markers">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Target map panel -->
+      <div class="canvas-panel">
+        <h2>Target Map</h2>
+        <div class="canvas-wrapper">
+          <div class="drop-zone" id="target-drop">
+            <div class="drop-zone-content">
+              <div class="drop-icon">🖼️</div>
+              <p class="drop-text">Drop new map image here</p>
+              <p class="drop-hint">(.jpg, .png, or .webp)</p>
+              <button class="btn btn-secondary" id="target-file-btn">Or Browse Files</button>
+              <input type="file" id="target-file-input" accept="image/*" style="display: none;">
+            </div>
+          </div>
+          <canvas id="target-canvas"></canvas>
+          <div class="map-info" id="target-info" style="display: none;">
+            <span class="info-label">Image:</span>
+            <span class="info-value" id="target-name">-</span>
+            <span class="info-label">Size:</span>
+            <span class="info-value" id="target-size">-</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+      <p><strong>Step 1:</strong> Load your SnapSpot export file and new map image above</p>
+      <p><strong>Step 2:</strong> Click matching points on both maps (at least 3 pairs required)</p>
+      <p><strong>Step 3:</strong> Calculate transformation, preview results, then export</p>
+    </div>
+
+    <!-- Reference points table -->
+    <div class="reference-points-section">
+      <div class="section-header">
+        <h2>Reference Points <span id="point-count" class="point-count">(0/3 minimum)</span></h2>
+        <div class="section-actions">
+          <button id="clear-points" class="btn btn-small" disabled>Clear All</button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table id="points-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Source (X, Y)</th>
+              <th>Target (X, Y)</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="points-tbody">
+            <tr class="empty-state">
+              <td colspan="4">
+                <div class="empty-message">
+                  <p>No reference points added yet</p>
+                  <p class="empty-hint">Click on matching locations in both maps to create point pairs</p>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Transformation metrics panel -->
+    <div class="metrics-panel hidden" id="metrics">
+      <h2>Transformation Metrics</h2>
+      <div class="metrics-grid">
+        <div class="metric-row">
+          <span class="metric-label">RMSE (Root Mean Square Error):</span>
+          <span class="metric-value" id="rmse-value">-</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Scale Factor X:</span>
+          <span class="metric-value" id="scale-x">-</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Scale Factor Y:</span>
+          <span class="metric-value" id="scale-y">-</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Rotation:</span>
+          <span class="metric-value" id="rotation">-</span>
+        </div>
+      </div>
+      
+      <div class="warnings-section" id="warnings" style="display: none;">
+        <h3>⚠ Warnings</h3>
+        <ul id="warnings-list"></ul>
+      </div>
+
+      <details class="metrics-details">
+        <summary>Show Transformation Matrix</summary>
+        <pre id="matrix-display"></pre>
+      </details>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="actions">
+      <button id="calculate-btn" class="btn btn-primary" disabled>
+        Calculate Transformation
+      </button>
+      <button id="preview-btn" class="btn" disabled>
+        Preview Transformed Markers
+      </button>
+      <button id="export-btn" class="btn btn-primary" disabled>
+        Generate Export File
+      </button>
+    </div>
+  </div>
+
+  <!-- Help modal (to be styled and scripted in Phase 5) -->
+  <div id="help-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>How to Use Map Migrator</h2>
+      <p>This tool transforms marker coordinates from an old map to a new map.</p>
+      <button class="btn" id="close-help">Close</button>
+    </div>
+  </div>
+
+  <!-- Scripts will be added in Phase 5 -->
+  <!-- <script type="module" src="app.js"></script> -->
+</body>
+</html>
