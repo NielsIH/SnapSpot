@@ -1,3 +1,5 @@
+/* global Blob crypto FileReader */
+
 /**
  * SnapSpot Export Format Writer
  *

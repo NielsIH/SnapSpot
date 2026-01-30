@@ -8,6 +8,9 @@
 /**
  * Canvas Renderer for interactive image display
  */
+
+/* global HTMLCanvasElement Image */
+
 export class CanvasRenderer {
   /**
    * Create a new canvas renderer
