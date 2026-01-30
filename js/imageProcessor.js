@@ -4,56 +4,29 @@
 
 /* global Image, document, FileReader, createImageBitmap, Blob */
 
+import { blobToBase64 as libBlobToBase64, base64ToBlob as libBase64ToBlob } from '../lib/snapspot-image/converter.js'
+
 export class ImageProcessor {
   /**
    * Converts an image Blob directly to a Base64 Data URL.
    * Useful for images that don't need resizing or specific processing.
+   * Now uses shared library function.
    * @param {Blob} imageBlob - The image Blob to convert.
    * @returns {Promise<string>} A promise that resolves with the Base64 Data URL.
    */
   async blobToBase64 (imageBlob) {
-    return new Promise((resolve, reject) => {
-      if (!(imageBlob instanceof Blob)) {
-        reject(new Error('blobToBase64: Invalid input, imageBlob must be a Blob.'))
-        return
-      }
-
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        resolve(reader.result)
-      }
-      reader.onerror = (error) => {
-        reject(new Error('Failed to convert Blob to Base64: ' + error.message))
-      }
-      reader.readAsDataURL(imageBlob)
-    })
+    return libBlobToBase64(imageBlob)
   }
 
   /**
-     * Converts a Base64 Data URL string to a Blob object.
-     * @param {string} base64String The Base64 Data URL (e.g., "data:image/png;base64,...").
-     * @param {string} [mimeType] Optional MIME type. If not provided, it's extracted from the Base64 string.
-     * @returns {Blob} The Blob object.
-     */
+   * Converts a Base64 Data URL string to a Blob object.
+   * Now uses shared library function.
+   * @param {string} base64String The Base64 Data URL (e.g., "data:image/png;base64,...").
+   * @param {string} [mimeType] Optional MIME type. If not provided, it's extracted from the Base64 string.
+   * @returns {Blob} The Blob object.
+   */
   static base64ToBlob (base64String, mimeType = null) {
-    // Extract MIME type and actual base64 data
-    let byteString
-    if (base64String.split(',')[0].indexOf('base64') >= 0) {
-      byteString = atob(base64String.split(',')[1])
-    } else {
-      byteString = decodeURIComponent(base64String.split(',')[1])
-    }
-
-    const actualMimeType = mimeType || base64String.split(',')[0].split(':')[1].split(';')[0]
-
-    // Write the bytes of the string to a typed array
-    const ab = new ArrayBuffer(byteString.length)
-    const ia = new Uint8Array(ab)
-    for (let i = 0; i < byteString.length; i++) {
-      ia[i] = byteString.charCodeAt(i)
-    }
-
-    return new Blob([ab], { type: actualMimeType })
+    return libBase64ToBlob(base64String, mimeType)
   }
 
   /**
