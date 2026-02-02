@@ -9,7 +9,7 @@
 
 import { CanvasRenderer } from '../../shared/utils/canvas-helpers.js'
 import { FileLoader } from '../../shared/utils/file-loader.js'
-import { parseExport } from '../../core/formats/snapspot/parser.js'
+import { parseExport } from '../../lib/snapspot-data/parser.js'
 
 /**
  * UI Controller for Map Migrator

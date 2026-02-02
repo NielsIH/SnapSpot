@@ -8,7 +8,7 @@
 
 import { calculateAffineMatrix, applyTransform } from '../../core/transformation/affine-transform.js'
 import { calculateRMSE, detectAnomalies } from '../../core/transformation/transform-validator.js'
-import { buildExport } from '../../core/formats/snapspot/writer.js'
+import { buildExport } from '../../lib/snapspot-data/writer.js'
 
 /**
  * Map Migrator - Main orchestration class
@@ -379,9 +379,9 @@ export class MapMigrator {
       // Keep all photos unchanged
       const photos = sourceExport.photos || []
 
-      // Build export using Phase 2 writer
+      // Build export using lib/snapspot-data writer
       // Signature: buildExport(map, mapImage, markers, photos, options)
-      const writerOutput = await buildExport(
+      const exportData = await buildExport(
         newMap,
         state.targetMap.blob, // Pass blob as separate parameter
         transformedMarkers,
@@ -392,40 +392,22 @@ export class MapMigrator {
         }
       )
 
-      // Transform to SnapSpot PWA format (writer.js uses different property names)
-      const writerData = JSON.parse(writerOutput)
-      const exportData = JSON.stringify({
-        version: writerData.version,
-        type: 'SnapSpotDataExport', // Correct type name
-        sourceApp: writerData.sourceApp,
-        timestamp: writerData.exportDate, // Rename exportDate to timestamp
+      // Add optional fields to map metadata
+      exportData.map.description = newMap.description || ''
+      exportData.map.fileName = newMap.fileName
+      exportData.map.fileSize = state.targetMap.blob.size
+      exportData.map.fileType = state.targetMap.blob.type
+      exportData.map.isActive = true
 
-        map: {
-          id: writerData.map.id,
-          name: writerData.map.name,
-          description: newMap.description || '',
-          fileName: newMap.fileName,
-          width: writerData.map.width,
-          height: writerData.map.height,
-          fileSize: state.targetMap.blob.size,
-          fileType: state.targetMap.blob.type,
-          createdDate: writerData.map.created, // Rename created to createdDate
-          lastModified: writerData.map.modified, // Rename modified to lastModified
-          isActive: true,
-          imageHash: writerData.map.hash, // Rename hash to imageHash
-          imageData: writerData.map.imageData
-        },
-
-        markers: writerData.markers,
-        photos: writerData.photos
-      }, null, 2)
+      // Convert to JSON string for download
+      const exportJson = JSON.stringify(exportData, null, 2)
 
       // Generate filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
       const filename = `${sourceExport.map.name.replace(/[^a-z0-9]/gi, '_')}_migrated_${timestamp}.json`
 
       // Download file
-      this._downloadFile(exportData, filename)
+      this._downloadFile(exportJson, filename)
 
       // Show success
       alert(`Export generated successfully!\n\nFile: ${filename}\nMarkers: ${transformedMarkers.length}`)
