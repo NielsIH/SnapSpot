@@ -6,6 +6,9 @@
 /* global
         alert
         localStorage
+        Image
+        crypto
+        URL
         */
 
 // --- Module Imports ---
@@ -13,7 +16,8 @@ import { MapStorage } from './storage.js'
 import { FileManager } from './fileManager.js'
 import { MapRenderer } from './mapRenderer.js'
 import { ImageProcessor } from './imageProcessor.js'
-import { MapDataExporterImporter } from './MapDataExporterImporter.js'
+import { StorageExporterImporter } from '../lib/snapspot-storage/exporter-importer.js'
+import { HtmlReportGenerator } from './HtmlReportGenerator.js'
 import { SearchManager } from './searchManager.js'
 import { ModalManager } from './ui/modals.js'
 import * as MapInteractions from './app-map-interactions.js'
@@ -1093,7 +1097,124 @@ class SnapSpotApp {
    * @param {File} originalFile - Original file object (important, this will be the Blob from ImageProcessor now)
    */
   async handleMapUpload (mapData, originalFile) {
-    await MapDataExporterImporter.handleMapUpload(this, mapData, originalFile)
+    console.log('App: Processing map image...')
+
+    try {
+      this.updateAppStatus('Processing and saving map image...')
+
+      // Process the image for storage
+      // Skip compression for SVG files to preserve vector quality
+      const processedImageBlob = (originalFile.type === 'image/svg+xml')
+        ? originalFile
+        : await this.imageProcessor.processImage(originalFile, {
+          maxWidth: this.imageCompressionSettings.map.maxWidth,
+          maxHeight: this.imageCompressionSettings.map.maxHeight,
+          quality: this.imageCompressionSettings.map.quality,
+          outputFormat: originalFile.type.startsWith('image/') ? originalFile.type : 'image/jpeg'
+        })
+
+      console.log('Original size:', originalFile.size, 'Processed size:', processedImageBlob.size)
+
+      // Create map object
+      const map = {
+        id: crypto.randomUUID(),
+        name: originalFile.name.replace(/\.[^/.]+$/, ''),
+        fileName: originalFile.name,
+        fileType: processedImageBlob.type,
+        fileSize: processedImageBlob.size,
+        createdDate: new Date(),
+        lastModified: new Date(),
+        imageData: processedImageBlob
+      }
+
+      // Get dimensions
+      if (originalFile.type === 'image/svg+xml') {
+        // For SVG, dimensions should have been extracted already
+        map.width = mapData.width
+        map.height = mapData.height
+      } else {
+        const dimensions = await this._getImageDimensions(processedImageBlob)
+        map.width = dimensions.width
+        map.height = dimensions.height
+      }
+
+      // Calculate imageHash
+      try {
+        const arrayBuffer = await map.imageData.arrayBuffer()
+        const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer)
+        map.imageHash = this._arrayBufferToHex(hashBuffer)
+        console.log(`App: Calculated imageHash: ${map.imageHash}`)
+      } catch (error) {
+        console.error('App: Failed to calculate imageHash:', error)
+      }
+
+      // Save to storage
+      const savedMap = await this.storage.addMap(map)
+      console.log('Map saved successfully:', savedMap.id)
+
+      // Store for immediate rendering
+      this.uploadedFiles.set(savedMap.id, processedImageBlob)
+
+      // Reload maps list
+      await this.loadMaps()
+
+      // Update UI
+      this.checkWelcomeScreen()
+
+      // Display the map if it's active
+      if (map.isActive || this.mapsList.length === 1) {
+        await this.displayMap(savedMap)
+      }
+
+      this.showNotification(`Map "${savedMap.name}" uploaded successfully!`, 'success')
+      this.updateAppStatus(`Map uploaded: ${savedMap.name}`)
+
+      console.log('Map upload completed successfully')
+      return savedMap
+    } catch (error) {
+      console.error('Map upload failed:', error)
+      this.showErrorMessage('Map Upload Error', `Failed to save map: ${error.message}`)
+      throw error
+    } finally {
+      this.hideLoading()
+    }
+  }
+
+  /**
+   * Get image dimensions from a Blob.
+   * @private
+   */
+  async _getImageDimensions (imageBlob) {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(imageBlob)
+
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        resolve({ width: img.width, height: img.height })
+      }
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        reject(new Error('Failed to load image'))
+      }
+
+      img.src = url
+    })
+  }
+
+  /**
+   * Convert ArrayBuffer to hexadecimal string.
+   * @private
+   */
+  _arrayBufferToHex (buffer) {
+    const byteArray = new Uint8Array(buffer)
+    const hexParts = []
+    for (let i = 0; i < byteArray.length; i++) {
+      const hex = byteArray[i].toString(16).padStart(2, '0')
+      hexParts.push(hex)
+    }
+    return hexParts.join('')
   }
 
   /**
@@ -1132,32 +1253,131 @@ class SnapSpotApp {
   }
 
   /**
-     * Exports a map's data to an HTML report.
-     * Modified to fit the new callback signature from MapsModal.
-     * Added modal cleanup and delay to prevent export issues on constrained devices.
-     * @param {string} mapId The ID of the map to export.
-     */
+   * Exports a map's data to an HTML report.
+   * Modified to fit the new callback signature from MapsModal.
+   * Added modal cleanup and delay to prevent export issues on constrained devices.
+   * @param {string} mapId The ID of the map to export.
+   */
   async exportHtmlReport (mapId) {
-    await MapDataExporterImporter.exportHtmlReport(this, mapId)
+    console.log(`App: Generating HTML report for map "${mapId}"...`)
+
+    this.modalManager.closeAllModals()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    this.updateAppStatus(`Generating HTML report for map ${mapId}...`)
+
+    try {
+      const map = await this.storage.getMap(mapId)
+      if (!map) {
+        throw new Error(`Map "${mapId}" not found`)
+      }
+
+      const markers = await this.storage.getMarkersForMap(mapId)
+      const allPhotos = []
+      const photoPromises = []
+
+      for (const marker of markers) {
+        const markerPhotos = await this.storage.getPhotosForMarker(marker.id)
+        markerPhotos.forEach(photo => {
+          photoPromises.push(
+            this.imageProcessor.blobToBase64(photo.imageData)
+              .then(dataUrl => {
+                photo.imageDataUrl = dataUrl
+                return photo
+              })
+          )
+        })
+      }
+
+      const processedPhotos = await Promise.all(photoPromises)
+      allPhotos.push(...processedPhotos)
+      allPhotos.sort((a, b) => a.fileName.localeCompare(b.fileName))
+
+      await HtmlReportGenerator.generateReport(map, markers, allPhotos, this.imageProcessor)
+
+      this.updateAppStatus(`HTML report for map "${map.name}" generated successfully.`, 'success')
+    } catch (error) {
+      console.error('App: Error generating HTML report:', error)
+      alert('Error generating HTML report. Check console for details.')
+      this.updateAppStatus('HTML report generation failed', 'error')
+      throw error
+    }
   }
 
   /**
- * Handles the request to export map data as JSON.
- * This method will now show an export options modal.
- * Added modal cleanup and delay to prevent export issues on constrained devices.
- * @param {string} mapId The ID of the map to export.
- */
+   * Handles the request to export map data as JSON.
+   * This method will now show an export options modal.
+   * Added modal cleanup and delay to prevent export issues on constrained devices.
+   * @param {string} mapId The ID of the map to export.
+   */
   async exportJsonMap (mapId) {
-    await MapDataExporterImporter.exportJsonMap(this, mapId)
+    console.log(`App: Preparing JSON export for map "${mapId}"...`)
+
+    this.modalManager.closeAllModals()
+    await new Promise(resolve => setTimeout(resolve, 100))
+    this.updateAppStatus(`Preparing data for JSON export for map ${mapId}...`)
+
+    try {
+      const map = await this.storage.getMap(mapId)
+      if (!map) {
+        throw new Error(`Map "${mapId}" not found`)
+      }
+
+      const allMarkers = await this.storage.getMarkersForMap(mapId)
+      const allPhotos = []
+      for (const marker of allMarkers) {
+        const markerPhotos = await this.storage.getPhotosForMarker(marker.id)
+        allPhotos.push(...markerPhotos)
+      }
+
+      // Group markers by day for modal options
+      const groupedMarkersByDay = await StorageExporterImporter.getMarkersGroupedByDay(mapId, this.storage)
+
+      this.updateAppStatus('Ready to choose export options.')
+
+      // Show export decision modal
+      const exportDecision = await this.modalManager.createExportDecisionModal(map, groupedMarkersByDay)
+
+      if (!exportDecision) {
+        this.updateAppStatus('JSON export cancelled.', 'info')
+        return
+      }
+
+      this.updateAppStatus('Exporting map data...')
+
+      if (exportDecision.action === 'exportComplete') {
+        await StorageExporterImporter.exportData(map, allMarkers, allPhotos, this.imageProcessor, {}, this.storage)
+        this.updateAppStatus(`JSON data for map "${map.name}" exported completely.`, 'success')
+      } else if (exportDecision.action === 'exportByDays') {
+        await StorageExporterImporter.exportData(
+          map,
+          allMarkers,
+          allPhotos,
+          this.imageProcessor,
+          {
+            datesToExport: exportDecision.selectedDates,
+            splitByDate: exportDecision.exportAsSeparateFiles
+          },
+          this.storage
+        )
+        const numDates = exportDecision.selectedDates.length
+        const exportType = exportDecision.exportAsSeparateFiles ? 'separate files' : 'a single file'
+        this.updateAppStatus(`JSON data for map "${map.name}" for ${numDates} day(s) exported as ${exportType}.`, 'success')
+      }
+    } catch (error) {
+      console.error('App: Error during map export process:', error)
+      alert(`Error exporting map: ${error.message}`)
+      this.updateAppStatus('JSON export failed', 'error')
+      throw error
+    }
   }
 
   /**
- * Handles the file selected by the user for import.
- * @param {File} file The JSON file to import.
- * @returns {Promise<Object|null>} A promise that resolves with the imported map object if successful, otherwise null.
- */
+   * Handles the file selected by the user for import.
+   * @param {File} file The JSON file to import.
+   * @returns {Promise<Object|null>} A promise that resolves with the imported map object if successful, otherwise null.
+   */
   async handleImportFile (file) {
-    return await MapDataExporterImporter.handleImportFile(this, file)
+    return await StorageExporterImporter.handleImportFile(this, file)
   }
 
   /**
