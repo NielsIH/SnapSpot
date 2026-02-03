@@ -86,6 +86,8 @@ export class UIController {
     this.sourceMarkers = document.getElementById('source-markers')
     this.targetName = document.getElementById('target-name')
     this.targetSize = document.getElementById('target-size')
+    this.targetMarkers = document.getElementById('target-markers')
+    this.targetMarkersLabel = document.getElementById('target-markers-label')
 
     // Points table
     this.pointsTable = document.getElementById('points-table')
@@ -296,41 +298,21 @@ export class UIController {
   }
 
   /**
-   * Load target map image
-   * @param {File} file - Map image file
+   * Load target map image or export file
+   * @param {File} file - Map image file or SnapSpot export JSON
    */
   async handleTargetFileDrop (file) {
     try {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        throw new Error('Target file must be an image')
+      // Check if it's a JSON file (SnapSpot export) or an image
+      if (file.name.endsWith('.json')) {
+        // Load as SnapSpot export
+        await this._loadTargetExport(file)
+      } else if (file.type.startsWith('image/')) {
+        // Load as image
+        await this._loadTargetImage(file)
+      } else {
+        throw new Error('Target file must be an image or a SnapSpot export (.json)')
       }
-
-      // Show loading indicator
-      this._showLoading(this.targetDrop, 'Loading image...')
-
-      // Load image
-      const blob = await FileLoader.loadAsBlob(file)
-
-      // Get image dimensions
-      const dimensions = await this._getImageDimensions(blob)
-
-      // Store in state
-      this.state.targetMap = {
-        blob,
-        width: dimensions.width,
-        height: dimensions.height,
-        name: file.name
-      }
-
-      // Render map
-      await this._renderTargetMap()
-
-      // Update UI
-      this._hideDropZone(this.targetDrop)
-      this._showInfo(this.targetInfo)
-      this.targetName.textContent = file.name
-      this.targetSize.textContent = `${dimensions.width} × ${dimensions.height}px`
 
       // Update canvas cursor
       this._updateCanvasCursors()
@@ -339,6 +321,96 @@ export class UIController {
       this._showError('Failed to load target file', error.message)
       this._hideLoading(this.targetDrop)
     }
+  }
+
+  /**
+   * Load target as SnapSpot export
+   * @private
+   */
+  async _loadTargetExport (file) {
+    // Show loading indicator
+    this._showLoading(this.targetDrop, 'Loading export...')
+
+    // Load and parse file
+    const text = await FileLoader.loadAsText(file)
+    const exportData = await parseExport(text)
+
+    // Extract map image
+    const mapImage = exportData.mapImage
+
+    // Render map first to get actual dimensions
+    await this.targetRenderer.renderImage(mapImage, 'contain')
+
+    // Get actual rendered dimensions
+    const actualWidth = this.targetRenderer.imageWidth
+    const actualHeight = this.targetRenderer.imageHeight
+
+    // Normalize marker coordinates from pixels to 0-1 range
+    const normalizedMarkers = exportData.markers.map(marker => ({
+      ...marker,
+      x: marker.x / actualWidth,
+      y: marker.y / actualHeight
+    }))
+
+    // Store in state
+    this.state.targetExport = exportData
+    this.state.targetMap = {
+      blob: mapImage,
+      width: actualWidth,
+      height: actualHeight,
+      name: exportData.map.name,
+      markers: normalizedMarkers,
+      isExport: true // Flag to indicate this is an export, not just an image
+    }
+
+    // Redraw with markers
+    await this._renderTargetMap()
+
+    // Update UI
+    this._hideDropZone(this.targetDrop)
+    this._showInfo(this.targetInfo)
+    this.targetName.textContent = exportData.map.name
+    this.targetSize.textContent = `${actualWidth} × ${actualHeight}px`
+    this.targetMarkers.textContent = exportData.markers.length
+    this.targetMarkersLabel.style.display = 'inline'
+    this.targetMarkers.style.display = 'inline'
+  }
+
+  /**
+   * Load target as image file
+   * @private
+   */
+  async _loadTargetImage (file) {
+    // Show loading indicator
+    this._showLoading(this.targetDrop, 'Loading image...')
+
+    // Load image
+    const blob = await FileLoader.loadAsBlob(file)
+
+    // Get image dimensions
+    const dimensions = await this._getImageDimensions(blob)
+
+    // Store in state
+    this.state.targetExport = null // Clear any previous export
+    this.state.targetMap = {
+      blob,
+      width: dimensions.width,
+      height: dimensions.height,
+      name: file.name,
+      markers: [], // No markers for plain image
+      isExport: false
+    }
+
+    // Render map
+    await this._renderTargetMap()
+
+    // Update UI
+    this._hideDropZone(this.targetDrop)
+    this._showInfo(this.targetInfo)
+    this.targetName.textContent = file.name
+    this.targetSize.textContent = `${dimensions.width} × ${dimensions.height}px`
+    this.targetMarkersLabel.style.display = 'none'
+    this.targetMarkers.style.display = 'none'
   }
 
   /**
@@ -401,11 +473,17 @@ export class UIController {
   }
 
   /**
-   * Draw all overlays on target canvas (reference points only)
+   * Draw all overlays on target canvas (markers + reference points + preview)
    * Called automatically after pan/zoom via onRedraw callback
    * @private
    */
   _drawTargetOverlays () {
+    // Draw target markers if target is an export
+    if (this.state.targetMap?.isExport) {
+      this._drawTargetMarkers()
+    }
+
+    // Draw reference points
     this._drawReferencePairs('target')
 
     // Also draw preview markers if preview is active
@@ -496,6 +574,29 @@ export class UIController {
       // Draw small dot for each marker
       this.sourceRenderer.drawMarker(canvasX, canvasY, {
         color: 'rgba(100, 100, 100, 0.5)',
+        size: 6,
+        opacity: 0.5
+      })
+    })
+  }
+
+  /**
+   * Draw target markers on canvas (when target is an export)
+   * @private
+   */
+  _drawTargetMarkers () {
+    if (!this.state.targetMap || !this.state.targetMap.markers) return
+
+    const markers = this.state.targetMap.markers
+
+    markers.forEach(marker => {
+      // Convert map coordinates (0-1) to canvas coordinates using renderer's dimensions
+      const canvasX = marker.x * this.targetRenderer.imageWidth
+      const canvasY = marker.y * this.targetRenderer.imageHeight
+
+      // Draw small dot for each marker (blue to differentiate from source)
+      this.targetRenderer.drawMarker(canvasX, canvasY, {
+        color: 'rgba(50, 100, 200, 0.5)',
         size: 6,
         opacity: 0.5
       })

@@ -66,18 +66,20 @@
           <div class="drop-zone" id="target-drop">
             <div class="drop-zone-content">
               <div class="drop-icon">🖼️</div>
-              <p class="drop-text">Drop new map image here</p>
-              <p class="drop-hint">(.jpg, .png, or .webp)</p>
+              <p class="drop-text">Drop new map image or export file here</p>
+              <p class="drop-hint">(.jpg, .png, .webp, or .json)</p>
               <button class="btn btn-secondary" id="target-file-btn">Or Browse Files</button>
-              <input type="file" id="target-file-input" accept="image/*" style="display: none;">
+              <input type="file" id="target-file-input" accept="image/*,.json" style="display: none;">
             </div>
           </div>
           <canvas id="target-canvas"></canvas>
           <div class="map-info" id="target-info" style="display: none;">
-            <span class="info-label">Image:</span>
+            <span class="info-label">Map:</span>
             <span class="info-value" id="target-name">-</span>
             <span class="info-label">Size:</span>
             <span class="info-value" id="target-size">-</span>
+            <span class="info-label" id="target-markers-label" style="display: none;">Markers:</span>
+            <span class="info-value" id="target-markers" style="display: none;">-</span>
           </div>
         </div>
       </div>
@@ -85,7 +87,7 @@
 
     <!-- Instructions -->
     <div class="instructions">
-      <p><strong>Step 1:</strong> Load files &nbsp;•&nbsp; <strong>Step 2:</strong> Place 3+ reference points (zoom: scroll, pan: Ctrl+drag) &nbsp;•&nbsp; <strong>Step 3:</strong> Calculate & export</p>
+      <p><strong>Step 1:</strong> Load files (source export + target image or export) &nbsp;•&nbsp; <strong>Step 2:</strong> Place 3+ reference points (zoom: scroll, pan: Ctrl+drag) &nbsp;•&nbsp; <strong>Step 3:</strong> Calculate & export (merge or replace)</p>
     </div>
 
     <!-- Reference points table -->
@@ -176,7 +178,12 @@
         <h3>Step 1: Load Files</h3>
         <ul>
           <li>Drop your SnapSpot export (.json) on the left panel</li>
-          <li>Drop your new map image on the right panel</li>
+          <li>Drop your target on the right panel:
+            <ul>
+              <li><strong>Image file:</strong> Creates new export with transformed markers (Replace Mode)</li>
+              <li><strong>SnapSpot export (.json):</strong> Merges transformed markers with existing markers (Merge Mode)</li>
+            </ul>
+          </li>
         </ul>
 
         <h3>Step 2: Select Reference Points</h3>
@@ -186,7 +193,7 @@
           <li>Repeat for at least 3 matching locations</li>
           <li>Use landmarks like building corners, road intersections, etc.</li>
           <li><strong>Tip:</strong> Use mouse wheel to zoom in for precise placement</li>
-          <li><strong>Tip:</strong> Click and drag to pan around the map</li>
+          <li><strong>Tip:</strong> Hold Ctrl and drag to pan around the map</li>
         </ul>
 
         <h3>Step 3: Calculate & Export</h3>
@@ -195,12 +202,38 @@
           <li>Review the metrics and warnings</li>
           <li>Click "Preview" to see where markers will be placed</li>
           <li>Click "Generate Export" to download the migrated file</li>
+          <li><strong>Merge Mode:</strong> Preview shows which markers will be added vs merged (5px tolerance)</li>
         </ul>
+
+        <h3>Two Migration Modes</h3>
+        <h4>Replace Mode (Target = Image)</h4>
+        <ul>
+          <li>Creates new export with transformed markers on new map image</li>
+          <li>All source markers transformed to target coordinates</li>
+          <li>Original photos linked to transformed markers</li>
+        </ul>
+
+        <h4>Merge Mode (Target = Export)</h4>
+        <ul>
+          <li>Transforms source markers and merges with target markers</li>
+          <li>Choose duplicate detection strategy (default: none):</li>
+          <ul>
+            <li><strong>None:</strong> Add all as new markers (safest, default)</li>
+            <li><strong>Smart:</strong> Cascading detection (photos → labels → coordinates)</li>
+            <li><strong>Photo Filenames:</strong> Match by 70%+ shared photo filenames</li>
+            <li><strong>Label/Description:</strong> Match by text (case-insensitive)</li>
+            <li><strong>Coordinates:</strong> Match within tolerance (based on transformation RMSE)</li>
+          </ul>
+          <li>When duplicates detected: photos are merged, existing marker preserved</li>
+          <li>When no match: marker added as new to target export</li>
+        </ul>
+
+        <p><strong>Why is 'none' the default?</strong> Transformed coordinates rarely match exactly. If you need duplicate detection, choose a strategy based on your markers (use Smart if markers have photos, Label if they have descriptive text).</p>
 
         <h3>Keyboard Shortcuts</h3>
         <ul>
           <li><kbd>Ctrl+O</kbd> - Load source export</li>
-          <li><kbd>Ctrl+M</kbd> - Load target map</li>
+          <li><kbd>Ctrl+M</kbd> - Load target map/export</li>
           <li><kbd>Ctrl+Z</kbd> or <kbd>Delete</kbd> - Remove last point</li>
           <li><kbd>Esc</kbd> - Cancel pending point</li>
           <li><kbd>Space</kbd> - Calculate transformation</li>

@@ -44,6 +44,112 @@ export function findDuplicateMarker (existingMarkers, candidateMarker, tolerance
 }
 
 /**
+ * Find duplicate marker by label/description
+ *
+ * Searches for an existing marker with the same label or description text.
+ * Useful for migrated markers where coordinates may not match exactly.
+ *
+ * @param {Array<Object>} existingMarkers - Array of existing markers
+ * @param {Object} candidateMarker - Marker to search for
+ * @returns {Object|null} Matching marker or null if not found
+ *
+ * @example
+ * const match = findDuplicateMarkerByLabel(existingMarkers, newMarker)
+ */
+export function findDuplicateMarkerByLabel (existingMarkers, candidateMarker) {
+  if (!Array.isArray(existingMarkers) || !candidateMarker) {
+    return null
+  }
+
+  // Only match if candidate has a non-empty label or description
+  const candidateLabel = (candidateMarker.label || '').trim()
+  const candidateDesc = (candidateMarker.description || '').trim()
+
+  if (!candidateLabel && !candidateDesc) {
+    return null // Can't match markers without labels
+  }
+
+  return existingMarkers.find(existing => {
+    const existingLabel = (existing.label || '').trim()
+    const existingDesc = (existing.description || '').trim()
+
+    // Match if labels match (case-insensitive)
+    if (candidateLabel && existingLabel &&
+        candidateLabel.toLowerCase() === existingLabel.toLowerCase()) {
+      return true
+    }
+
+    // Or if descriptions match (case-insensitive)
+    if (candidateDesc && existingDesc &&
+        candidateDesc.toLowerCase() === existingDesc.toLowerCase()) {
+      return true
+    }
+
+    return false
+  })
+}
+
+/**
+ * Find duplicate marker by photo filenames
+ *
+ * Searches for an existing marker that has the same photo filenames.
+ * If both markers have only photos with identical filenames, they're likely duplicates.
+ *
+ * @param {Array<Object>} existingMarkers - Array of existing markers
+ * @param {Object} candidateMarker - Marker to search for
+ * @param {Array<Object>} candidatePhotos - Photos associated with candidate marker
+ * @param {Array<Object>} existingPhotos - All photos from existing export
+ * @param {number} [minimumPhotoCount=1] - Minimum photos required for match
+ * @param {number} [matchThreshold=0.7] - Fraction of filenames that must match (0.0-1.0)
+ * @returns {Object|null} Matching marker or null if not found
+ *
+ * @example
+ * const match = findDuplicateMarkerByPhotos(existingMarkers, newMarker, newPhotos, allPhotos)
+ */
+export function findDuplicateMarkerByPhotos (existingMarkers, candidateMarker, candidatePhotos, existingPhotos, minimumPhotoCount = 1, matchThreshold = 0.7) {
+  if (!Array.isArray(existingMarkers) || !candidateMarker || !candidatePhotos || !existingPhotos) {
+    return null
+  }
+
+  // Get photo filenames for candidate marker
+  const candidatePhotoIds = candidateMarker.photoIds || []
+  const candidateFilenames = candidatePhotos
+    .filter(p => candidatePhotoIds.includes(p.id))
+    .map(p => (p.fileName || '').toLowerCase().trim())
+    .filter(name => name.length > 0)
+
+  // Need at least the minimum number of photos to match
+  if (candidateFilenames.length < minimumPhotoCount) {
+    return null
+  }
+
+  // Find existing marker with matching photo filenames
+  return existingMarkers.find(existing => {
+    const existingPhotoIds = existing.photoIds || []
+    const existingFilenames = existingPhotos
+      .filter(p => existingPhotoIds.includes(p.id))
+      .map(p => (p.fileName || '').toLowerCase().trim())
+      .filter(name => name.length > 0)
+
+    // Need at least the minimum number of photos
+    if (existingFilenames.length < minimumPhotoCount) {
+      return false
+    }
+
+    // Calculate how many filenames match
+    const candidateSet = new Set(candidateFilenames)
+    const matchCount = existingFilenames.filter(name => candidateSet.has(name)).length
+
+    // Check if enough filenames match
+    const candidateMatchRatio = matchCount / candidateFilenames.length
+    const existingMatchRatio = matchCount / existingFilenames.length
+
+    // Both sides must meet the threshold
+    return candidateMatchRatio >= matchThreshold && existingMatchRatio >= matchThreshold
+  })
+}
+
+/**
  * Check if a photo is duplicate based on fileName and marker association
  *
  * @param {Array<Object>} existingPhotos - Array of existing photos
@@ -94,7 +200,9 @@ export function mergePhotoIds (existingPhotoIds, newPhotoIds) {
  * @param {Object} targetExport - Base export to merge into
  * @param {Object} sourceExport - Export to merge from
  * @param {Object} [options={}] - Merge options
- * @param {number} options.coordinateTolerance - Pixel tolerance for duplicate detection (default: 0)
+ * @param {string} options.duplicateStrategy - 'none', 'coordinates', 'label', 'photos', or 'smart' (default: 'coordinates')
+ * @param {number} options.coordinateTolerance - Pixel tolerance for coordinate-based detection (default: 5)
+ * @param {number} options.photoMatchThreshold - Fraction of filenames that must match for photo-based detection (default: 0.7)
  * @param {string} options.duplicatePhotoStrategy - 'skip' or 'rename' (default: 'skip')
  * @param {boolean} options.preserveTimestamps - Keep original creation dates (default: true)
  * @param {Function} options.idGenerator - Custom ID generator function (default: generateId)
@@ -102,14 +210,17 @@ export function mergePhotoIds (existingPhotoIds, newPhotoIds) {
  *
  * @example
  * const merged = mergeExports(existingExport, importedExport, {
+ *   duplicateStrategy: 'coordinates',
  *   coordinateTolerance: 5,
  *   duplicatePhotoStrategy: 'skip'
  * })
  */
 export function mergeExports (targetExport, sourceExport, options = {}) {
   const {
-    coordinateTolerance = 0,
-    duplicatePhotoStrategy = 'skip',
+    duplicateStrategy = 'coordinates', // Coordinate-based matching with tolerance
+    coordinateTolerance = 5, // 5px tolerance for coordinate matching
+    photoMatchThreshold = 0.7,
+    duplicatePhotoStrategy = 'skip', // eslint-disable-line no-unused-vars
     preserveTimestamps = true,
     idGenerator = generateId
   } = options
@@ -160,12 +271,60 @@ export function mergeExports (targetExport, sourceExport, options = {}) {
 
   // Process each source marker
   for (const sourceMarker of sourceExport.markers) {
-    // Find matching marker in target (by coordinates)
-    const matchingMarker = findDuplicateMarker(
-      mergedExport.markers,
-      sourceMarker,
-      coordinateTolerance
-    )
+    // Find matching marker in target using specified strategy
+    let matchingMarker = null
+
+    if (duplicateStrategy === 'coordinates') {
+      // Coordinate-based matching only
+      matchingMarker = findDuplicateMarker(
+        mergedExport.markers,
+        sourceMarker,
+        coordinateTolerance
+      )
+    } else if (duplicateStrategy === 'label') {
+      // Label/description matching only
+      matchingMarker = findDuplicateMarkerByLabel(
+        mergedExport.markers,
+        sourceMarker
+      )
+    } else if (duplicateStrategy === 'photos') {
+      // Photo filename matching only
+      matchingMarker = findDuplicateMarkerByPhotos(
+        mergedExport.markers,
+        sourceMarker,
+        sourceExport.photos,
+        mergedExport.photos,
+        1,
+        photoMatchThreshold
+      )
+    } else if (duplicateStrategy === 'smart') {
+      // Try multiple strategies in order of reliability:
+      // 1. Photos (most reliable if markers have photos)
+      // 2. Labels (reliable for labeled markers)
+      // 3. Coordinates (fallback)
+      matchingMarker = findDuplicateMarkerByPhotos(
+        mergedExport.markers,
+        sourceMarker,
+        sourceExport.photos,
+        mergedExport.photos,
+        1,
+        photoMatchThreshold
+      )
+      if (!matchingMarker) {
+        matchingMarker = findDuplicateMarkerByLabel(
+          mergedExport.markers,
+          sourceMarker
+        )
+      }
+      if (!matchingMarker) {
+        matchingMarker = findDuplicateMarker(
+          mergedExport.markers,
+          sourceMarker,
+          coordinateTolerance
+        )
+      }
+    }
+    // If duplicateStrategy === 'none', matchingMarker stays null
 
     if (matchingMarker) {
       // Marker exists - merge photos
@@ -297,7 +456,11 @@ export function mergeExports (targetExport, sourceExport, options = {}) {
  * console.log(`Will add ${stats.newMarkers} markers and ${stats.newPhotos} photos`)
  */
 export function getMergeStatistics (targetExport, sourceExport, options = {}) {
-  const { coordinateTolerance = 0 } = options
+  const {
+    duplicateStrategy = 'coordinates',
+    coordinateTolerance = 0,
+    photoMatchThreshold = 0.7
+  } = options
 
   let duplicateMarkers = 0
   let newMarkers = 0
@@ -305,11 +468,52 @@ export function getMergeStatistics (targetExport, sourceExport, options = {}) {
   let newPhotos = 0
 
   for (const sourceMarker of sourceExport.markers) {
-    const matchingMarker = findDuplicateMarker(
-      targetExport.markers,
-      sourceMarker,
-      coordinateTolerance
-    )
+    // Use same strategy as merge
+    let matchingMarker = null
+
+    if (duplicateStrategy === 'coordinates') {
+      matchingMarker = findDuplicateMarker(
+        targetExport.markers,
+        sourceMarker,
+        coordinateTolerance
+      )
+    } else if (duplicateStrategy === 'label') {
+      matchingMarker = findDuplicateMarkerByLabel(
+        targetExport.markers,
+        sourceMarker
+      )
+    } else if (duplicateStrategy === 'photos') {
+      matchingMarker = findDuplicateMarkerByPhotos(
+        targetExport.markers,
+        sourceMarker,
+        sourceExport.photos,
+        targetExport.photos,
+        1,
+        photoMatchThreshold
+      )
+    } else if (duplicateStrategy === 'smart') {
+      matchingMarker = findDuplicateMarkerByPhotos(
+        targetExport.markers,
+        sourceMarker,
+        sourceExport.photos,
+        targetExport.photos,
+        1,
+        photoMatchThreshold
+      )
+      if (!matchingMarker) {
+        matchingMarker = findDuplicateMarkerByLabel(
+          targetExport.markers,
+          sourceMarker
+        )
+      }
+      if (!matchingMarker) {
+        matchingMarker = findDuplicateMarker(
+          targetExport.markers,
+          sourceMarker,
+          coordinateTolerance
+        )
+      }
+    }
 
     if (matchingMarker) {
       duplicateMarkers++

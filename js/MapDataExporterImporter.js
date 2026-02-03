@@ -1,9 +1,8 @@
 // js/MapDataExporterImporter.js
 
-/* global Blob, URL, crypto, alert, FileReader, Image */
+/* global URL, crypto, alert, Image */
 import { StorageExporterImporter } from '../lib/snapspot-storage/exporter-importer.js'
 import { HtmlReportGenerator } from './HtmlReportGenerator.js'
-import { ImageProcessor } from './imageProcessor.js'
 
 /**
  * @deprecated This class is deprecated and will be removed in Phase 4.

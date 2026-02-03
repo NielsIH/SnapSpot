@@ -4,11 +4,12 @@
  * Handles transformation calculation, preview rendering, and export generation.
  */
 
-/* global FileReader, confirm, alert */
+/* global FileReader, confirm, alert, prompt */
 
 import { calculateAffineMatrix, applyTransform } from '../../core/transformation/affine-transform.js'
 import { calculateRMSE, detectAnomalies } from '../../core/transformation/transform-validator.js'
 import { buildExport } from '../../lib/snapspot-data/writer.js'
+import { mergeExports, getMergeStatistics } from '../../lib/snapspot-data/merger.js'
 
 /**
  * Map Migrator - Main orchestration class
@@ -26,6 +27,9 @@ export class MapMigrator {
 
     // Set up event listeners
     this._setupEventListeners()
+
+    // Store last calculated RMSE for smart tolerance calculation
+    this.lastCalculatedRMSE = null
   }
 
   /**
@@ -99,6 +103,9 @@ export class MapMigrator {
         target: targetPoints[i]
       }))
       const rmse = calculateRMSE(pixelPairs, matrix)
+
+      // Store RMSE for smart tolerance calculation in merge mode
+      this.lastCalculatedRMSE = rmse
 
       // Detect anomalies
       const anomalies = detectAnomalies(matrix)
@@ -366,51 +373,169 @@ export class MapMigrator {
         }
       }
 
-      // Create new map metadata object (without image data - that's passed separately)
-      const newMap = {
-        id: 'migrated-map',
-        name: `${sourceExport.map.name} (Migrated)`,
-        width: state.targetMap.width,
-        height: state.targetMap.height,
-        description: `Migrated from ${sourceExport.map.name}`,
-        fileName: state.targetMap.name || 'target-map.png'
-      }
+      let exportData
+      let filename
 
-      // Keep all photos unchanged
-      const photos = sourceExport.photos || []
+      // Check if target is an export (merge mode) or just an image (replace mode)
+      if (state.targetMap.isExport && state.targetExport) {
+        // MERGE MODE: Target is an export, merge transformed markers with existing markers
+        console.log('Target is an export - using merge mode')
 
-      // Build export using lib/snapspot-data writer
-      // Signature: buildExport(map, mapImage, markers, photos, options)
-      const exportData = await buildExport(
-        newMap,
-        state.targetMap.blob, // Pass blob as separate parameter
-        transformedMarkers,
-        photos,
-        {
-          sourceApp: 'SnapSpot Map Migrator',
-          preserveMapId: false
+        // Create a temporary export with transformed markers
+        const transformedExport = {
+          map: sourceExport.map,
+          markers: transformedMarkers,
+          photos: sourceExport.photos || [],
+          metadata: {
+            sourceApp: 'SnapSpot Map Migrator',
+            exportDate: new Date().toISOString()
+          }
         }
-      )
 
-      // Add optional fields to map metadata
-      exportData.map.description = newMap.description || ''
-      exportData.map.fileName = newMap.fileName
-      exportData.map.fileSize = state.targetMap.blob.size
-      exportData.map.fileType = state.targetMap.blob.type
-      exportData.map.isActive = true
+        // Calculate smart tolerance based on transformation RMSE
+        const rmseValue = this.lastCalculatedRMSE || 5
+        const recommendedTolerance = Math.max(5, Math.ceil(rmseValue * 2.5))
 
-      // Convert to JSON string for download
-      const exportJson = JSON.stringify(exportData, null, 2)
+        // Ask user for merge strategy
+        const strategyChoice = prompt(
+          'Choose merge strategy:\n\n' +
+          '1 - Add all as new markers (no duplicate detection) [DEFAULT]\n' +
+          '2 - Smart duplicate detection (photos → labels → coordinates)\n' +
+          '3 - Detect by photo filenames (70% match threshold)\n' +
+          '4 - Detect by label/description (case-insensitive)\n' +
+          '5 - Detect by coordinates (uses calculated tolerance)\n\n' +
+          `Note: Transformation RMSE = ${rmseValue.toFixed(2)}px\n` +
+          `Recommended coordinate tolerance = ${recommendedTolerance}px\n\n` +
+          'Enter 1-5 (default is 1):',
+          '1'
+        )
 
-      // Generate filename
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-      const filename = `${sourceExport.map.name.replace(/[^a-z0-9]/gi, '_')}_migrated_${timestamp}.json`
+        let duplicateStrategy = 'none'
+        let coordinateTolerance = recommendedTolerance
+        let strategyName = 'Add all as new'
 
-      // Download file
-      this._downloadFile(exportJson, filename)
+        if (strategyChoice === '2') {
+          duplicateStrategy = 'smart'
+          strategyName = 'Smart (photos → labels → coordinates)'
+        } else if (strategyChoice === '3') {
+          duplicateStrategy = 'photos'
+          strategyName = 'Detect by photo filenames (70% match)'
+        } else if (strategyChoice === '4') {
+          duplicateStrategy = 'label'
+          strategyName = 'Detect by label/description'
+        } else if (strategyChoice === '5') {
+          duplicateStrategy = 'coordinates'
+          const customTolerance = prompt(
+            `Enter coordinate tolerance in pixels:\n(Recommended: ${recommendedTolerance}px based on RMSE)`,
+            recommendedTolerance.toString()
+          )
+          coordinateTolerance = parseInt(customTolerance) || recommendedTolerance
+          strategyName = `Detect by coordinates (${coordinateTolerance}px tolerance)`
+        }
 
-      // Show success
-      alert(`Export generated successfully!\n\nFile: ${filename}\nMarkers: ${transformedMarkers.length}`)
+        // Get merge statistics with chosen strategy
+        const stats = getMergeStatistics(state.targetExport, transformedExport, {
+          duplicateStrategy,
+          coordinateTolerance
+        })
+
+        // Show merge preview to user
+        const mergeMessage = `Merge Preview (${strategyName}):\n\n` +
+          `Transformed markers: ${transformedMarkers.length}\n` +
+          `Target markers: ${state.targetExport.markers.length}\n\n` +
+          `Will add ${stats.newMarkers} new marker(s)\n` +
+          `Will merge ${stats.duplicateMarkers} duplicate marker(s)\n` +
+          `Will add ${stats.newPhotos} new photo(s)\n\n` +
+          'Continue with merge?'
+
+        const proceedWithMerge = confirm(mergeMessage)
+        if (!proceedWithMerge) {
+          this.exportBtn.disabled = false
+          this.exportBtn.textContent = 'Generate Export File'
+          return
+        }
+
+        // Perform merge with chosen strategy
+        exportData = mergeExports(state.targetExport, transformedExport, {
+          duplicateStrategy,
+          coordinateTolerance,
+          duplicatePhotoStrategy: 'skip',
+          preserveTimestamps: true
+        })
+
+        // Update map metadata
+        exportData.map.lastModified = new Date().toISOString()
+        exportData.map.description = `Merged with ${sourceExport.map.name}`
+
+        // Generate filename for merged export
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+        const targetMapName = state.targetExport.map.name.replace(/[^a-z0-9]/gi, '_')
+        const sourceMapName = sourceExport.map.name.replace(/[^a-z0-9]/gi, '_')
+        filename = `${targetMapName}_merged_${sourceMapName}_${timestamp}.json`
+
+        // Show success message with merge statistics
+        const successMessage = 'Merge completed successfully!\n\n' +
+          `File: ${filename}\n\n` +
+          `Total markers: ${exportData.markers.length}\n` +
+          `Added: ${stats.newMarkers} new markers\n` +
+          `Merged: ${stats.duplicateMarkers} duplicate markers\n` +
+          `Added: ${stats.newPhotos} new photos`
+
+        // Convert to JSON string for download
+        const exportJson = JSON.stringify(exportData, null, 2)
+        this._downloadFile(exportJson, filename)
+
+        alert(successMessage)
+      } else {
+        // REPLACE MODE: Target is just an image, create new export
+        console.log('Target is an image - using replace mode')
+
+        // Create new map metadata object (without image data - that's passed separately)
+        const newMap = {
+          id: 'migrated-map',
+          name: `${sourceExport.map.name} (Migrated)`,
+          width: state.targetMap.width,
+          height: state.targetMap.height,
+          description: `Migrated from ${sourceExport.map.name}`,
+          fileName: state.targetMap.name || 'target-map.png'
+        }
+
+        // Keep all photos unchanged
+        const photos = sourceExport.photos || []
+
+        // Build export using lib/snapspot-data writer
+        // Signature: buildExport(map, mapImage, markers, photos, options)
+        exportData = await buildExport(
+          newMap,
+          state.targetMap.blob, // Pass blob as separate parameter
+          transformedMarkers,
+          photos,
+          {
+            sourceApp: 'SnapSpot Map Migrator',
+            preserveMapId: false
+          }
+        )
+
+        // Add optional fields to map metadata
+        exportData.map.description = newMap.description || ''
+        exportData.map.fileName = newMap.fileName
+        exportData.map.fileSize = state.targetMap.blob.size
+        exportData.map.fileType = state.targetMap.blob.type
+        exportData.map.isActive = true
+
+        // Convert to JSON string for download
+        const exportJson = JSON.stringify(exportData, null, 2)
+
+        // Generate filename
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
+        filename = `${sourceExport.map.name.replace(/[^a-z0-9]/gi, '_')}_migrated_${timestamp}.json`
+
+        // Download file
+        this._downloadFile(exportJson, filename)
+
+        // Show success
+        alert(`Export generated successfully!\n\nFile: ${filename}\nMarkers: ${transformedMarkers.length}`)
+      }
 
       // Reset button
       this.exportBtn.disabled = false

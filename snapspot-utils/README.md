@@ -17,6 +17,18 @@ Transform marker coordinates from one map to another using reference point align
 - Upgrading to higher-resolution maps
 - Migrating to updated floor plans
 - Moving markers between different scans of the same location
+- **Merging markers** from multiple exports onto the same map
+
+**Two Migration Modes:**
+- **Replace Mode:** Target is an image → Creates new export with transformed markers
+- **Merge Mode:** Target is an export → Intelligently merges transformed markers with existing markers
+
+**Duplicate Detection in Merge Mode (Optional):**
+- **Default:** Add all as new (no duplicate detection)
+- **Smart Detection:** Cascading strategy (photos → labels → coordinates)
+- **Photo Filenames:** Match markers by 70%+ shared photo filenames
+- **Label/Description:** Match markers by text (case-insensitive)
+- **Coordinates:** Match within tolerance based on transformation quality (RMSE × 2.5)
 
 **Status:** Available  
 **Guide:** [Map Migrator Documentation](docs/map-migrator-guide.md) *(available after Phase 6)*
@@ -91,7 +103,9 @@ Visit the hosted utilities site (URL TBD after deployment).
 
 3. **Load Files**
    - Drag your SnapSpot export JSON to "Source Map"
-   - Drag your new map image to "Target Map"
+   - Drag your target to "Target Map":
+     - **Image file** (.jpg, .png, .webp) for Replace Mode
+     - **SnapSpot export** (.json) for Merge Mode
 
 4. **Select Reference Points**
    - Click corresponding locations on both maps (minimum 3 pairs)
@@ -104,12 +118,17 @@ Visit the hosted utilities site (URL TBD after deployment).
 
 6. **Generate Export**
    - Click "Generate Export"
-   - Download the migrated JSON file
+   - **Replace Mode:** Downloads new export with transformed markers
+   - **Merge Mode:** 
+     1. Choose merge strategy (add all new, by label, by coordinates, or both)
+     2. Preview merge statistics showing how many markers will be added vs merged
+     3. Download merged export
+   - Download the migrated/merged JSON file
 
 7. **Import to SnapSpot**
    - Open SnapSpot PWA
    - Navigate to Settings → Import Data
-   - Import the migrated file
+   - Import the migrated/merged file
 
 ---
 
@@ -122,8 +141,11 @@ snapspot-utils/
 │   ├── styles/            # Common CSS variables
 │   └── utils/             # Shared JavaScript modules
 ├── core/                  # Business logic
-│   ├── transformation/    # Coordinate math
-│   └── formats/          # File format handlers
+│   └── transformation/    # Coordinate math (affine transforms)
+├── lib/                   # Shared SnapSpot libraries (refactored)
+│   ├── snapspot-data/     # Data operations (parse, write, validate, merge)
+│   ├── snapspot-image/    # Image utilities (conversion, hashing)
+│   └── snapspot-storage/  # Storage integration
 ├── tools/                # Individual tools
 │   └── map-migrator/     # Map migration tool
 └── docs/                 # Documentation
@@ -131,6 +153,7 @@ snapspot-utils/
 
 **Design Principles:**
 - **Modular:** Clean separation between tools and core logic
+- **Shared Libraries:** Uses refactored SnapSpot libraries from `lib/` directory
 - **Privacy-First:** All processing in-browser, no data uploaded
 - **Standalone:** No build process, just open HTML files
 - **Extensible:** Easy to add new tools and formats

@@ -95,7 +95,9 @@ The SnapSpot Utilities Suite is a collection of desktop-focused browser-based to
 ┌─────────────────────────────────────┐
 │         UI Layer (Tool)             │  ← Tool-specific (migrator.js)
 ├─────────────────────────────────────┤
-│      Format Handlers (I/O)          │  ← Pluggable (snapspot/, geojson/)
+│   Shared Libraries (lib/)         │  ← Refactored SnapSpot libraries
+│   - snapspot-data (parse, write)  │
+│   - snapspot-image (conversion)   │
 ├─────────────────────────────────────┤
 │   Transformation Core (Pure Math)   │  ← Format-agnostic (affine-transform.js)
 └─────────────────────────────────────┘
@@ -103,8 +105,8 @@ The SnapSpot Utilities Suite is a collection of desktop-focused browser-based to
 
 **Module Boundaries:**
 - **Core:** No DOM, no file I/O, no format knowledge—pure functions
-- **Formats:** No UI logic, only data transformation to/from standard internal format
-- **Tools:** Orchestrates core + formats, handles all UI/DOM
+- **Shared Libraries (lib/):** Pure data/image operations, reusable across PWA and utilities
+- **Tools:** Orchestrates core + libraries, handles all UI/DOM
 
 **Alternative Considered:**
 - Monolithic design: Rejected due to inflexibility for future tools/formats
@@ -256,6 +258,18 @@ snapspot-utils/
 │           ├── parser.js               # Read SnapSpot export JSON
 │           ├── writer.js               # Write SnapSpot export JSON
 │           └── validator.js            # Schema validation
+├── lib/                                # Shared SnapSpot libraries (refactored)
+│   ├── snapspot-data/                  # Pure data operations
+│   │   ├── parser.js                   # Parse SnapSpot export files
+│   │   ├── writer.js                   # Generate SnapSpot export files
+│   │   ├── validator.js                # Schema validation
+│   │   ├── merger.js                   # Merge multiple exports
+│   │   └── splitter.js                 # Split exports by criteria
+│   ├── snapspot-image/                 # Image utilities
+│   │   ├── converter.js                # Blob ↔ Base64 conversion
+│   │   └── hasher.js                   # SHA-256 hashing
+│   └── snapspot-storage/               # Storage integration (PWA-specific)
+│       └── exporter-importer.js
 ├── tools/                              # Individual utility tools
 │   └── map-migrator/
 │       ├── index.html                  # UI for map migration
@@ -369,7 +383,9 @@ export function suggestAdditionalPoints(currentPoints, mapBounds)
 
 ---
 
-#### 3. `core/formats/snapspot/parser.js`
+### Shared Library Modules (lib/)
+
+#### 3. `lib/snapspot-data/parser.js`
 
 **Purpose:** Read and validate SnapSpot export files.
 
@@ -388,7 +404,7 @@ export function extractMapImage(mapObject)
 
 ---
 
-#### 4. `core/formats/snapspot/writer.js`
+#### 4. `lib/snapspot-data/writer.js`
 
 **Purpose:** Generate SnapSpot export JSON.
 
@@ -407,6 +423,22 @@ export function generateMapHash(imageData)
 **Dependencies:** Imports SnapSpot schema constants.
 
 ---
+
+#### 5. `lib/snapspot-data/merger.js`
+
+**Purpose:** Intelligently merge multiple SnapSpot exports.
+
+**Exports:**
+```javascript
+export function mergeExports(targetExport, sourceExport, options)
+  // Merges markers and photos with duplicate detection
+  // Options: coordinateTolerance, duplicatePhotoStrategy
+
+export function getMergeStatistics(targetExport, sourceExport, options)
+  // Preview merge results without performing merge
+```
+
+**Dependencies:** Uses `writer.js` for ID generation.
 
 ### Tool Modules
 
@@ -535,7 +567,13 @@ const state = {
 
 ### Format Handler Interface
 
-To add new formats (e.g., GeoJSON), implement:
+The SnapSpot data format is handled by the shared libraries in `lib/snapspot-data/`:
+- **Parser:** `lib/snapspot-data/parser.js` - Read SnapSpot exports
+- **Writer:** `lib/snapspot-data/writer.js` - Generate SnapSpot exports
+- **Validator:** `lib/snapspot-data/validator.js` - Schema validation
+- **Merger:** `lib/snapspot-data/merger.js` - Merge multiple exports
+
+To add new formats (e.g., GeoJSON), implement similar structure in `core/formats/`:
 
 ```javascript
 // core/formats/geojson/parser.js
