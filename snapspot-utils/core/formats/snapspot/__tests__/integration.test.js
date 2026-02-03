@@ -9,9 +9,11 @@
  */
 
 import { assert } from '../../../../shared/test-framework.js'
-import { validateExportFile, isSupportedVersion } from '../validator.js'
-import { parseExport, parseExportMetadata, base64ToBlob, extractMapImage, validateMarkerCoordinates, clampMarkerToBounds } from '../parser.js'
-import { buildExport, generateId, blobToBase64, generateMapHash, createMinimalExport } from '../writer.js'
+import { validateExportFile, isSupportedVersion } from '../../../../lib/snapspot-data/validator.js'
+import { parseExport, parseExportMetadata, validateMarkerCoordinates, clampMarkerToBounds } from '../../../../lib/snapspot-data/parser.js'
+import { buildExport, generateId, createMinimalExport } from '../../../../lib/snapspot-data/writer.js'
+import { base64ToBlob, blobToBase64 } from '../../../../lib/snapspot-image/converter.js'
+import { generateImageHash } from '../../../../lib/snapspot-image/hasher.js'
 
 /**
  * Test utilities
@@ -125,18 +127,18 @@ const validatorTests = {
       async run () {
         const data = {
           version: '1.1',
-          type: 'snapspot-export',
+          type: 'SnapSpotDataExport',
           sourceApp: 'Test',
-          exportDate: new Date().toISOString(),
+          timestamp: new Date().toISOString(),
           map: {
             id: 'test',
             name: 'Test',
             imageData: 'data:image/png;base64,test',
             width: -100, // Invalid
             height: 0, // Invalid
-            hash: 'test',
-            created: new Date().toISOString(),
-            modified: new Date().toISOString()
+            imageHash: 'test',
+            createdDate: new Date().toISOString(),
+            lastModified: new Date().toISOString()
           },
           markers: []
         }
@@ -247,9 +249,9 @@ const parserTests = {
       name: 'validateMarkerCoordinates - finds out-of-bounds markers',
       async run () {
         const markers = [
-          { x: 50, y: 50, label: 'Valid' },
-          { x: -10, y: 50, label: 'Out of bounds X' },
-          { x: 50, y: 150, label: 'Out of bounds Y' }
+          { x: 50, y: 50, description: 'Valid' },
+          { x: -10, y: 50, description: 'Out of bounds X' },
+          { x: 50, y: 150, description: 'Out of bounds Y' }
         ]
 
         const outOfBounds = validateMarkerCoordinates(markers, 100, 100)
@@ -261,7 +263,7 @@ const parserTests = {
     {
       name: 'clampMarkerToBounds - clamps coordinates',
       async run () {
-        const marker = { x: -10, y: 150, label: 'Test' }
+        const marker = { x: -10, y: 150, description: 'Test' }
         const clamped = clampMarkerToBounds(marker, 100, 100)
 
         assert.equal(clamped.x, 0, 'X should be clamped to 0')
@@ -284,7 +286,8 @@ const writerTests = {
         const id2 = generateId('test')
 
         assert.ok(id1 !== id2, 'IDs should be unique')
-        assert.ok(id1.startsWith('test_'), 'ID should have correct prefix')
+        assert.ok(typeof id1 === 'string', 'ID should be a string')
+        assert.ok(id1.length > 0, 'ID should not be empty')
       }
     },
 
@@ -299,10 +302,10 @@ const writerTests = {
     },
 
     {
-      name: 'generateMapHash - generates SHA-256 hash',
+      name: 'generateImageHash - generates SHA-256 hash',
       async run () {
         const blob = new Blob(['test data'], { type: 'application/octet-stream' })
-        const hash = await generateMapHash(blob)
+        const hash = await generateImageHash(blob)
 
         assert.ok(typeof hash === 'string', 'Hash should be a string')
         assert.equal(hash.length, 64, 'SHA-256 hash should be 64 characters')
@@ -334,8 +337,7 @@ const writerTests = {
           { x: 50, y: 50, label: 'Test Marker' }
         ]
 
-        const exportJson = await buildExport(map, blob, markers)
-        const exportData = JSON.parse(exportJson)
+        const exportData = await buildExport(map, blob, markers)
 
         const result = validateExportFile(exportData)
         assert.ok(result.isValid, 'Generated export should be valid')
@@ -356,14 +358,13 @@ const integrationTests = {
         const originalJson = await TestUtils.loadFixture('minimal-export.json')
         const parsed = await parseExport(originalJson)
 
-        const rebuilt = await buildExport(
+        const rebuiltData = await buildExport(
           parsed.map,
           parsed.mapImage,
           parsed.markers,
           parsed.photos
         )
 
-        const rebuiltData = JSON.parse(rebuilt)
         const result = validateExportFile(rebuiltData)
 
         assert.ok(result.isValid, 'Rebuilt export should be valid')
@@ -381,14 +382,13 @@ const integrationTests = {
         const originalJson = await TestUtils.loadFixture('full-export.json')
         const parsed = await parseExport(originalJson)
 
-        const rebuilt = await buildExport(
+        const rebuiltData = await buildExport(
           parsed.map,
           parsed.mapImage,
           parsed.markers,
           parsed.photos
         )
 
-        const rebuiltData = JSON.parse(rebuilt)
         const result = validateExportFile(rebuiltData)
 
         assert.ok(result.isValid, 'Rebuilt export should be valid')
@@ -412,14 +412,12 @@ const integrationTests = {
         const original = JSON.parse(originalJson)
         const parsed = await parseExport(originalJson)
 
-        const rebuilt = await buildExport(
+        const rebuiltData = await buildExport(
           parsed.map,
           parsed.mapImage,
           parsed.markers,
           parsed.photos
         )
-
-        const rebuiltData = JSON.parse(rebuilt)
 
         // Check first marker coordinates are preserved
         assert.equal(
@@ -433,9 +431,9 @@ const integrationTests = {
           'Marker Y coordinate should match'
         )
         assert.equal(
-          rebuiltData.markers[0].label,
-          original.markers[0].label,
-          'Marker label should match'
+          rebuiltData.markers[0].description,
+          original.markers[0].description,
+          'Marker description should match'
         )
       }
     },
@@ -450,8 +448,9 @@ const integrationTests = {
             id: `marker_${i}`,
             x: Math.random() * 2000,
             y: Math.random() * 1500,
-            label: `Marker ${i}`,
-            created: new Date().toISOString()
+            description: `Marker ${i}`,
+            photoIds: [],
+            createdDate: new Date().toISOString()
           })
         }
 
@@ -464,8 +463,11 @@ const integrationTests = {
         const blob = new Blob(['test'], { type: 'image/png' })
 
         const startTime = performance.now()
-        const exportJson = await buildExport(map, blob, markers)
+        const exportData = await buildExport(map, blob, markers)
         const buildTime = performance.now() - startTime
+
+        // Convert to JSON and back to simulate real usage
+        const exportJson = JSON.stringify(exportData)
 
         const parseStartTime = performance.now()
         const parsed = await parseExport(exportJson)

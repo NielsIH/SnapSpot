@@ -41,6 +41,9 @@ export class UIController {
     this.sourceRenderer.onRedraw = () => this._drawSourceOverlays()
     this.targetRenderer.onRedraw = () => this._drawTargetOverlays()
 
+    // Callback for state reset (notify other components like migrator)
+    this.onStateReset = null
+
     // Application state
     this.state = {
       sourceExport: null,
@@ -107,6 +110,10 @@ export class UIController {
     this.helpBtn = document.getElementById('help-btn')
     this.helpModal = document.getElementById('help-modal')
     this.closeHelpBtn = document.getElementById('close-help')
+
+    // Change map buttons
+    this.changeSourceBtn = document.getElementById('change-source-btn')
+    this.changeTargetBtn = document.getElementById('change-target-btn')
   }
 
   /**
@@ -145,6 +152,10 @@ export class UIController {
     this.helpBtn.addEventListener('click', () => this._showHelp())
     this.closeHelpBtn.addEventListener('click', () => this._hideHelp())
 
+    // Change map buttons
+    this.changeSourceBtn.addEventListener('click', () => this._onChangeSource())
+    this.changeTargetBtn.addEventListener('click', () => this._onChangeTarget())
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => this._onKeyDown(e))
 
@@ -158,7 +169,7 @@ export class UIController {
    */
   _resizeCanvases () {
     const width = 600
-    const height = 360
+    const height = 500
 
     this.sourceCanvas.width = width
     this.sourceCanvas.height = height
@@ -832,6 +843,7 @@ export class UIController {
       this.state.pendingSourcePoint = null
       this.state.nextClickTarget = 'source'
       this.state.transformMatrix = null
+      this.state.previewActive = false
 
       // Update UI
       this._updatePointsTable()
@@ -840,6 +852,11 @@ export class UIController {
       this._updateCanvasCursors()
       this._updateButtonStates()
       this._hideMetrics()
+
+      // Notify other components of state reset
+      if (this.onStateReset) {
+        this.onStateReset()
+      }
     }
   }
 
@@ -946,6 +963,134 @@ export class UIController {
    */
   _hideHelp () {
     this.helpModal.classList.add('hidden')
+  }
+
+  /**
+   * Change source map
+   * @private
+   */
+  _onChangeSource () {
+    const proceed = confirm(
+      'Changing the source map will clear all reference points and reset the transformation.\n\n' +
+      'Do you want to continue?'
+    )
+
+    if (!proceed) return
+
+    // Clear all state
+    this.state.sourceExport = null
+    this.state.sourceMap = null
+    this.state.referencePairs = []
+    this.state.pendingSourcePoint = null
+    this.state.nextClickTarget = 'source'
+    this.state.transformMatrix = null
+    this.state.previewActive = false
+
+    // Reset UI
+    this._showDropZone(this.sourceDrop)
+    this._hideInfo(this.sourceInfo)
+    this._updatePointsTable()
+    this._updateCanvasCursors()
+    this._updateButtonStates()
+    this._hideMetrics()
+
+    // Clear canvas
+    this.sourceRenderer.clear()
+
+    // Notify other components of state reset
+    if (this.onStateReset) {
+      this.onStateReset()
+    }
+  }
+
+  /**
+   * Change target map
+   * @private
+   */
+  _onChangeTarget () {
+    const proceed = confirm(
+      'Changing the target map will clear all reference points and reset the transformation.\n\n' +
+      'Do you want to continue?'
+    )
+
+    if (!proceed) return
+
+    // Clear target state
+    this.state.targetExport = null
+    this.state.targetMap = null
+    this.state.referencePairs = []
+    this.state.pendingSourcePoint = null
+    this.state.nextClickTarget = 'source'
+    this.state.transformMatrix = null
+    this.state.previewActive = false
+
+    // Reset UI
+    this._showDropZone(this.targetDrop)
+    this._hideInfo(this.targetInfo)
+    this._updatePointsTable()
+    this._updateCanvasCursors()
+
+    // Notify other components of state reset
+    if (this.onStateReset) {
+      this.onStateReset()
+    }
+    this._updateButtonStates()
+    this._hideMetrics()
+
+    // Clear canvas
+    this.targetRenderer.clear()
+  }
+
+  /**
+   * Show drop zone
+   * @private
+   */
+  _showDropZone (dropZone) {
+    dropZone.style.display = 'flex'
+
+    // Restore original content
+    const content = dropZone.querySelector('.drop-zone-content')
+    const isSource = dropZone.id === 'source-drop'
+
+    if (isSource) {
+      content.innerHTML = `
+        <div class="drop-icon">📁</div>
+        <p class="drop-text">Drop SnapSpot export file here</p>
+        <p class="drop-hint">(.json file from SnapSpot app)</p>
+        <button class="btn btn-secondary" id="source-file-btn">Or Browse Files</button>
+        <input type="file" id="source-file-input" accept=".json" style="display: none;">
+      `
+      // Re-attach listeners
+      const btn = content.querySelector('#source-file-btn')
+      const input = content.querySelector('#source-file-input')
+      btn.addEventListener('click', () => input.click())
+      input.addEventListener('change', (e) => this._onSourceFileSelect(e))
+      this.sourceFileInput = input
+      this.sourceFileBtn = btn
+    } else {
+      content.innerHTML = `
+        <div class="drop-icon">🖼️</div>
+        <p class="drop-text">Drop new map image or export file here</p>
+        <p class="drop-hint">(.jpg, .png, .webp, or .json)</p>
+        <button class="btn btn-secondary" id="target-file-btn">Or Browse Files</button>
+        <input type="file" id="target-file-input" accept="image/*,.json" style="display: none;">
+      `
+      // Re-attach listeners
+      const btn = content.querySelector('#target-file-btn')
+      const input = content.querySelector('#target-file-input')
+      btn.addEventListener('click', () => input.click())
+      input.addEventListener('change', (e) => this._onTargetFileSelect(e))
+      this.targetFileInput = input
+      this.targetFileBtn = btn
+    }
+  }
+
+  /**
+   * Hide info panel
+   * @private
+   */
+  _hideInfo (infoPanel) {
+    infoPanel.style.display = 'none'
   }
 
   /**

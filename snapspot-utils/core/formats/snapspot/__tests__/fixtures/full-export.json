@@ -1,39 +1,42 @@
 {
   "version": "1.1",
-  "type": "snapspot-export",
+  "type": "SnapSpotDataExport",
   "sourceApp": "SnapSpot v1.0",
-  "exportDate": "2026-01-28T12:00:00.000Z",
+  "timestamp": "2026-01-28T12:00:00.000Z",
   "map": {
     "id": "map_1706443200000_full01",
     "name": "Full Test Map",
     "imageData": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNkYPhfz0AEYBxVSF+FAP5FDvcfRYWgAAAAAElFTkSuQmCC",
     "width": 800,
     "height": 600,
-    "hash": "a7b3f9c2d4e5f6789012345678901234567890abcdef1234567890abcdef1234",
-    "created": "2026-01-27T10:00:00.000Z",
-    "modified": "2026-01-28T12:00:00.000Z"
+    "imageHash": "a7b3f9c2d4e5f6789012345678901234567890abcdef1234567890abcdef1234",
+    "createdDate": "2026-01-27T10:00:00.000Z",
+    "lastModified": "2026-01-28T12:00:00.000Z"
   },
   "markers": [
     {
       "id": "marker_1706443200001_abc123",
       "x": 100,
       "y": 150,
-      "label": "Marker 1",
-      "created": "2026-01-27T10:30:00.000Z"
+      "description": "Marker 1",
+      "photoIds": ["photo_1706443200001_xyz123"],
+      "createdDate": "2026-01-27T10:30:00.000Z"
     },
     {
       "id": "marker_1706443200002_def456",
       "x": 400,
       "y": 300,
-      "label": "Marker 2",
-      "created": "2026-01-27T11:00:00.000Z"
+      "description": "Marker 2",
+      "photoIds": [],
+      "createdDate": "2026-01-27T11:00:00.000Z"
     },
     {
       "id": "marker_1706443200003_ghi789",
       "x": 600,
       "y": 450,
-      "label": "Marker 3",
-      "created": "2026-01-27T11:30:00.000Z"
+      "description": "Marker 3",
+      "photoIds": [],
+      "createdDate": "2026-01-27T11:30:00.000Z"
     }
   ],
   "photos": [
@@ -41,8 +44,10 @@
       "id": "photo_1706443200001_xyz123",
       "markerId": "marker_1706443200001_abc123",
       "imageData": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/wA==",
-      "caption": "Photo of Marker 1",
-      "created": "2026-01-27T12:00:00.000Z"
+      "fileName": "photo-1.jpg",
+      "fileType": "image/jpeg",
+      "fileSize": 1234,
+      "createdDate": "2026-01-27T12:00:00.000Z"
     }
   ]
 }

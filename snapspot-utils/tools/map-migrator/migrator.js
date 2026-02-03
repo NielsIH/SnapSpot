@@ -62,6 +62,18 @@ export class MapMigrator {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => this._onKeyDown(e))
+
+    // Listen for state changes from UI controller
+    this.ui.onStateReset = () => this._onStateReset()
+  }
+
+  /**
+   * Handle state reset from UI controller
+   * @private
+   */
+  _onStateReset () {
+    // Reset preview button text
+    this.previewBtn.textContent = 'Preview Transformed Markers'
   }
 
   /**
@@ -470,8 +482,7 @@ export class MapMigrator {
         // Generate filename for merged export
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
         const targetMapName = state.targetExport.map.name.replace(/[^a-z0-9]/gi, '_')
-        const sourceMapName = sourceExport.map.name.replace(/[^a-z0-9]/gi, '_')
-        filename = `${targetMapName}_merged_${sourceMapName}_${timestamp}.json`
+        filename = `Snapspot_Migrator_Export_${targetMapName}_${timestamp}.json`
 
         // Show success message with merge statistics
         const successMessage = 'Merge completed successfully!\n\n' +
@@ -526,9 +537,10 @@ export class MapMigrator {
         // Convert to JSON string for download
         const exportJson = JSON.stringify(exportData, null, 2)
 
-        // Generate filename
+        // Generate filename using target map name
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5)
-        filename = `${sourceExport.map.name.replace(/[^a-z0-9]/gi, '_')}_migrated_${timestamp}.json`
+        const targetMapName = state.targetMap.name.replace(/\.[^.]+$/, '').replace(/[^a-z0-9]/gi, '_') // Remove extension and sanitize
+        filename = `Snapspot_Migrator_Export_${targetMapName}_${timestamp}.json`
 
         // Download file
         this._downloadFile(exportJson, filename)
