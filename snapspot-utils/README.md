@@ -1,5 +1,17 @@
 # SnapSpot Utilities Suite
 
+> **⚠️ REPOSITORY MOVED**  
+> This directory is archived and no longer maintained.  
+> **SnapSpot Utilities has moved to its own repository:**  
+> 🔗 **https://github.com/NielsIH/SnapSpot-Utils**  
+>   
+> **Download the latest release:**  
+> 📦 **https://github.com/NielsIH/SnapSpot-Utils/releases**  
+>   
+> This copy remains for historical reference only and will be removed in a future update.
+
+---
+
 **Desktop tools for advanced SnapSpot data operations**
 
 Version 1.0 | [Documentation](docs/) | [SnapSpot Main App](../)
