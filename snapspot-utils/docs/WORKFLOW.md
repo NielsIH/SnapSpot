@@ -11,10 +11,16 @@
 Point to the phase-specific implementation document:
 - **Phase 1:** `docs/IMPLEMENTATION_PHASE_1.md` ← ✅ COMPLETE
 - **Phase 2:** `docs/IMPLEMENTATION_PHASE_2.md` ← ✅ COMPLETE
-- **Phase 3:** `docs/IMPLEMENTATION_PHASE_3.md` ← NEXT
-- **Phase 4:** `docs/IMPLEMENTATION_PHASE_4.md`
-- **Phase 5:** `docs/IMPLEMENTATION_PHASE_5.md`
-- **Phase 6:** `docs/IMPLEMENTATION_PHASE_6.md`
+- **Phase 3:** `docs/IMPLEMENTATION_PHASE_3.md` ← ✅ COMPLETE
+- **Phase 4:** `docs/IMPLEMENTATION_PHASE_4.md` ← ✅ COMPLETE
+- **Phase 5:** `docs/IMPLEMENTATION_PHASE_5.md` ← ✅ COMPLETE
+- **Phase 6:** `docs/IMPLEMENTATION_PHASE_6.md` ← ⏳ NEXT (Map Migrator Testing & Polish)
+- **Phase 7:** `docs/IMPLEMENTATION_PHASE_7.md` ← ⏳ PLANNED (Node.js CLI Utilities - Overview)
+  - **Phase 7A:** `docs/PHASE_7A_CLI_FOUNDATION.md` (CLI Foundation & Shared Utilities)
+  - **Phase 7B:** `docs/PHASE_7B_PHOTO_FINDER.md` (Photo Finder Tool)
+  - **Phase 7C:** `docs/PHASE_7C_EXPORT_TRANSFORMER.md` (Export Transformer Tool)
+  - **Phase 7D:** `docs/PHASE_7D_ORGANIZER.md` (Organizer Tool)
+  - **Phase 7E:** `docs/PHASE_7E_TESTING_POLISH.md` (Testing & Polish)
 
 ### Step 2: Verify Phase Document Structure
 
