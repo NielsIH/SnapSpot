@@ -1,8 +1,8 @@
 # SnapSpot Library Refactoring - Workflow Tracker
 
-**Last Updated:** January 30, 2026  
-**Current Phase:** Phase 3 - Refactor snapspot-utils  
-**Current Task:** Phase 3A - Update Map Migrator
+**Last Updated:** February 3, 2026  
+**Current Phase:** Phase 4 - Documentation & Cleanup  
+**Current Task:** Not started - snapspot-utils moved to separate repository
 
 ---
 
@@ -69,60 +69,36 @@
 **Documents:** Multiple sub-phases  
 **Started:** January 30, 2026
 
-**Sub-Phases:**
-- 🔄 Phase 3A: Update Map Migrator ([PHASE_3A_MAP_MIGRATOR.md](PHASE_3A_MAP_MIGRATOR.md)) - IN PROGRESS
-- ⬜ Phase 3B: Deprecate Old Format Handlers ([PHASE_3B_DEPRECATE.md](PHASE_3B_DEPRECATE.md))
-- ⬜ Phase 3C: Create Export Merger Tool ([PHASE_3C_MERGER_TOOL.md](PHASE_3C_MERGER_tool.md))
-
-**Progress:** 0/3 sub-phases completed
-
-**Current Task:** Phase 3A - Update map-migrator to use shared libraries
-
-**Tasks:**
-- 🔄 Phase 3A: Update map-migrator imports + test
-- ⬜ Phase 3B: Deprecate format handlers + test backward compatibility
-- ⬜ Phase 3C:asks:**
-- ⬜ Update main documentation
-- ⬜ Create migration guide
-- ⬜ Remove deprecated code
-- ⬜ Performance benchmarking
-- ⬜ Final review
-- ⬜ Final commit & release
-
-**Note:** This phase is primarily documentation with no required manual testing at the end of each task.
+**Reason:** The snapspot-utils suite was moved to its own repository to better support independent development and maintenance cycles.
 
 ---
 
-## Commit H
+## Commit History
+
+### Phase 1 & 2
 - ✅ Commit: "feat: refactor ImageProcessor to use lib/snapspot-image"
 - ✅ Commit: "feat: create StorageExporterImporter using shared libraries"
-- ✅ Commit: "refactor: integrate StorageExporterImporter with wrapper, fix legacy import
-### Phase 1 ← **NEXT**
-- ⬜ Commit: "refactor: deprecate old format handlers with re-exports"
-- ⬜ Commit: "feat: add export merger toolth wrapper"
+- ✅ Commit: "refactor: integrate StorageExporterImporter with wrapper, fix legacy import"
+- ✅ Commit: "chore: remove snapspot-utils (moved to separate repository)"
 
-### Phase 3
-- ⬜ Commit: "refactor: update map-migrator to use lib/snapspot-data"
-- ⬜ Commit: "refactor: deprecate old format handlers with re-exports"
-- ⬜ Commit: "feat: add export merger tool
-### Phase 3
-- ⬜ Commit: "refactor: update utils to use shared libraries"
-
-### Phase 4
+### Phase 4 ← **NEXT**
 - ⬜ Commit: "docs: update documentation for library architecture"
-- ⬜ Commit: "chore: remove deprecated code and cleanup"
+- ⬜ Commit: "chore: remove deprecated MapDataExporterImporter wrapper"
 
 ---
 
 ## Current Context
 
 **Files Modified Since Last Commit:**
-- (none yet - ready for Phase 3A)
+- Removed snapspot-utils/ directory (moved to separate repository)
+- Removed docs/PHASE_3*.md files
+- Updated docs/PHASE_4_CLEANUP.md
+- Updated docs/REFACTORING_WORKFLOW.md
 
 **Files To Modify Next:**
-- `snapspot-utils/tools/map-migrator/*` (UPDATE)
+- Documentation files (README.md, lib/README.md)
 
-**Expected Duration:** 2-3 hours (Phase 3A)
+**Expected Duration:** 1-2 days (Phase 4)
 
 **Blocking Issues:** None
 
@@ -167,6 +143,6 @@ When all tasks in a phase are checked:
 
 - [Main Refactoring Plan](LIBRARY_REFACTORING_PLAN.md)
 - [Phase 2 Document](PHASE_2_REFACTOR_APP.md)
-- [Phase 3 Document](PHASE_3_REFACTOR_UTILS.md)
 - [Phase 4 Document](PHASE_4_CLEANUP.md)
 - [Library API Docs](../lib/README.md)
+- [SnapSpot-Utils Repository](https://github.com/NielsIH/SnapSpot-Utils)

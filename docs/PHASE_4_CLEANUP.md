@@ -128,15 +128,11 @@ See [Library Refactoring Plan](docs/LIBRARY_REFACTORING_PLAN.md) for details.
 
 ### ⬜ Task 4.3: Remove Deprecated Code
 **Status:** NOT STARTED  
-**Estimated Time:** 2 hours
+**Estimated Time:** 1 hour
+
+**Note:** The snapspot-utils directory has been moved to its own repository at https://github.com/NielsIH/SnapSpot-Utils and is no longer part of this repository.
 
 #### Subtasks
-- [ ] Remove `snapspot-utils/core/formats/snapspot/` directory
-  - [ ] parser.js (now re-exports from lib)
-  - [ ] writer.js
-  - [ ] validator.js
-  - [ ] __tests__/ (moved to lib)
-  
 - [ ] Remove `js/MapDataExporterImporter.js` wrapper
   - [ ] Update app.js to import directly from lib/snapspot-storage
   
@@ -144,15 +140,13 @@ See [Library Refactoring Plan](docs/LIBRARY_REFACTORING_PLAN.md) for details.
   - [ ] `grep -r "DEPRECATED" .`
   - [ ] Remove or clean up
   
-- [ ] Update all imports in codebase
 - [ ] Run full test suite
 - [ ] Manual smoke test
 
 #### Verification
 Before removing code, verify:
 ```bash
-# Search for usage of old paths
-grep -r "core/formats/snapspot" --include="*.js" --include="*.html"
+# Search for usage of MapDataExporterImporter
 grep -r "MapDataExporterImporter" --include="*.js"
 ```
 
@@ -281,8 +275,6 @@ BREAKING CHANGES: None (backward compatible)
 - Created lib/snapspot-image for image utilities
 - Created lib/snapspot-storage for storage integration
 - Updated SnapSpot PWA to use shared libraries
-- Updated snapspot-utils to use shared libraries
-- Added export merger tool to utils
 - Removed deprecated code
 - Updated all documentation
 
@@ -326,11 +318,6 @@ git push origin v2.0.0-refactor
   - [ ] Import exported file
   - [ ] Verify everything restored
   
-- [ ] **Utils Tools**
-  - [ ] Map migrator: Transform and export
-  - [ ] Export merger: Merge 2 files
-  - [ ] Verify both tools work
-  
 - [ ] **Performance**
   - [ ] Export large map (50+ markers)
   - [ ] Import large map
@@ -367,10 +354,11 @@ Phase 4 is complete when:
 After Phase 4:
 - ✅ Shared libraries implemented
 - ✅ PWA refactored
-- ✅ Utils refactored
 - ✅ Documentation complete
 - ✅ Deprecated code removed
 - ✅ Performance optimized
+
+**Note:** The snapspot-utils suite has been moved to its own repository at https://github.com/NielsIH/SnapSpot-Utils
 
 **Next steps:**
 - Monitor for issues
