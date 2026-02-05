@@ -1118,7 +1118,9 @@ class SnapSpotApp {
       // Create map object
       const map = {
         id: crypto.randomUUID(),
-        name: originalFile.name.replace(/\.[^/.]+$/, ''),
+        name: mapData.name || originalFile.name.replace(/\.[^/.]+$/, ''),
+        description: mapData.description || '',
+        isActive: mapData.isActive || false,
         fileName: originalFile.name,
         fileType: processedImageBlob.type,
         fileSize: processedImageBlob.size,
@@ -1152,6 +1154,12 @@ class SnapSpotApp {
       const savedMap = await this.storage.addMap(map)
       console.log('Map saved successfully:', savedMap.id)
 
+      // If set as active, ensure it's properly set (deactivating other maps)
+      if (mapData.isActive) {
+        await this.storage.setActiveMap(savedMap.id)
+        console.log('Map set as active:', savedMap.id)
+      }
+
       // Store for immediate rendering
       this.uploadedFiles.set(savedMap.id, processedImageBlob)
 
@@ -1161,8 +1169,8 @@ class SnapSpotApp {
       // Update UI
       this.checkWelcomeScreen()
 
-      // Display the map if it's active
-      if (map.isActive || this.mapsList.length === 1) {
+      // Display the map if it's active or if it's the first map
+      if (mapData.isActive || this.mapsList.length === 1) {
         await this.displayMap(savedMap)
       }
 
