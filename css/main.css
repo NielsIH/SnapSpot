@@ -12,6 +12,9 @@
 /* Components: buttons, forms, toggles */
 @import 'components.css';
 
+/* Metadata form components */
+@import 'components/metadata-form.css';
+
 /* Modals */
 @import 'modals.css';
 

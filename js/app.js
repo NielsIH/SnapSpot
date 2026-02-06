@@ -1084,7 +1084,9 @@ class SnapSpotApp {
       () => {
         console.log('Upload cancelled')
         this.updateAppStatus('Upload cancelled')
-      }
+      },
+      // storage parameter for metadata
+      this.storage
     )
 
     this.updateAppStatus('Select a map image to upload')
@@ -1153,6 +1155,16 @@ class SnapSpotApp {
       // Save to storage
       const savedMap = await this.storage.addMap(map)
       console.log('Map saved successfully:', savedMap.id)
+
+      // Save metadata values if present
+      if (mapData.metadata && Array.isArray(mapData.metadata)) {
+        for (const metadataValue of mapData.metadata) {
+          // Replace TEMP_ID with actual map ID
+          metadataValue.entityId = savedMap.id
+          await this.storage.addMetadataValue(metadataValue)
+        }
+        console.log(`Saved ${mapData.metadata.length} metadata values for map ${savedMap.id}`)
+      }
 
       // If set as active, ensure it's properly set (deactivating other maps)
       if (mapData.isActive) {

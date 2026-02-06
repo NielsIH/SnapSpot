@@ -6,9 +6,10 @@
  */
 
 import { FileManager } from '../fileManager.js'
+import { MetadataFormGenerator } from './metadata-form-generator.js'
 
 // Export all upload modal functions
-export function createUploadModal (modalManager, onUpload, onCancel) {
+export function createUploadModal (modalManager, onUpload, onCancel, storage = null) {
   const modalHtml = `
     <div class="modal" id="upload-modal">
       <div class="modal-backdrop"></div>
@@ -65,6 +66,9 @@ export function createUploadModal (modalManager, onUpload, onCancel) {
                   Set as active map
                 </label>
               </div>
+              <div id="map-metadata-section" class="metadata-form-section">
+                <!-- Metadata form will be injected here -->
+              </div>
             </form>
           </div>
           <div class="upload-error hidden" id="upload-error">
@@ -94,14 +98,15 @@ export function createUploadModal (modalManager, onUpload, onCancel) {
   const modal = modalDoc.querySelector('.modal')
   document.body.appendChild(modal)
   modalManager.activeModals.add(modal)
-  setupUploadModal(modal, onUpload, onCancel, modalManager)
+  setupUploadModal(modal, onUpload, onCancel, modalManager, storage)
   requestAnimationFrame(() => modal.classList.add('show'))
   return modal
 }
 
-export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
+export function setupUploadModal (modal, onUpload, onCancel, modalManager, storage = null) {
   let selectedFile = null
   let processedData = null
+  let metadataDefinitions = []
 
   const closeBtn = modal.querySelector('.modal-close')
   const backdrop = modal.querySelector('.modal-backdrop')
@@ -227,6 +232,20 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
       nameInput.focus()
       return
     }
+
+    // Validate metadata if storage is available
+    let metadataValues = []
+    if (storage && metadataDefinitions.length > 0) {
+      const metadataSection = modal.querySelector('#map-metadata-section')
+      if (metadataSection) {
+        const validation = MetadataFormGenerator.validateForm(metadataSection, metadataDefinitions)
+        if (!validation.valid) {
+          showError(modal, 'Please fix metadata errors before saving.')
+          return
+        }
+      }
+    }
+
     try {
       showLoading(modal, 'Creating map...')
       const finalData = {
@@ -235,6 +254,22 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
         description: descInput.value.trim(),
         isActive: activeCheckbox.checked
       }
+
+      // Extract metadata values (but don't save yet - onUpload will get the map ID first)
+      if (storage && metadataDefinitions.length > 0) {
+        const metadataSection = modal.querySelector('#map-metadata-section')
+        if (metadataSection) {
+          // Create a temporary ID that will be replaced by the actual map ID
+          metadataValues = MetadataFormGenerator.extractValues(
+            metadataSection,
+            metadataDefinitions,
+            'map',
+            'TEMP_ID' // Will be replaced with actual mapId in onUpload
+          )
+          finalData.metadata = metadataValues
+        }
+      }
+
       if (onUpload) await onUpload(finalData, selectedFile)
       closeModal()
     } catch (error) {
@@ -297,7 +332,7 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
     nameInput.value = processedData.name
   }
 
-  function showDetailsStep (modal) {
+  async function showDetailsStep (modal) {
     const selectionStep = modal.querySelector('#file-selection-step')
     const detailsStep = modal.querySelector('#file-details-step')
     const selectionActions = modal.querySelector('#file-selection-actions')
@@ -306,6 +341,31 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
     detailsStep.classList.remove('hidden')
     selectionActions.classList.add('hidden')
     detailsActions.classList.remove('hidden')
+
+    // Load and generate metadata form
+    if (storage) {
+      try {
+        const allDefinitions = await storage.getAllMetadataDefinitions()
+        // Filter for map-level definitions (global or map-specific)
+        metadataDefinitions = allDefinitions.filter(def => def.appliesTo.includes('map'))
+
+        const metadataSection = modal.querySelector('#map-metadata-section')
+        if (metadataSection) {
+          if (metadataDefinitions.length > 0) {
+            const formHtml = MetadataFormGenerator.generateForm(metadataDefinitions, [], 'map')
+            metadataSection.innerHTML = `
+              <h4>Additional Information</h4>
+              ${formHtml}
+            `
+          } else {
+            metadataSection.innerHTML = '' // No definitions, hide section
+          }
+        }
+      } catch (error) {
+        console.error('Error loading metadata definitions:', error)
+      }
+    }
+
     setTimeout(() => modal.querySelector('#map-name').focus(), 100)
   }
 
