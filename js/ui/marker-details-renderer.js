@@ -6,10 +6,10 @@
 /**
  * Generate the main modal HTML structure
  * @param {Object} markerDetails - Marker data to display
- * @param {string} metadataHtml - Pre-generated metadata section HTML
+ * @param {string} metadataViewHtml - Pre-generated metadata view HTML (inline)
  * @returns {string} HTML string for the modal
  */
-export function generateModalHtml (markerDetails, metadataHtml = '') {
+export function generateModalHtml (markerDetails, metadataViewHtml = '') {
   const photoThumbnailsHtml = generatePhotoThumbnailsHtml(markerDetails.photos)
 
   return `
@@ -21,8 +21,7 @@ export function generateModalHtml (markerDetails, metadataHtml = '') {
           <button class="modal-close" type="button" aria-label="Close">×</button>
         </div>
         <div class="modal-body">
-          ${generateMarkerInfoSection(markerDetails)}
-          ${metadataHtml}
+          ${generateMarkerInfoSection(markerDetails, metadataViewHtml)}
           ${generatePhotoListSection(photoThumbnailsHtml)}
         </div>
         <div class="modal-footer">
@@ -36,9 +35,10 @@ export function generateModalHtml (markerDetails, metadataHtml = '') {
 /**
  * Generate marker information section HTML
  * @param {Object} markerDetails - Marker data
+ * @param {string} metadataViewHtml - Metadata in view mode (inline, no headers)
  * @returns {string} HTML for marker info section
  */
-function generateMarkerInfoSection (markerDetails) {
+function generateMarkerInfoSection (markerDetails, metadataViewHtml = '') {
   return `
     <div class="marker-info-section">
       <p><strong>ID:</strong> <span class="text-xs text-secondary">${markerDetails.id}</span></p>
@@ -48,6 +48,8 @@ function generateMarkerInfoSection (markerDetails) {
         <span class="marker-description-display">${markerDetails.description || 'No description'}</span>
         <textarea class="marker-description-edit hidden" rows="3" maxlength="500" placeholder="Enter description">${markerDetails.description || ''}</textarea>
       </p>
+      ${metadataViewHtml}
+      <div class="marker-metadata-edit hidden" id="marker-metadata-edit"></div>
       <p><strong>Photos:</strong> <span class="marker-photo-count">${markerDetails.photoCount}</span> associated</p>
     </div>
   `

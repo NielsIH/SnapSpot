@@ -8,112 +8,84 @@
 import { MetadataFormGenerator } from './metadata-form-generator.js'
 
 /**
- * Load metadata for a marker and render in view or edit mode
+ * Load metadata definitions and values for a marker
  * @param {Object} storage - MapStorage instance
  * @param {string} markerId - Marker ID
- * @param {string} mode - 'view' or 'edit'
- * @returns {Promise<{html: string, definitions: Array, values: Array}>}
+ * @returns {Promise<{definitions: Array, values: Array}>}
  */
-export async function loadMetadataSection (storage, markerId, mode = 'view') {
+export async function loadMetadata (storage, markerId) {
   if (!storage) {
-    console.warn('marker-details-metadata: Storage not available')
-    return { html: '', definitions: [], values: [] }
+    return { definitions: [], values: [] }
   }
 
   try {
-    // Load metadata definitions for markers
     const allDefinitions = await storage.getAllMetadataDefinitions()
     const markerDefinitions = allDefinitions.filter(def => def.appliesTo.includes('marker'))
-
-    // Load existing metadata values
     const metadataValues = await storage.getMetadataValuesForEntity('marker', markerId)
 
-    // Generate HTML based on mode
-    let html = ''
-    if (mode === 'view') {
-      html = generateViewModeHtml(markerDefinitions, metadataValues)
-    } else if (mode === 'edit') {
-      html = generateEditModeHtml(markerDefinitions, metadataValues)
-    }
-
     return {
-      html,
       definitions: markerDefinitions,
       values: metadataValues
     }
   } catch (error) {
-    console.error('Error loading metadata section:', error)
-    return { html: '', definitions: [], values: [] }
+    console.error('Error loading metadata:', error)
+    return { definitions: [], values: [] }
   }
 }
 
 /**
- * Generate HTML for view mode (read-only)
+ * Generate inline HTML for view mode (read-only, no headers or buttons)
  * @param {Array<Object>} definitions - Metadata definitions
  * @param {Array<Object>} values - Metadata values
- * @returns {string} HTML for view mode
+ * @returns {string} HTML for inline display
  */
-function generateViewModeHtml (definitions, values) {
-  // If no values, don't show anything
-  if (!values || values.length === 0) {
+export function generateInlineViewHtml (definitions, values) {
+  if (!definitions || definitions.length === 0 || !values || values.length === 0) {
+    return '<div id="marker-metadata-view"></div>'
+  }
+
+  // Create a map of definitions by ID
+  const definitionsMap = new Map()
+  definitions.forEach(def => {
+    definitionsMap.set(def.id, def)
+  })
+
+  const rows = values
+    .map(value => {
+      const definition = definitionsMap.get(value.definitionId)
+      if (!definition) return ''
+
+      let displayValue = value.value
+
+      // Format value based on type
+      if (definition.fieldType === 'boolean') {
+        displayValue = value.value === true || value.value === 'true' ? 'Yes' : 'No'
+      } else if (definition.fieldType === 'date' && value.value) {
+        const date = new Date(value.value)
+        displayValue = date.toLocaleDateString()
+      }
+
+      return `<p><strong>${definition.name}:</strong> ${displayValue}</p>`
+    })
+    .filter(row => row !== '')
+    .join('')
+
+  return `<div id="marker-metadata-view">${rows}</div>`
+}
+
+/**
+ * Generate inline HTML for edit mode (form fields only, no headers or buttons)
+ * @param {Array<Object>} definitions - Metadata definitions
+ * @param {Array<Object>} values - Metadata values
+ * @returns {string} HTML for inline form
+ */
+export function generateInlineEditHtml (definitions, values) {
+  if (!definitions || definitions.length === 0) {
     return ''
   }
 
-  // Use the form generator's read-only renderer
-  const readOnlyHtml = MetadataFormGenerator.renderReadOnly(definitions, values)
-
-  if (!readOnlyHtml) {
-    return '' // No valid metadata to display
-  }
-
-  return `
-    <div class="marker-metadata-section" id="marker-metadata-section">
-      ${readOnlyHtml}
-      <button class="btn btn-secondary btn-sm" id="btn-edit-metadata" type="button">✏️ Edit Metadata</button>
-    </div>
-  `
-}
-
-/**
- * Generate HTML for edit mode (editable form)
- * @param {Array<Object>} definitions - Metadata definitions
- * @param {Array<Object>} values - Metadata values
- * @returns {string} HTML for edit mode
- */
-function generateEditModeHtml (definitions, values) {
-  if (!definitions || definitions.length === 0) {
-    return `
-      <div class="marker-metadata-section" id="marker-metadata-section">
-        <div class="metadata-empty-state">
-          <p class="text-secondary">No custom fields defined for markers.</p>
-          <small class="text-muted">Add fields in Settings → Metadata.</small>
-        </div>
-      </div>
-    `
-  }
-
   const formHtml = MetadataFormGenerator.generateForm(definitions, values, 'marker')
-
-  return `
-    <div class="marker-metadata-section" id="marker-metadata-section">
-      <h4>Additional Information</h4>
-      ${formHtml}
-    </div>
-  `
-}
-
-/**
- * Setup metadata edit button handler
- * @param {HTMLElement} modal - Modal element
- * @param {Function} onEditMetadata - Callback when edit metadata is clicked
- */
-export function setupMetadataEditHandler (modal, onEditMetadata) {
-  const editMetadataBtn = modal.querySelector('#btn-edit-metadata')
-  if (editMetadataBtn) {
-    editMetadataBtn.addEventListener('click', () => {
-      if (onEditMetadata) onEditMetadata()
-    })
-  }
+  return `<div id="marker-metadata-form">${formHtml}</div>`
 }
 
 /**
@@ -129,23 +101,31 @@ export async function saveMetadataValues (modal, storage, markerId, definitions)
     return true // Nothing to save
   }
 
-  const metadataSection = modal.querySelector('#marker-metadata-section')
-  if (!metadataSection) {
-    console.warn('marker-details-metadata: Metadata section not found')
+  // First try to find the metadata edit container
+  const metadataEditContainer = modal.querySelector('#marker-metadata-edit')
+  if (!metadataEditContainer) {
+    console.warn('marker-details-metadata: #marker-metadata-edit container not found')
     return true
   }
 
+  // Then find the form container within it
+  const metadataFormContainer = metadataEditContainer.querySelector('.metadata-form-container')
+  if (!metadataFormContainer) {
+    console.warn('marker-details-metadata: .metadata-form-container not found within #marker-metadata-edit')
+    return true // No form means no metadata to save
+  }
+
   // Validate form
-  const validation = MetadataFormGenerator.validateForm(metadataSection, definitions)
+  const validation = MetadataFormGenerator.validateForm(metadataFormContainer, definitions)
   if (!validation.valid) {
     console.warn('marker-details-metadata: Validation failed', validation.errors)
     return false
   }
 
   try {
-    // Extract values
+    // Extract values from the form container
     const metadataValues = MetadataFormGenerator.extractValues(
-      metadataSection,
+      metadataFormContainer,
       definitions,
       'marker',
       markerId
@@ -159,38 +139,12 @@ export async function saveMetadataValues (modal, storage, markerId, definitions)
 
     // Save new values
     for (const value of metadataValues) {
-      await storage.saveMetadataValue(value)
+      await storage.addMetadataValue(value)
     }
 
-    console.log(`marker-details-metadata: Saved ${metadataValues.length} metadata values for marker ${markerId}`)
     return true
   } catch (error) {
     console.error('Error saving metadata values:', error)
     return false
-  }
-}
-
-/**
- * Toggle between view and edit modes for metadata
- * @param {HTMLElement} modal - Modal element
- * @param {Object} storage - MapStorage instance
- * @param {string} markerId - Marker ID
- * @param {string} mode - 'view' or 'edit'
- */
-export async function toggleMetadataMode (modal, storage, markerId, mode) {
-  const metadataSection = modal.querySelector('#marker-metadata-section')
-  if (!metadataSection) {
-    console.warn('marker-details-metadata: Metadata section not found')
-    return
-  }
-
-  const metadataData = await loadMetadataSection(storage, markerId, mode)
-  metadataSection.outerHTML = metadataData.html
-
-  // If switching to view mode, setup edit button
-  if (mode === 'view') {
-    setupMetadataEditHandler(modal, () => {
-      toggleMetadataMode(modal, storage, markerId, 'edit')
-    })
   }
 }

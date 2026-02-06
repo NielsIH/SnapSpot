@@ -123,7 +123,7 @@ export class MetadataFormGenerator {
     const errors = []
 
     definitions.forEach(definition => {
-      const input = formElement.querySelector(`[data-definition-id="${definition.id}"]`)
+      const input = formElement.querySelector(`.metadata-input[data-definition-id="${definition.id}"]`)
       if (!input) {
         console.warn(`MetadataFormGenerator: Input not found for definition ${definition.id}`)
         return
@@ -206,7 +206,7 @@ export class MetadataFormGenerator {
     const metadataValues = []
 
     definitions.forEach(definition => {
-      const input = formElement.querySelector(`[data-definition-id="${definition.id}"]`)
+      const input = formElement.querySelector(`.metadata-input[data-definition-id="${definition.id}"]`)
       if (!input) {
         console.warn(`MetadataFormGenerator: Input not found for definition ${definition.id}`)
         return

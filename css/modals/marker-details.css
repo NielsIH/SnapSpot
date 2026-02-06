@@ -98,17 +98,15 @@
   margin-bottom: 0;
 }
 
-/* Marker Metadata Section */
-.marker-metadata-section {
-  margin-top: var(--spacing-lg);
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--border-color);
+/* Metadata view - style paragraphs like other info section paragraphs */
+#marker-metadata-view p {
+  line-height: 1.4;
+  margin-bottom: var(--spacing-xs);
 }
 
-.marker-metadata-section .btn-sm {
-  margin-top: var(--spacing-md);
-  font-size: 0.875rem;
-  padding: var(--spacing-xs) var(--spacing-md);
+/* Marker Metadata - Inline with marker info */
+.marker-metadata-edit {
+  margin-top: var(--spacing-sm);
 }
 
 .marker-description-display {
