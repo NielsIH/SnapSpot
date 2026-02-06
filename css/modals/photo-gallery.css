@@ -236,6 +236,14 @@
   border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+/* Hide metadata view when empty */
+#photo-metadata-view:empty {
+  display: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
 #photo-metadata-view p {
   margin: 0.25rem 0;
   font-size: 0.85rem;

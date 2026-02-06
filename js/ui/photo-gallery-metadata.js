@@ -41,7 +41,7 @@ export async function loadMetadata (storage, photoId) {
  */
 export function generateInlineViewHtml (definitions, values) {
   if (!definitions || definitions.length === 0 || !values || values.length === 0) {
-    return '<div id="photo-metadata-view"></div>'
+    return '' // Return empty string when no metadata to display
   }
 
   // Create a map of definitions by ID
@@ -69,6 +69,10 @@ export function generateInlineViewHtml (definitions, values) {
     })
     .filter(row => row !== '')
     .join('')
+
+  if (rows === '') {
+    return '' // Return empty string if no valid rows to display
+  }
 
   return `<div id="photo-metadata-view">${rows}</div>`
 }

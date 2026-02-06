@@ -470,6 +470,20 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
       if (metadataViewContainer) {
         metadataViewContainer.innerHTML = metadataViewHtml
       }
+
+      // Show/hide Edit Photo button based on metadata definitions availability
+      if (editPhotoBtn) {
+        if (currentPhotoMetadata.definitions && currentPhotoMetadata.definitions.length > 0) {
+          editPhotoBtn.style.display = ''
+        } else {
+          editPhotoBtn.style.display = 'none'
+        }
+      }
+    } else {
+      // No storage, hide Edit Photo button
+      if (editPhotoBtn) {
+        editPhotoBtn.style.display = 'none'
+      }
     }
 
     // Show single photo view
