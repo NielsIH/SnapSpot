@@ -196,7 +196,8 @@ export class ModalManager {
      * @param {Function} onDeletePhoto - Callback when a 'Delete Photo' button is clicked.
      * @param {Function} onViewPhoto - NEW: Callback when a photo thumbnail is clicked (receives photo.id).
      * @param {Function} onClose - Callback when the modal is closed.
-     * @returns {HTMLElement} - The created modal element.
+     * @param {Object} storage - MapStorage instance for metadata (optional).
+     * @returns {Promise<HTMLElement>} - The created modal element.
      */
   createMarkerDetailsModal (
     markerDetails,
@@ -206,9 +207,10 @@ export class ModalManager {
     onDeleteMarker,
     onDeletePhoto,
     onViewPhoto, // <-- NEW PARAMETER
-    onClose
+    onClose,
+    storage = null
   ) {
-    return createMarkerDetailsModal(this, markerDetails, onAddPhotos, onEditMarker, onSaveDescription, onDeleteMarker, onDeletePhoto, onViewPhoto, onClose)
+    return createMarkerDetailsModal(this, markerDetails, onAddPhotos, onEditMarker, onSaveDescription, onDeleteMarker, onDeletePhoto, onViewPhoto, onClose, storage)
   }
 
   /**

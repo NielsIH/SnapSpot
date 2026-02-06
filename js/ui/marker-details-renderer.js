@@ -6,9 +6,10 @@
 /**
  * Generate the main modal HTML structure
  * @param {Object} markerDetails - Marker data to display
+ * @param {string} metadataHtml - Pre-generated metadata section HTML
  * @returns {string} HTML string for the modal
  */
-export function generateModalHtml (markerDetails) {
+export function generateModalHtml (markerDetails, metadataHtml = '') {
   const photoThumbnailsHtml = generatePhotoThumbnailsHtml(markerDetails.photos)
 
   return `
@@ -21,6 +22,7 @@ export function generateModalHtml (markerDetails) {
         </div>
         <div class="modal-body">
           ${generateMarkerInfoSection(markerDetails)}
+          ${metadataHtml}
           ${generatePhotoListSection(photoThumbnailsHtml)}
         </div>
         <div class="modal-footer">

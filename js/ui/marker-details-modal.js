@@ -8,6 +8,7 @@
 import { generateModalHtml, updateDescriptionDisplay } from './marker-details-renderer.js'
 import { loadPhotoThumbnails, setupPhotoClickHandlers, setupPhotoDeleteHandlers } from './marker-details-photos.js'
 import { setupCloseHandlers, setupDescriptionEditHandlers, setupActionButtonHandlers } from './marker-details-actions.js'
+import { loadMetadataSection, setupMetadataEditHandler, toggleMetadataMode } from './marker-details-metadata.js'
 
 /**
  * Update the displayed description in an already open marker details modal
@@ -30,9 +31,10 @@ export function updateMarkerDetailsDescription (modalManager, markerId, newDescr
  * @param {Function} onDeletePhoto - Callback when photo delete button is clicked
  * @param {Function} onViewPhoto - Callback when photo thumbnail is clicked
  * @param {Function} onClose - Callback when modal is closed
- * @returns {HTMLElement} The created modal element
+ * @param {Object} storage - MapStorage instance for metadata (optional)
+ * @returns {Promise<HTMLElement>} The created modal element
  */
-export function createMarkerDetailsModal (
+export async function createMarkerDetailsModal (
   modalManager,
   markerDetails,
   onAddPhotos,
@@ -41,10 +43,14 @@ export function createMarkerDetailsModal (
   onDeleteMarker,
   onDeletePhoto,
   onViewPhoto,
-  onClose
+  onClose,
+  storage = null
 ) {
-  // Generate modal HTML
-  const modalHtml = generateModalHtml(markerDetails)
+  // Load metadata section (view mode by default)
+  const metadataData = await loadMetadataSection(storage, markerDetails.id, 'view')
+
+  // Generate modal HTML with metadata
+  const modalHtml = generateModalHtml(markerDetails, metadataData.html)
 
   // Parse and create modal element
   const parser = new DOMParser()
@@ -67,6 +73,11 @@ export function createMarkerDetailsModal (
   setupActionButtonHandlers(modal, markerDetails.id, onAddPhotos, onDeleteMarker)
   setupPhotoClickHandlers(modal, onViewPhoto)
   setupPhotoDeleteHandlers(modal, markerDetails.id, onDeletePhoto)
+
+  // Setup metadata edit handler
+  setupMetadataEditHandler(modal, async () => {
+    await toggleMetadataMode(modal, storage, markerDetails.id, 'edit')
+  })
 
   // Load photo thumbnails
   loadPhotoThumbnails(modal, markerDetails.photos, modalManager)

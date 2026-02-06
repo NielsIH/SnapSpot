@@ -228,7 +228,9 @@ export async function showMarkerDetails (app, markerId) {
       () => {
         console.log('Marker details modal closed.')
         app.updateAppStatus('Ready')
-      }
+      },
+      // storage instance for metadata
+      app.storage
     )
     app.updateAppStatus(`Viewing marker: ${marker.id}`)
   } catch (error) {
