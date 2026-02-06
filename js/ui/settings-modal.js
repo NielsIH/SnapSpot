@@ -66,6 +66,7 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
               <button class="tab-button" data-tab="map-display-settings">Map Display</button>
               <button class="tab-button" data-tab="image-processing-settings">Image Processing</button>
               <button class="tab-button" data-tab="data-management-settings">Data Management</button>
+              <button class="tab-button" data-tab="metadata-settings">Metadata</button>
               <button class="tab-button" data-tab="maps-management-settings">Maps Management</button>
               <button class="tab-button" data-tab="danger-zone-settings">Danger Zone</button>
             </div>
@@ -75,6 +76,7 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
               <option value="map-display-settings">Map Display</option>
               <option value="image-processing-settings">Image Processing</option>
               <option value="data-management-settings">Data Management</option>
+              <option value="metadata-settings">Metadata</option>
               <option value="maps-management-settings">Maps Management</option>
               <option value="danger-zone-settings">Danger Zone</option>
             </select>
@@ -157,6 +159,32 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
                   </label>
                   <input type="file" id="file-input-import-settings" accept=".json" style="display: none" />
                   <small class="text-secondary mt-xs">Select a JSON file containing exported map data to import into the application.</small>
+                </div>
+              </div>
+              <div id="metadata-settings" class="tab-pane">
+                <h4>Metadata Definitions</h4>
+                <p class="text-secondary mb-md">Define custom metadata fields to attach to maps, markers, and photos. These fields can be used to add structured information to your data.</p>
+                
+                <div class="metadata-scope-toggle mb-md">
+                  <button class="btn btn-secondary btn-sm scope-toggle-btn active" data-scope="global">Global Fields</button>
+                  <button class="btn btn-secondary btn-sm scope-toggle-btn" data-scope="map-specific">Map-Specific Fields</button>
+                </div>
+
+                <div id="metadata-definitions-container">
+                  <!-- Metadata definitions list will be injected here -->
+                </div>
+
+                <div class="metadata-actions mt-lg">
+                  <button class="btn btn-primary" id="add-metadata-definition-btn">
+                    ➕ <span class="btn-text">Add Field Definition</span>
+                  </button>
+                  <button class="btn btn-secondary" id="export-metadata-definitions-btn">
+                    📤 <span class="btn-text">Export Definitions</span>
+                  </button>
+                  <button class="btn btn-secondary" id="import-metadata-definitions-btn">
+                    📥 <span class="btn-text">Import Definitions</span>
+                  </button>
+                  <input type="file" id="import-metadata-definitions-input" accept=".json" style="display: none" />
                 </div>
               </div>
               <div id="maps-management-settings" class="tab-pane">
@@ -403,6 +431,175 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
   if (notifChk && callbacks.getNotificationsEnabled && callbacks.setNotificationsEnabled) {
     notifChk.checked = callbacks.getNotificationsEnabled()
     notifChk.addEventListener('change', () => callbacks.setNotificationsEnabled(notifChk.checked))
+  }
+
+  // Metadata Tab Functionality
+  let currentMetadataScope = 'global'
+  const metadataContainer = modal.querySelector('#metadata-definitions-container')
+  const scopeToggleButtons = modal.querySelectorAll('.scope-toggle-btn')
+  const addMetadataDefBtn = modal.querySelector('#add-metadata-definition-btn')
+  const exportMetadataDefBtn = modal.querySelector('#export-metadata-definitions-btn')
+  const importMetadataDefBtn = modal.querySelector('#import-metadata-definitions-btn')
+  const importMetadataDefInput = modal.querySelector('#import-metadata-definitions-input')
+
+  const renderMetadataDefinitions = async () => {
+    if (!metadataContainer) {
+      return
+    }
+
+    // Get definitions (or empty array if callback not provided)
+    const allDefinitions = callbacks.getMetadataDefinitions
+      ? await callbacks.getMetadataDefinitions()
+      : []
+
+    // Filter by scope
+    let definitionsToShow = []
+    if (currentMetadataScope === 'global') {
+      definitionsToShow = allDefinitions.filter(def => def.scope === 'global')
+    } else {
+      // Map-specific: only show definitions for active map
+      definitionsToShow = activeMapId
+        ? allDefinitions.filter(def => def.scope === activeMapId)
+        : []
+    }
+
+    // Render empty state or definitions list
+    if (definitionsToShow.length === 0) {
+      const emptyMessage = currentMetadataScope === 'global'
+        ? 'No global metadata fields defined yet.'
+        : activeMapId
+          ? 'No map-specific metadata fields for this map.'
+          : 'No map is currently active. Open a map to create map-specific fields.'
+
+      metadataContainer.innerHTML = `
+        <div class="metadata-empty-state">
+          <h5>No Metadata Fields</h5>
+          <p>${emptyMessage}</p>
+        </div>
+      `
+    } else {
+      const definitionsHtml = definitionsToShow.map(def => {
+        const appliesToText = def.appliesTo.map(type => {
+          return type.charAt(0).toUpperCase() + type.slice(1)
+        }).join(', ')
+
+        const requiredIndicator = def.required
+          ? '<span class="metadata-required-indicator">*</span>'
+          : ''
+
+        const descriptionHtml = def.description
+          ? `<div class="metadata-definition-details">${def.description}</div>`
+          : ''
+
+        const optionsHtml = def.fieldType === 'select' && def.options && def.options.length > 0
+          ? `<div class="metadata-definition-details"><strong>Options:</strong> ${def.options.join(', ')}</div>`
+          : ''
+
+        return `
+          <div class="metadata-definition-item" data-definition-id="${def.id}">
+            <div class="metadata-definition-header">
+              <div class="metadata-definition-title">
+                <span class="metadata-definition-name">${def.name}${requiredIndicator}</span>
+                <span class="metadata-type-badge type-${def.fieldType}">${def.fieldType}</span>
+              </div>
+              <div class="metadata-definition-actions">
+                <button class="btn btn-sm btn-secondary edit-metadata-def" data-definition-id="${def.id}">
+                  ✏️ <span class="btn-text">Edit</span>
+                </button>
+                <button class="btn btn-sm btn-danger delete-metadata-def" data-definition-id="${def.id}">
+                  🗑️ <span class="btn-text">Delete</span>
+                </button>
+              </div>
+            </div>
+            ${descriptionHtml}
+            <div class="metadata-applies-to"><strong>Applies to:</strong> ${appliesToText}</div>
+            ${optionsHtml}
+          </div>
+        `
+      }).join('')
+
+      const sectionTitle = currentMetadataScope === 'global' ? 'Global Fields' : 'Map-Specific Fields'
+      metadataContainer.innerHTML = `
+        <div class="metadata-definitions-section">
+          <h5>${sectionTitle}</h5>
+          ${definitionsHtml}
+        </div>
+      `
+
+      // Add event listeners to edit and delete buttons
+      metadataContainer.querySelectorAll('.edit-metadata-def').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const defId = btn.dataset.definitionId
+          if (callbacks.onEditMetadataDefinition) {
+            callbacks.onEditMetadataDefinition(defId, () => renderMetadataDefinitions())
+          }
+        })
+      })
+
+      metadataContainer.querySelectorAll('.delete-metadata-def').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const defId = btn.dataset.definitionId
+          if (callbacks.onDeleteMetadataDefinition) {
+            await callbacks.onDeleteMetadataDefinition(defId)
+            await renderMetadataDefinitions()
+          }
+        })
+      })
+    }
+  }
+
+  // Scope toggle functionality
+  scopeToggleButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      scopeToggleButtons.forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      currentMetadataScope = btn.dataset.scope
+      renderMetadataDefinitions()
+    })
+  })
+
+  // Add definition button
+  addMetadataDefBtn?.addEventListener('click', () => {
+    if (callbacks.onAddMetadataDefinition) {
+      const scope = currentMetadataScope === 'global' ? 'global' : activeMapId
+      callbacks.onAddMetadataDefinition(scope, () => renderMetadataDefinitions())
+    }
+  })
+
+  // Export definitions button
+  exportMetadataDefBtn?.addEventListener('click', () => {
+    if (callbacks.onExportMetadataDefinitions) {
+      callbacks.onExportMetadataDefinitions()
+    }
+  })
+
+  // Import definitions button
+  importMetadataDefBtn?.addEventListener('click', () => {
+    importMetadataDefInput?.click()
+  })
+
+  importMetadataDefInput?.addEventListener('change', async (e) => {
+    const file = e.target.files[0]
+    if (file && callbacks.onImportMetadataDefinitions) {
+      await callbacks.onImportMetadataDefinitions(file)
+      await renderMetadataDefinitions()
+      e.target.value = '' // Reset input
+    }
+  })
+
+  // Load metadata when metadata tab is activated
+  const metadataTabButton = modal.querySelector('.tab-button[data-tab="metadata-settings"]')
+  if (metadataTabButton) {
+    metadataTabButton.addEventListener('click', () => {
+      renderMetadataDefinitions()
+    })
+  }
+
+  // If metadata tab is the initial tab, load definitions now
+  if (initialTab === 'metadata-settings') {
+    requestAnimationFrame(() => {
+      renderMetadataDefinitions()
+    })
   }
 
   return modal
