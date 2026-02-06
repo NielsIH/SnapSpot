@@ -15,11 +15,13 @@ import { ImageProcessor } from './imageProcessor.js'
 export class MapStorage {
   constructor (imageProcessor = null) {
     this.dbName = 'SnapSpotDB'
-    this.version = 4 // Increment the database version for schema changes!
+    this.version = 5 // Increment the database version for schema changes!
     this.db = null
     this.mapStoreName = 'maps'
     this.markerStoreName = 'markers'
     this.photoStoreName = 'photos'
+    this.metadataDefinitionsStoreName = 'metadataDefinitions'
+    this.metadataValuesStoreName = 'metadataValues'
     this.keyPath = 'id'
     this.imageProcessor = imageProcessor
   }
@@ -97,6 +99,29 @@ export class MapStorage {
           photoStore.createIndex('markerId', 'markerId', { unique: false }) // Index to quickly find photos for a marker
           photoStore.createIndex('createdDate', 'createdDate', { unique: false })
           console.log('MapStorage: Photos object store created/upgraded with indexes')
+        }
+
+        // Create metadata definitions object store
+        if (!db.objectStoreNames.contains(this.metadataDefinitionsStoreName)) {
+          const metadataDefStore = db.createObjectStore(this.metadataDefinitionsStoreName, {
+            keyPath: this.keyPath
+          })
+          metadataDefStore.createIndex('scope', 'scope', { unique: false }) // Filter global vs map-specific
+          metadataDefStore.createIndex('appliesTo', 'appliesTo', { unique: false, multiEntry: true }) // Multi-entry for array
+          metadataDefStore.createIndex('name', 'name', { unique: false }) // Search by field name
+          console.log('MapStorage: Metadata definitions object store created with indexes')
+        }
+
+        // Create metadata values object store
+        if (!db.objectStoreNames.contains(this.metadataValuesStoreName)) {
+          const metadataValStore = db.createObjectStore(this.metadataValuesStoreName, {
+            keyPath: this.keyPath
+          })
+          metadataValStore.createIndex('definitionId', 'definitionId', { unique: false }) // Find all values for a definition
+          metadataValStore.createIndex('entityType', 'entityType', { unique: false }) // Find all values for a type
+          metadataValStore.createIndex('entityId', 'entityId', { unique: false }) // Find all values for an entity
+          metadataValStore.createIndex('entityTypeAndId', ['entityType', 'entityId'], { unique: false }) // Compound index
+          console.log('MapStorage: Metadata values object store created with indexes')
         }
       }
     })
@@ -391,7 +416,7 @@ export class MapStorage {
   }
 
   /**
-   * Delete a map from storage (and all associated markers and photos)
+   * Delete a map from storage (and all associated markers, photos, and metadata)
    * @param {string} id - Map ID
    * @returns {Promise<boolean>} - Success status
    */
@@ -401,17 +426,44 @@ export class MapStorage {
     }
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction([this.mapStoreName, this.markerStoreName, this.photoStoreName], 'readwrite')
+      const transaction = this.db.transaction(
+        [this.mapStoreName, this.markerStoreName, this.photoStoreName, this.metadataDefinitionsStoreName, this.metadataValuesStoreName],
+        'readwrite'
+      )
       const mapStore = transaction.objectStore(this.mapStoreName)
-      // const markerStore = transaction.objectStore(this.markerStoreName)
-      // const photoStore = transaction.objectStore(this.photoStoreName)
+      const metadataDefStore = transaction.objectStore(this.metadataDefinitionsStoreName)
+      const metadataValStore = transaction.objectStore(this.metadataValuesStoreName)
 
       const deleteMarkersAndMap = async () => {
         try {
-          // Delete associated markers and their photos
+          // Delete associated markers and their photos (also deletes marker/photo metadata internally)
           const markers = await this.getMarkersForMap(id, transaction) // Pass transaction
           const markerDeletePromises = markers.map(marker => this._deleteMarkerInternal(marker.id, transaction))
           await Promise.all(markerDeletePromises)
+
+          // Delete metadata values for the map itself
+          const mapMetadataValues = await this.getMetadataValuesForEntity('map', id, transaction)
+          const mapMetadataDeletePromises = mapMetadataValues.map(value => {
+            return new Promise((resolve, reject) => {
+              const req = metadataValStore.delete(value.id)
+              req.onsuccess = () => resolve()
+              req.onerror = (e) => reject(e)
+            })
+          })
+          await Promise.all(mapMetadataDeletePromises)
+          console.log(`MapStorage: Deleted ${mapMetadataValues.length} metadata values for map ${id}`)
+
+          // Delete map-specific metadata definitions (scope === mapId)
+          const mapSpecificDefinitions = await this.getMetadataDefinitionsByScope(id, transaction)
+          const defDeletePromises = mapSpecificDefinitions.map(def => {
+            return new Promise((resolve, reject) => {
+              const req = metadataDefStore.delete(def.id)
+              req.onsuccess = () => resolve()
+              req.onerror = (e) => reject(e)
+            })
+          })
+          await Promise.all(defDeletePromises)
+          console.log(`MapStorage: Deleted ${mapSpecificDefinitions.length} map-specific metadata definitions for map ${id}`)
 
           // Delete the map itself
           const deleteMapRequest = mapStore.delete(id)
@@ -435,7 +487,7 @@ export class MapStorage {
   }
 
   /**
-   * Internal helper to delete a marker and its associated photos within an existing transaction.
+   * Internal helper to delete a marker and its associated photos and metadata within an existing transaction.
    * @param {string} markerId
    * @param {IDBTransaction} [transaction] - Optional existing transaction
    * @private
@@ -449,15 +501,28 @@ export class MapStorage {
     if (transaction) {
       t = transaction
     } else {
-      t = this.db.transaction([this.markerStoreName, this.photoStoreName], 'readwrite')
+      t = this.db.transaction([this.markerStoreName, this.photoStoreName, this.metadataValuesStoreName], 'readwrite')
     }
 
     const markerStore = t.objectStore(this.markerStoreName)
     const photoStore = t.objectStore(this.photoStoreName)
+    const metadataValStore = t.objectStore(this.metadataValuesStoreName)
 
-    // Delete associated photos
+    // Delete associated photos and their metadata
     const photos = await this.getPhotosForMarker(markerId, t) // Pass transaction
-    const photoDeletePromises = photos.map(photo => {
+    const photoDeletePromises = photos.map(async (photo) => {
+      // Delete photo metadata first
+      const photoMetadataValues = await this.getMetadataValuesForEntity('photo', photo.id, t)
+      const photoMetaDeletePromises = photoMetadataValues.map(value => {
+        return new Promise((resolve, reject) => {
+          const req = metadataValStore.delete(value.id)
+          req.onsuccess = () => resolve()
+          req.onerror = (e) => reject(e)
+        })
+      })
+      await Promise.all(photoMetaDeletePromises)
+
+      // Delete the photo itself
       return new Promise((resolve, reject) => {
         const req = photoStore.delete(photo.id)
         req.onsuccess = () => resolve()
@@ -465,6 +530,18 @@ export class MapStorage {
       })
     })
     await Promise.all(photoDeletePromises)
+
+    // Delete metadata values for the marker
+    const markerMetadataValues = await this.getMetadataValuesForEntity('marker', markerId, t)
+    const markerMetaDeletePromises = markerMetadataValues.map(value => {
+      return new Promise((resolve, reject) => {
+        const req = metadataValStore.delete(value.id)
+        req.onsuccess = () => resolve()
+        req.onerror = (e) => reject(e)
+      })
+    })
+    await Promise.all(markerMetaDeletePromises)
+    console.log(`MapStorage: Deleted ${markerMetadataValues.length} metadata values for marker ${markerId}`)
 
     // Delete the marker itself
     await new Promise((resolve, reject) => {
@@ -950,7 +1027,7 @@ export class MapStorage {
   }
 
   /**
-   * Delete a photo by ID
+   * Delete a photo by ID and its metadata
    * @param {string} photoId - The ID of the photo to delete
    * @returns {Promise<boolean>} - Success status
    */
@@ -964,34 +1041,57 @@ export class MapStorage {
       // For now, simple delete. Later, we'll implement this more robustly
       // to remove photoId from marker.photoIds array.
 
-      const transaction = this.db.transaction([this.photoStoreName, this.markerStoreName], 'readwrite')
+      const transaction = this.db.transaction([this.photoStoreName, this.markerStoreName, this.metadataValuesStoreName], 'readwrite')
       const photoStore = transaction.objectStore(this.photoStoreName)
       const markerStore = transaction.objectStore(this.markerStoreName)
+      const metadataValStore = transaction.objectStore(this.metadataValuesStoreName)
 
-      photoStore.get(photoId).onsuccess = (event) => {
-        const photoToDelete = event.target.result
-        if (photoToDelete && photoToDelete.markerId) {
-          markerStore.get(photoToDelete.markerId).onsuccess = (e) => {
-            const marker = e.target.result
-            if (marker) {
-              marker.photoIds = marker.photoIds.filter(id => id !== photoId)
-              markerStore.put(marker) // Update marker
+      const deletePhotoAndMetadata = async () => {
+        try {
+          // Delete metadata values for the photo
+          const photoMetadataValues = await this.getMetadataValuesForEntity('photo', photoId, transaction)
+          const metaDeletePromises = photoMetadataValues.map(value => {
+            return new Promise((resolve, reject) => {
+              const req = metadataValStore.delete(value.id)
+              req.onsuccess = () => resolve()
+              req.onerror = (e) => reject(e)
+            })
+          })
+          await Promise.all(metaDeletePromises)
+          console.log(`MapStorage: Deleted ${photoMetadataValues.length} metadata values for photo ${photoId}`)
+
+          // Update marker reference
+          photoStore.get(photoId).onsuccess = (event) => {
+            const photoToDelete = event.target.result
+            if (photoToDelete && photoToDelete.markerId) {
+              markerStore.get(photoToDelete.markerId).onsuccess = (e) => {
+                const marker = e.target.result
+                if (marker) {
+                  marker.photoIds = marker.photoIds.filter(id => id !== photoId)
+                  markerStore.put(marker) // Update marker
+                }
+              }
             }
           }
+
+          const request = photoStore.delete(photoId)
+
+          request.onsuccess = () => {
+            console.log('MapStorage: Photo deleted successfully', photoId)
+          }
+
+          request.onerror = () => {
+            console.error('MapStorage: Failed to delete photo', request.error)
+            reject(new Error(`Failed to delete photo: ${request.error}`))
+          }
+
+          transaction.oncomplete = () => resolve(true)
+          transaction.onerror = (event) => reject(new Error(`Transaction failed: ${event.target.error}`))
+        } catch (error) {
+          reject(error)
         }
       }
-
-      const request = photoStore.delete(photoId)
-
-      request.onsuccess = () => {
-        console.log('MapStorage: Photo deleted successfully', photoId)
-        resolve(true)
-      }
-
-      request.onerror = () => {
-        console.error('MapStorage: Failed to delete photo', request.error)
-        reject(new Error(`Failed to delete photo: ${request.error}`))
-      }
+      deletePhotoAndMetadata()
     })
   }
 
@@ -1231,9 +1331,743 @@ export class MapStorage {
   }
 
   // ========================================
+  // Metadata Definition CRUD Methods
+  // ========================================
 
+  /**
+   * Add a new metadata definition
+   * @param {Object} definition - Metadata definition object
+   * @returns {Promise<Object>} - The saved metadata definition
+   */
+  async addMetadataDefinition (definition) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    // Validation
+    if (!definition.name || typeof definition.name !== 'string' || definition.name.trim() === '') {
+      throw new Error('Metadata definition name is required and must be a non-empty string')
+    }
+    if (definition.name.length > 100) {
+      throw new Error('Metadata definition name must be 100 characters or less')
+    }
+
+    const validFieldTypes = ['text', 'number', 'date', 'boolean', 'select']
+    if (!definition.fieldType || !validFieldTypes.includes(definition.fieldType)) {
+      throw new Error(`Invalid fieldType. Must be one of: ${validFieldTypes.join(', ')}`)
+    }
+
+    if (!definition.scope || typeof definition.scope !== 'string') {
+      throw new Error('Metadata definition scope is required (either "global" or a mapId)')
+    }
+
+    if (!Array.isArray(definition.appliesTo) || definition.appliesTo.length === 0) {
+      throw new Error('Metadata definition appliesTo must be a non-empty array')
+    }
+
+    const validAppliesTo = ['map', 'marker', 'photo']
+    for (const entity of definition.appliesTo) {
+      if (!validAppliesTo.includes(entity)) {
+        throw new Error(`Invalid appliesTo value: ${entity}. Must be one of: ${validAppliesTo.join(', ')}`)
+      }
+    }
+
+    if (definition.fieldType === 'select') {
+      if (!Array.isArray(definition.options) || definition.options.length === 0) {
+        throw new Error('Metadata definition with fieldType "select" must have a non-empty options array')
+      }
+    }
+
+    if (definition.description && definition.description.length > 500) {
+      throw new Error('Metadata definition description must be 500 characters or less')
+    }
+
+    const metadataDefinition = {
+      id: definition.id || crypto.randomUUID(),
+      name: definition.name.trim(),
+      fieldType: definition.fieldType,
+      scope: definition.scope,
+      appliesTo: definition.appliesTo,
+      required: definition.required || false,
+      options: definition.options || [],
+      defaultValue: definition.defaultValue || null,
+      description: definition.description || '',
+      order: definition.order || 0,
+      createdDate: definition.createdDate || new Date().toISOString(),
+      lastModified: new Date().toISOString()
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataDefinitionsStoreName], 'readwrite')
+      const store = transaction.objectStore(this.metadataDefinitionsStoreName)
+      const request = store.add(metadataDefinition)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Metadata definition added successfully', metadataDefinition.id)
+        resolve(metadataDefinition)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to add metadata definition', request.error)
+        reject(new Error(`Failed to save metadata definition: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get a specific metadata definition by ID
+   * @param {string} id - Metadata definition ID
+   * @returns {Promise<Object|null>} - Metadata definition or null if not found
+   */
+  async getMetadataDefinition (id) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataDefinitionsStoreName], 'readonly')
+      const store = transaction.objectStore(this.metadataDefinitionsStoreName)
+      const request = store.get(id)
+
+      request.onsuccess = () => {
+        const definition = request.result
+        console.log('MapStorage: Retrieved metadata definition', id, definition ? 'found' : 'not found')
+        resolve(definition || null)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get metadata definition', request.error)
+        reject(new Error(`Failed to load metadata definition: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get all metadata definitions
+   * @returns {Promise<Array>} - Array of all metadata definitions
+   */
+  async getAllMetadataDefinitions () {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataDefinitionsStoreName], 'readonly')
+      const store = transaction.objectStore(this.metadataDefinitionsStoreName)
+      const request = store.getAll()
+
+      request.onsuccess = () => {
+        const definitions = request.result || []
+        console.log(`MapStorage: Retrieved ${definitions.length} metadata definitions`)
+        resolve(definitions)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get all metadata definitions', request.error)
+        reject(new Error(`Failed to load metadata definitions: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get metadata definitions by scope (global or specific mapId)
+   * @param {string} scope - 'global' or a mapId
+   * @param {IDBTransaction} [transaction] - Optional existing transaction
+   * @returns {Promise<Array>} - Array of metadata definitions matching the scope
+   */
+  async getMetadataDefinitionsByScope (scope, transaction = null) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      let t = transaction
+      if (!t) {
+        t = this.db.transaction([this.metadataDefinitionsStoreName], 'readonly')
+      }
+      const store = t.objectStore(this.metadataDefinitionsStoreName)
+      const index = store.index('scope')
+      const request = index.getAll(scope)
+
+      request.onsuccess = () => {
+        const definitions = request.result || []
+        console.log(`MapStorage: Retrieved ${definitions.length} metadata definitions for scope ${scope}`)
+        resolve(definitions)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get metadata definitions by scope', request.error)
+        reject(new Error(`Failed to load metadata definitions by scope: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get metadata definitions applicable to a specific entity type and scope
+   * Returns both global and map-specific definitions if scope is a mapId
+   * @param {string} entityType - 'map', 'marker', or 'photo'
+   * @param {string} scope - 'global' or a mapId
+   * @returns {Promise<Array>} - Array of applicable metadata definitions
+   */
+  async getMetadataDefinitionsForEntity (entityType, scope) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    const validEntityTypes = ['map', 'marker', 'photo']
+    if (!validEntityTypes.includes(entityType)) {
+      throw new Error(`Invalid entityType: ${entityType}. Must be one of: ${validEntityTypes.join(', ')}`)
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataDefinitionsStoreName], 'readonly')
+      const store = transaction.objectStore(this.metadataDefinitionsStoreName)
+      const index = store.index('appliesTo')
+      const request = index.getAll(entityType)
+
+      request.onsuccess = () => {
+        let definitions = request.result || []
+
+        // Filter by scope: include global and map-specific (if scope is a mapId)
+        if (scope === 'global') {
+          definitions = definitions.filter(def => def.scope === 'global')
+        } else {
+          // Include both global and map-specific definitions
+          definitions = definitions.filter(def => def.scope === 'global' || def.scope === scope)
+        }
+
+        console.log(`MapStorage: Retrieved ${definitions.length} metadata definitions for ${entityType} with scope ${scope}`)
+        resolve(definitions)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get metadata definitions for entity', request.error)
+        reject(new Error(`Failed to load metadata definitions for entity: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Update an existing metadata definition
+   * @param {Object} definition - Updated metadata definition object (must include id)
+   * @returns {Promise<Object>} - Updated metadata definition
+   */
+  async updateMetadataDefinition (definition) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    if (!definition.id) {
+      throw new Error('Metadata definition ID is required for update')
+    }
+
+    // Get existing definition to ensure it exists
+    const existing = await this.getMetadataDefinition(definition.id)
+    if (!existing) {
+      throw new Error(`Metadata definition not found: ${definition.id}`)
+    }
+
+    // Perform same validations as add
+    if (!definition.name || typeof definition.name !== 'string' || definition.name.trim() === '') {
+      throw new Error('Metadata definition name is required and must be a non-empty string')
+    }
+    if (definition.name.length > 100) {
+      throw new Error('Metadata definition name must be 100 characters or less')
+    }
+
+    const validFieldTypes = ['text', 'number', 'date', 'boolean', 'select']
+    if (!definition.fieldType || !validFieldTypes.includes(definition.fieldType)) {
+      throw new Error(`Invalid fieldType. Must be one of: ${validFieldTypes.join(', ')}`)
+    }
+
+    if (!definition.scope || typeof definition.scope !== 'string') {
+      throw new Error('Metadata definition scope is required (either "global" or a mapId)')
+    }
+
+    if (!Array.isArray(definition.appliesTo) || definition.appliesTo.length === 0) {
+      throw new Error('Metadata definition appliesTo must be a non-empty array')
+    }
+
+    const validAppliesTo = ['map', 'marker', 'photo']
+    for (const entity of definition.appliesTo) {
+      if (!validAppliesTo.includes(entity)) {
+        throw new Error(`Invalid appliesTo value: ${entity}. Must be one of: ${validAppliesTo.join(', ')}`)
+      }
+    }
+
+    if (definition.fieldType === 'select') {
+      if (!Array.isArray(definition.options) || definition.options.length === 0) {
+        throw new Error('Metadata definition with fieldType "select" must have a non-empty options array')
+      }
+    }
+
+    if (definition.description && definition.description.length > 500) {
+      throw new Error('Metadata definition description must be 500 characters or less')
+    }
+
+    const updatedDefinition = {
+      ...existing,
+      ...definition,
+      lastModified: new Date().toISOString()
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataDefinitionsStoreName], 'readwrite')
+      const store = transaction.objectStore(this.metadataDefinitionsStoreName)
+      const request = store.put(updatedDefinition)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Metadata definition updated successfully', updatedDefinition.id)
+        resolve(updatedDefinition)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to update metadata definition', request.error)
+        reject(new Error(`Failed to update metadata definition: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Delete a metadata definition and all associated values
+   * @param {string} id - Metadata definition ID
+   * @returns {Promise<boolean>} - Success status
+   */
+  async deleteMetadataDefinition (id) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataDefinitionsStoreName, this.metadataValuesStoreName], 'readwrite')
+      const defStore = transaction.objectStore(this.metadataDefinitionsStoreName)
+      const valStore = transaction.objectStore(this.metadataValuesStoreName)
+
+      const deleteDefinitionAndValues = async () => {
+        try {
+          // First, delete all values associated with this definition
+          const values = await this.getMetadataValuesByDefinition(id)
+          const valueDeletePromises = values.map(value => {
+            return new Promise((resolve, reject) => {
+              const req = valStore.delete(value.id)
+              req.onsuccess = () => resolve()
+              req.onerror = (e) => reject(e)
+            })
+          })
+          await Promise.all(valueDeletePromises)
+          console.log(`MapStorage: Deleted ${values.length} metadata values for definition ${id}`)
+
+          // Then delete the definition itself
+          const deleteDefRequest = defStore.delete(id)
+          deleteDefRequest.onsuccess = () => {
+            console.log('MapStorage: Metadata definition deleted successfully', id)
+          }
+          deleteDefRequest.onerror = (event) => {
+            console.error('MapStorage: Failed to delete metadata definition', event.target.error)
+            reject(new Error(`Failed to delete metadata definition: ${event.target.error}`))
+          }
+
+          transaction.oncomplete = () => resolve(true)
+          transaction.onerror = (event) => reject(new Error(`Transaction failed: ${event.target.error}`))
+          transaction.onabort = (event) => reject(new Error(`Transaction aborted: ${event.target.error}`))
+        } catch (error) {
+          reject(error)
+        }
+      }
+      deleteDefinitionAndValues()
+    })
+  }
+
+  // ========================================
+  // Metadata Value CRUD Methods
+  // ========================================
+
+  /**
+   * Validate a metadata value against its definition
+   * @param {Object} value - Metadata value object
+   * @param {Object} definition - Metadata definition object
+   * @returns {Object} - { valid: boolean, error: string|null }
+   * @private
+   */
+  _validateMetadataValue (value, definition) {
+    if (!definition) {
+      return { valid: false, error: 'Metadata definition not found' }
+    }
+
+    // Check if value is provided for required fields
+    if (definition.required && (value.value === null || value.value === undefined || value.value === '')) {
+      return { valid: false, error: `Field "${definition.name}" is required` }
+    }
+
+    // Skip further validation if value is empty and not required
+    if (!definition.required && (value.value === null || value.value === undefined || value.value === '')) {
+      return { valid: true, error: null }
+    }
+
+    // Type-specific validation
+    switch (definition.fieldType) {
+      case 'text':
+        if (typeof value.value !== 'string') {
+          return { valid: false, error: `Field "${definition.name}" must be a string` }
+        }
+        break
+
+      case 'number':
+        if (typeof value.value !== 'number' || isNaN(value.value)) {
+          return { valid: false, error: `Field "${definition.name}" must be a valid number` }
+        }
+        break
+
+      case 'date':
+        if (typeof value.value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value.value)) {
+          return { valid: false, error: `Field "${definition.name}" must be a valid date in YYYY-MM-DD format` }
+        }
+        break
+
+      case 'boolean':
+        if (typeof value.value !== 'boolean') {
+          return { valid: false, error: `Field "${definition.name}" must be a boolean` }
+        }
+        break
+
+      case 'select':
+        if (typeof value.value !== 'string') {
+          return { valid: false, error: `Field "${definition.name}" must be a string` }
+        }
+        if (!definition.options || !definition.options.includes(value.value)) {
+          return { valid: false, error: `Field "${definition.name}" value must be one of: ${definition.options.join(', ')}` }
+        }
+        break
+
+      default:
+        return { valid: false, error: `Unknown field type: ${definition.fieldType}` }
+    }
+
+    return { valid: true, error: null }
+  }
+
+  /**
+   * Add a new metadata value
+   * @param {Object} value - Metadata value object
+   * @returns {Promise<Object>} - The saved metadata value
+   */
+  async addMetadataValue (value) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    // Validation
+    if (!value.definitionId) {
+      throw new Error('Metadata value must have a definitionId')
+    }
+
+    // Verify definition exists and get it for validation
+    const definition = await this.getMetadataDefinition(value.definitionId)
+    if (!definition) {
+      throw new Error(`Metadata definition not found: ${value.definitionId}`)
+    }
+
+    const validEntityTypes = ['map', 'marker', 'photo']
+    if (!value.entityType || !validEntityTypes.includes(value.entityType)) {
+      throw new Error(`Invalid entityType: ${value.entityType}. Must be one of: ${validEntityTypes.join(', ')}`)
+    }
+
+    if (!value.entityId) {
+      throw new Error('Metadata value must have an entityId')
+    }
+
+    // Validate value against definition
+    const validation = this._validateMetadataValue(value, definition)
+    if (!validation.valid) {
+      throw new Error(validation.error)
+    }
+
+    const metadataValue = {
+      id: value.id || crypto.randomUUID(),
+      definitionId: value.definitionId,
+      entityType: value.entityType,
+      entityId: value.entityId,
+      value: value.value,
+      createdDate: value.createdDate || new Date().toISOString(),
+      lastModified: new Date().toISOString()
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataValuesStoreName], 'readwrite')
+      const store = transaction.objectStore(this.metadataValuesStoreName)
+      const request = store.add(metadataValue)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Metadata value added successfully', metadataValue.id)
+        resolve(metadataValue)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to add metadata value', request.error)
+        reject(new Error(`Failed to save metadata value: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get a specific metadata value by ID
+   * @param {string} id - Metadata value ID
+   * @returns {Promise<Object|null>} - Metadata value or null if not found
+   */
+  async getMetadataValue (id) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataValuesStoreName], 'readonly')
+      const store = transaction.objectStore(this.metadataValuesStoreName)
+      const request = store.get(id)
+
+      request.onsuccess = () => {
+        const value = request.result
+        console.log('MapStorage: Retrieved metadata value', id, value ? 'found' : 'not found')
+        resolve(value || null)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get metadata value', request.error)
+        reject(new Error(`Failed to load metadata value: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get all metadata values for a specific entity
+   * @param {string} entityType - 'map', 'marker', or 'photo'
+   * @param {string} entityId - The ID of the entity
+   * @param {IDBTransaction} [transaction] - Optional existing transaction
+   * @returns {Promise<Array>} - Array of metadata values for the entity
+   */
+  async getMetadataValuesForEntity (entityType, entityId, transaction = null) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      let t = transaction
+      if (!t) {
+        t = this.db.transaction([this.metadataValuesStoreName], 'readonly')
+      }
+      const store = t.objectStore(this.metadataValuesStoreName)
+      const index = store.index('entityTypeAndId')
+      const request = index.getAll([entityType, entityId])
+
+      request.onsuccess = () => {
+        const values = request.result || []
+        console.log(`MapStorage: Retrieved ${values.length} metadata values for ${entityType} ${entityId}`)
+        resolve(values)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get metadata values for entity', request.error)
+        reject(new Error(`Failed to load metadata values for entity: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get all metadata values for a specific definition
+   * @param {string} definitionId - The ID of the metadata definition
+   * @returns {Promise<Array>} - Array of metadata values using this definition
+   */
+  async getMetadataValuesByDefinition (definitionId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataValuesStoreName], 'readonly')
+      const store = transaction.objectStore(this.metadataValuesStoreName)
+      const index = store.index('definitionId')
+      const request = index.getAll(definitionId)
+
+      request.onsuccess = () => {
+        const values = request.result || []
+        console.log(`MapStorage: Retrieved ${values.length} metadata values for definition ${definitionId}`)
+        resolve(values)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get metadata values by definition', request.error)
+        reject(new Error(`Failed to load metadata values by definition: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Update an existing metadata value
+   * @param {Object} value - Updated metadata value object (must include id)
+   * @returns {Promise<Object>} - Updated metadata value
+   */
+  async updateMetadataValue (value) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    if (!value.id) {
+      throw new Error('Metadata value ID is required for update')
+    }
+
+    // Get existing value to ensure it exists
+    const existing = await this.getMetadataValue(value.id)
+    if (!existing) {
+      throw new Error(`Metadata value not found: ${value.id}`)
+    }
+
+    // Get definition for validation
+    const definition = await this.getMetadataDefinition(value.definitionId || existing.definitionId)
+    if (!definition) {
+      throw new Error(`Metadata definition not found: ${value.definitionId || existing.definitionId}`)
+    }
+
+    // Validate value against definition
+    const validation = this._validateMetadataValue({ ...existing, ...value }, definition)
+    if (!validation.valid) {
+      throw new Error(validation.error)
+    }
+
+    const updatedValue = {
+      ...existing,
+      ...value,
+      lastModified: new Date().toISOString()
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataValuesStoreName], 'readwrite')
+      const store = transaction.objectStore(this.metadataValuesStoreName)
+      const request = store.put(updatedValue)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Metadata value updated successfully', updatedValue.id)
+        resolve(updatedValue)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to update metadata value', request.error)
+        reject(new Error(`Failed to update metadata value: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Delete a single metadata value
+   * @param {string} id - Metadata value ID
+   * @returns {Promise<boolean>} - Success status
+   */
+  async deleteMetadataValue (id) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataValuesStoreName], 'readwrite')
+      const store = transaction.objectStore(this.metadataValuesStoreName)
+      const request = store.delete(id)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Metadata value deleted successfully', id)
+        resolve(true)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to delete metadata value', request.error)
+        reject(new Error(`Failed to delete metadata value: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Delete all metadata values for a specific entity
+   * @param {string} entityType - 'map', 'marker', or 'photo'
+   * @param {string} entityId - The ID of the entity
+   * @returns {Promise<number>} - Number of values deleted
+   */
+  async deleteMetadataValuesForEntity (entityType, entityId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    const values = await this.getMetadataValuesForEntity(entityType, entityId)
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataValuesStoreName], 'readwrite')
+      const store = transaction.objectStore(this.metadataValuesStoreName)
+
+      const deletePromises = values.map(value => {
+        return new Promise((resolve, reject) => {
+          const req = store.delete(value.id)
+          req.onsuccess = () => resolve()
+          req.onerror = (e) => reject(e)
+        })
+      })
+
+      Promise.all(deletePromises)
+        .then(() => {
+          console.log(`MapStorage: Deleted ${values.length} metadata values for ${entityType} ${entityId}`)
+          resolve(values.length)
+        })
+        .catch(error => {
+          console.error('MapStorage: Failed to delete metadata values for entity', error)
+          reject(new Error(`Failed to delete metadata values for entity: ${error}`))
+        })
+
+      transaction.onerror = (event) => {
+        console.error('MapStorage: Transaction failed while deleting metadata values for entity', event.target.error)
+        reject(new Error(`Transaction failed: ${event.target.error}`))
+      }
+    })
+  }
+
+  /**
+   * Delete all metadata values for a specific definition
+   * (Called when a definition is deleted)
+   * @param {string} definitionId - The ID of the metadata definition
+   * @returns {Promise<number>} - Number of values deleted
+   */
+  async deleteMetadataValuesByDefinition (definitionId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    const values = await this.getMetadataValuesByDefinition(definitionId)
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.metadataValuesStoreName], 'readwrite')
+      const store = transaction.objectStore(this.metadataValuesStoreName)
+
+      const deletePromises = values.map(value => {
+        return new Promise((resolve, reject) => {
+          const req = store.delete(value.id)
+          req.onsuccess = () => resolve()
+          req.onerror = (e) => reject(e)
+        })
+      })
+
+      Promise.all(deletePromises)
+        .then(() => {
+          console.log(`MapStorage: Deleted ${values.length} metadata values for definition ${definitionId}`)
+          resolve(values.length)
+        })
+        .catch(error => {
+          console.error('MapStorage: Failed to delete metadata values by definition', error)
+          reject(new Error(`Failed to delete metadata values by definition: ${error}`))
+        })
+
+      transaction.onerror = (event) => {
+        console.error('MapStorage: Transaction failed while deleting metadata values by definition', event.target.error)
+        reject(new Error(`Transaction failed: ${event.target.error}`))
+      }
+    })
+  }
+
+  // ========================================
   // Remaining Utility Methods
-
   // ========================================
 
   /**

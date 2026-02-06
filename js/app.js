@@ -1429,5 +1429,6 @@ class SnapSpotApp {
 // Initialize the app
 const app = new SnapSpotApp()
 
-// Make app available globally for debugging
+// Make app available globally for debugging and testing
 window.SnapSpotApp = app
+window.app = app // Convenient alias for console testing
