@@ -1,8 +1,8 @@
 # Phase 3: Metadata Entry UI
 
-**Status:** Not Started  
+**Status:** In Progress  
 **Estimated Duration:** 2-3 days  
-**Started:** TBD  
+**Started:** 2026-02-06  
 **Completed:** TBD  
 **Prerequisites:** Phase 1 and Phase 2 complete
 
@@ -56,7 +56,7 @@ Build user interface for entering and editing metadata values on maps, markers, 
 
 ## Tasks
 
-### ☐ Task 3.1: Create Metadata Form Generator
+### ✅ Task 3.1: Create Metadata Form Generator
 
 **Actions:**
 1. Create new utility file: `js/ui/metadata-form-generator.js`
@@ -100,16 +100,16 @@ Build user interface for entering and editing metadata values on maps, markers, 
 - Add CSS for metadata form styling (see Task 3.2)
 
 **Acceptance Criteria:**
-- [ ] Class structure complete
-- [ ] All field types render correctly
-- [ ] Required indicators show
-- [ ] Validation works for all types
-- [ ] Values extract properly
-- [ ] JSDoc comments added
+- [x] Class structure complete
+- [x] All field types render correctly
+- [x] Required indicators show
+- [x] Validation works for all types
+- [x] Values extract properly
+- [x] JSDoc comments added
 
 ---
 
-### ☐ Task 3.2: Add Metadata Form Styles
+### ✅ Task 3.2: Add Metadata Form Styles
 
 **Actions:**
 1. Create new CSS file: `css/components/metadata-form.css`
@@ -136,14 +136,14 @@ Build user interface for entering and editing metadata values on maps, markers, 
 - `css/main.css` (add import)
 
 **Acceptance Criteria:**
-- [ ] Styles match existing SnapSpot design
-- [ ] Forms are readable and usable
-- [ ] Responsive on mobile
-- [ ] Error states are clear
+- [x] Styles match existing SnapSpot design
+- [x] Forms are readable and usable
+- [x] Responsive on mobile
+- [x] Error states are clear
 
 ---
 
-### ☐ Task 3.3: Integrate Metadata into Upload Map Modal
+### ✅ Task 3.3: Integrate Metadata into Upload Map Modal
 
 **Actions:**
 1. Update `js/ui/upload-modal.js`:
@@ -168,16 +168,16 @@ Build user interface for entering and editing metadata values on maps, markers, 
 - `css/modals/upload.css` (if styling needed)
 
 **Acceptance Criteria:**
-- [ ] Metadata section appears in upload modal
-- [ ] Form generates correctly from definitions
-- [ ] Values save to storage when map is saved
-- [ ] Required validation works
-- [ ] Empty state shows if no definitions
-- [ ] No console errors
+- [x] Metadata section appears in upload modal
+- [x] Form generates correctly from definitions
+- [x] Values save to storage when map is saved
+- [x] Required validation works
+- [x] Empty state shows if no definitions
+- [x] No console errors
 
 ---
 
-### ☐ Task 3.4: Integrate Metadata into Marker Details Modal
+### ✅ Task 3.4: Integrate Metadata into Marker Details Modal
 
 **Actions:**
 1. Update `js/ui/marker-details-modal.js`:
@@ -213,11 +213,17 @@ Build user interface for entering and editing metadata values on maps, markers, 
 - `css/modals/marker-details.css`
 
 **Acceptance Criteria:**
-- [ ] Metadata displays in view mode
-- [ ] Edit mode shows editable form
-- [ ] Values save correctly
-- [ ] Switching modes works smoothly
-- [ ] No metadata shows nothing (graceful)
+- [x] Metadata displays in view mode
+- [x] Edit mode shows editable form
+- [x] Values save correctly
+- [x] Switching modes works smoothly
+- [x] No metadata shows nothing (graceful)
+
+**Notes:**
+- Refactored marker-details-modal into modular structure first
+- Created marker-details-metadata.js for metadata handling
+- Implemented view/edit mode toggling
+- Integrated with MetadataFormGenerator
 
 ---
 
