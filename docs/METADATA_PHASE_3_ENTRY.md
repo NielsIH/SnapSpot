@@ -8,7 +8,27 @@
 
 ---
 
-## Goals
+## Progress Summary
+
+**Completed:**
+- ✅ Task 3.1: Metadata Form Generator (`metadata-form-generator.js`)
+- ✅ Task 3.2: CSS Styling for forms (`css/components/metadata-form.css`)
+- ✅ Task 3.3: Marker Details Integration (inline view/edit pattern)
+- ✅ Task 3.6: Photo Gallery Metadata Integration (inline view/edit pattern)
+
+**Ready for Testing:**
+- Marker metadata entry (Phase 3.3)
+- Photo metadata entry (Phase 3.6)
+
+**Key Design Decision:**
+Photo metadata entry is **ONLY** available in the photo gallery, **NEVER** during photo upload. This ensures fast field workflow while providing full-size photo viewing for accurate metadata entry.
+
+**Next Steps:**
+- Manual testing of marker and photo metadata
+- Consider map metadata integration (Task 3.4)
+- Refactoring/helper methods if needed (Task 3.7)
+
+---
 
 Build user interface for entering and editing metadata values on maps, markers, and photos:
 1. Generate dynamic forms from metadata definitions
@@ -227,61 +247,110 @@ Build user interface for entering and editing metadata values on maps, markers, 
 
 ---
 
-### ☐ Task 3.5: Integrate Metadata into Photo Upload
+### ☐ Task 3.5: Design Decision: Photo Metadata Entry Location
 
-**Actions:**
-1. Determine where photo metadata entry happens:
-   - Option A: In marker details modal when adding photo
-   - Option B: Separate photo details modal
-   - **Decision: Option A** (simpler UX)
+**DECISION: Photo metadata ONLY in gallery, NEVER during upload**
 
-2. Approach:
-   - Add metadata to photo gallery modal
-   - Edit button on each photo → shows photo details + metadata form
+**Rationale:**
+1. **Fast field workflow:** Adding photos (especially multiple) must be quick and uninterrupted
+2. **Accurate entry requires study:** Users need full-size photo view to enter accurate metadata
+3. **Existing pattern:** Marker details already uses gallery for photo viewing
+4. **Clear separation:** Upload = fast capture, Gallery = detailed review and annotation
 
-4. Save photo metadata:
-   - Save photo first
-   - Then save metadata values with photoId
+**Implementation:**
+- ❌ NO metadata form in upload modal
+- ✅ Metadata entry ONLY in photo gallery single-photo view
+- ✅ Edit button in single-photo view to toggle edit mode
+- ✅ Metadata displays read-only below photo info
 
-**Files to modify:**
-- `js/ui/marker-details-modal.js` (or `photo-gallery-modal.js`)
-- Relevant CSS files
-
-**Acceptance Criteria:**
-- [ ] Photo metadata entry is accessible
-- [ ] UX is clear (not confusing)
-- [ ] Values save with photoId
-- [ ] Can edit photo metadata after upload
+**This task is REPLACED by Task 3.6 (Gallery Integration)**
 
 ---
 
-### ☐ Task 3.6: Add Metadata Display/Edit in Photo Gallery
+### ✅ Task 3.6: Add Metadata Display/Edit in Photo Gallery (PRIORITY)
+
+**Primary Entry Point for Photo Metadata**
+
+**Strategy:**
+Follow the same pattern as marker metadata integration:
+- Inline metadata view in photo overlay info
+- Toggle to edit mode with form
+- Save/cancel integrated with other photo actions
 
 **Actions:**
-1. Update `js/ui/photo-gallery-modal.js`:
-   - When viewing a photo, show metadata below image
-   - Display as read-only key-value pairs
-   - Add "Edit" button
 
-2. Edit mode for photo metadata:
-   - Show editable form
-   - Save/cancel buttons
-   - Update values in storage
+1. **Create photo metadata helper module:** `js/ui/photo-gallery-metadata.js`
+   - `loadMetadata(storage, photoId)` - Load definitions and values
+   - `generateInlineViewHtml(definitions, values)` - Read-only display
+   - `generateInlineEditHtml(definitions, values)` - Edit form
+   - `saveMetadataValues(modal, storage, photoId, definitions)` - Validate and save
+   - Follow same pattern as `marker-details-metadata.js`
 
-3. Consider layout:
-   - Photo at top
-   - Metadata section below
-   - Scrollable if needed
+2. **Update photo gallery single-photo view structure:**
+   - Add metadata view container in `.photo-overlay-info`
+   - Add metadata edit container (hidden initially)
+   - Add "Edit Photo" button to modal footer
+   - Add "Save" and "Cancel" buttons (hidden initially)
+
+3. **Implement view/edit toggle:**
+   - Edit button shows metadata form alongside existing photo info
+   - Save button validates and saves both filename (if editable) and metadata
+   - Cancel button reverts to view mode
+   - Pattern identical to marker details
+
+4. **Layout considerations:**
+   - Metadata displays below filename and marker info in overlay
+   - In edit mode, expand overlay or make scrollable if needed
+   - Mobile: ensure overlay doesn't obscure photo too much
+
+5. **Update `photo-gallery-modal.js`:**
+   - Import photo metadata helpers
+   - Load metadata when showing single photo
+   - Setup edit mode handlers
+   - Handle save/cancel actions
+
+**Files to create:**
+- `js/ui/photo-gallery-metadata.js` (new)
 
 **Files to modify:**
 - `js/ui/photo-gallery-modal.js`
 - `css/modals/photo-gallery.css`
+- `service-worker.js` (add new file to cache)
 
 **Acceptance Criteria:**
-- [ ] Photo metadata displays in gallery
-- [ ] Edit button works
-- [ ] Values update correctly
-- [ ] Pleasant UX (not cluttered)
+- [x] Photo metadata displays in single-photo view
+- [x] "Edit Photo" button toggles edit mode
+- [x] Edit mode shows metadata form
+- [x] Values validate and save correctly
+- [x] Cancel reverts without saving
+- [x] Mobile layout doesn't obscure photo (uses scrollable overlay)
+- [x] Pattern matches marker details UX
+
+**Implementation Notes:**
+- Created `photo-gallery-metadata.js` with same pattern as `marker-details-metadata.js`
+- Metadata displays in photo overlay info below filename and marker
+- Edit mode shows form in overlay with dark theme styling
+- Overlay is scrollable (max-height: 40%) to accommodate metadata
+- Edit Photo/Save/Cancel buttons integrated into modal footer
+- Navigation and other actions disabled during edit mode
+- Storage parameter passed through from app-marker-photo-manager.js
+- Service worker updated to cache new file (v2026-02-06-29)
+
+**Manual Testing Checklist:**
+- [ ] Create photo metadata definitions in Settings → Metadata
+- [ ] Upload photo to a marker
+- [ ] Open photo gallery (via marker details photos or map gallery)
+- [ ] Verify metadata view shows in single-photo view overlay
+- [ ] Click "Edit Photo" button
+- [ ] Verify form appears with correct fields
+- [ ] Fill in metadata values (test required fields, validation)
+- [ ] Click "Save" and verify values persist
+- [ ] Reopen gallery and verify values display correctly
+- [ ] Test "Cancel" button reverts without saving
+- [ ] Test navigation disabled during edit mode
+- [ ] Test on mobile - verify overlay scrollable, doesn't obscure photo
+- [ ] Test with no metadata definitions (empty state)
+- [ ] Test with definitions but no values
 
 ---
 

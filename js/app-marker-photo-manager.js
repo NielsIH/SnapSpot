@@ -221,7 +221,8 @@ export async function showMarkerDetails (app, markerId) {
             console.log('Marker photo gallery closed.')
             // Reopen marker details after gallery closes
             await showMarkerDetails(app, marker.id)
-          }
+          },
+          app.storage // Pass storage for metadata
         )
       },
       // onClose callback
@@ -495,7 +496,8 @@ export async function showMapPhotoGallery (app) {
       () => {
         console.log('Map photo gallery closed.')
         app.updateAppStatus('Ready')
-      }
+      },
+      app.storage // Pass storage for metadata
     )
     app.updateAppStatus(`Viewing photo gallery for map: ${app.currentMap.name}`)
   } catch (error) {

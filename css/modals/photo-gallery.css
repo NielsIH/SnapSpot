@@ -213,8 +213,8 @@
   color: white;
   border-radius: 8px;
   z-index: 10;
-  max-height: 100px; /* Limit height for overlay */
-  overflow: hidden;
+  max-height: 40%; /* Allow more height for metadata */
+  overflow-y: auto; /* Scroll if content exceeds max height */
 }
 
 .photo-overlay-info h4 {
@@ -227,6 +227,53 @@
   margin: 0.125rem 0;
   font-size: 0.85rem;
   color: #ddd;
+}
+
+/* Photo metadata view in overlay */
+#photo-metadata-view {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#photo-metadata-view p {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+  color: #ddd;
+  line-height: 1.4;
+}
+
+#photo-metadata-view p strong {
+  color: white;
+}
+
+/* Photo metadata edit form in overlay */
+#photo-metadata-edit {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Override metadata form styles for dark overlay */
+#photo-metadata-edit .metadata-form-container {
+  padding: 0.5rem 0 0 0;
+}
+
+#photo-metadata-edit .metadata-field label {
+  color: white;
+  font-size: 0.85rem;
+}
+
+#photo-metadata-edit .metadata-input {
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 0.85rem;
+}
+
+#photo-metadata-edit .metadata-error {
+  color: #ff6b6b;
+  font-size: 0.75rem;
 }
 
 /* Footer for pagination and action buttons */

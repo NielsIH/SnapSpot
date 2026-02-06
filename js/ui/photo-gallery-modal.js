@@ -5,7 +5,9 @@
 
 /* global document DOMParser requestAnimationFrame confirm */
 
-export function createPhotoGalleryModal (modalManager, photos, options = {}, onShowOnMap, onDeletePhoto, onClose) {
+import { loadMetadata, generateInlineViewHtml, generateInlineEditHtml, saveMetadataValues } from './photo-gallery-metadata.js'
+
+export function createPhotoGalleryModal (modalManager, photos, options = {}, onShowOnMap, onDeletePhoto, onClose, storage = null) {
   const {
     title = 'Photo Gallery',
     showOnMapOption = false,
@@ -65,6 +67,8 @@ export function createPhotoGalleryModal (modalManager, photos, options = {}, onS
                 <div class="photo-overlay-info">
                   <h4 id="current-photo-title">Photo Title</h4>
                   <p>Marker: <span id="marker-description"></span></p>
+                  <div id="photo-metadata-view"></div>
+                  <div id="photo-metadata-edit" class="hidden"></div>
                 </div>
               </div>
             </div>
@@ -74,8 +78,9 @@ export function createPhotoGalleryModal (modalManager, photos, options = {}, onS
         <!-- Footer for action buttons -->
         <div class="modal-footer">
           <div class="modal-actions">
-            ${showOnMapOption ? '<button id="show-on-map-btn" class="btn btn-primary">📍 Show on Map</button>' : ''}
-            ${onDeletePhoto ? '<button id="delete-photo-btn" class="btn btn-danger">🗑️ Delete Photo</button>' : ''}
+            ${showOnMapOption ? '<button id="show-on-map-btn" class="btn btn-primary">📍 Show on Map</button>' : ''}            <button id="edit-photo-btn" class="btn btn-secondary">✏️ Edit Photo</button>
+            <button id="save-photo-btn" class="btn btn-primary hidden">💾 Save</button>
+            <button id="cancel-photo-edit-btn" class="btn btn-secondary hidden">✖️ Cancel</button>            ${onDeletePhoto ? '<button id="delete-photo-btn" class="btn btn-danger">🗑️ Delete Photo</button>' : ''}
           </div>
         </div>
       </div>
@@ -103,7 +108,7 @@ export function createPhotoGalleryModal (modalManager, photos, options = {}, onS
     ...options,
     initialView,
     currentPhotoIndex
-  }, photoObjectUrls, onShowOnMap, onDeletePhoto, onClose)
+  }, photoObjectUrls, onShowOnMap, onDeletePhoto, onClose, storage)
 
   requestAnimationFrame(() => {
     modal.classList.add('show')
@@ -145,8 +150,9 @@ function generatePhotoGridItems (photos) {
  * @param {Function} onShowOnMap - Callback when "Show on Map" is clicked (receives photoData)
  * @param {Function} onDeletePhoto - Callback when "Delete Photo" is clicked (receives photoId)
  * @param {Function} onClose - Callback when the modal is closed
+ * @param {Object} storage - MapStorage instance for metadata (optional)
  */
-function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObjectUrls, onShowOnMap, onDeletePhoto, onClose) {
+function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObjectUrls, onShowOnMap, onDeletePhoto, onClose, storage = null) {
   const { initialView, currentPhotoIndex: initialPhotoIndex } = options
   let currentView = initialView
   let currentPhotoIndex = initialPhotoIndex
@@ -171,6 +177,16 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
   const showOnMapBtn = modal.querySelector('#show-on-map-btn')
   const deletePhotoBtn = modal.querySelector('#delete-photo-btn')
 
+  // Edit mode elements
+  const editPhotoBtn = modal.querySelector('#edit-photo-btn')
+  const savePhotoBtn = modal.querySelector('#save-photo-btn')
+  const cancelPhotoEditBtn = modal.querySelector('#cancel-photo-edit-btn')
+  const metadataViewContainer = modal.querySelector('#photo-metadata-view')
+  const metadataEditContainer = modal.querySelector('#photo-metadata-edit')
+
+  // Track current photo metadata
+  let currentPhotoMetadata = { definitions: [], values: [] }
+
   // Set up close functionality
   const closeModal = () => {
     // Clean up all object URLs when closing the modal
@@ -182,6 +198,61 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
 
     modalManager.closeModal(modal)
     if (onClose) onClose()
+  }
+
+  /**
+   * Toggle between view and edit modes for photo metadata
+   * @param {boolean} isEditing - Whether to enter edit mode
+   * @param {string} updatedMetadataEditHtml - Optional updated metadata edit HTML
+   */
+  const togglePhotoEditMode = (isEditing, updatedMetadataEditHtml = null) => {
+    if (isEditing) {
+      // Hide metadata view
+      if (metadataViewContainer) {
+        metadataViewContainer.classList.add('hidden')
+      }
+
+      // Show metadata edit form if available
+      if (metadataEditContainer && updatedMetadataEditHtml) {
+        metadataEditContainer.innerHTML = updatedMetadataEditHtml
+        metadataEditContainer.classList.remove('hidden')
+      }
+
+      // Toggle buttons
+      if (editPhotoBtn) editPhotoBtn.classList.add('hidden')
+      if (savePhotoBtn) savePhotoBtn.classList.remove('hidden')
+      if (cancelPhotoEditBtn) cancelPhotoEditBtn.classList.remove('hidden')
+
+      // Disable other action buttons in edit mode
+      if (showOnMapBtn) showOnMapBtn.disabled = true
+      if (deletePhotoBtn) deletePhotoBtn.disabled = true
+      if (prevPhotoBtn) prevPhotoBtn.disabled = true
+      if (nextPhotoBtn) nextPhotoBtn.disabled = true
+      if (viewListBtn) viewListBtn.disabled = true
+    } else {
+      // Show metadata view
+      if (metadataViewContainer) {
+        metadataViewContainer.classList.remove('hidden')
+      }
+
+      // Hide metadata edit form
+      if (metadataEditContainer) {
+        metadataEditContainer.classList.add('hidden')
+        metadataEditContainer.innerHTML = ''
+      }
+
+      // Toggle buttons
+      if (editPhotoBtn) editPhotoBtn.classList.remove('hidden')
+      if (savePhotoBtn) savePhotoBtn.classList.add('hidden')
+      if (cancelPhotoEditBtn) cancelPhotoEditBtn.classList.add('hidden')
+
+      // Re-enable other action buttons
+      if (showOnMapBtn) showOnMapBtn.disabled = false
+      if (deletePhotoBtn) deletePhotoBtn.disabled = false
+      if (prevPhotoBtn) prevPhotoBtn.disabled = false
+      if (nextPhotoBtn) nextPhotoBtn.disabled = false
+      if (viewListBtn) viewListBtn.disabled = false
+    }
   }
 
   // Setup for Pagination functionality
@@ -367,7 +438,7 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
   }
 
   // Function to show the single photo view
-  const showSingleView = (photoIndex) => {
+  const showSingleView = async (photoIndex) => {
     if (photoIndex < 0 || photoIndex >= photos.length) return
 
     currentPhotoIndex = photoIndex
@@ -392,6 +463,15 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
     currentPhotoTitle.textContent = photo.fileName || 'Untitled Photo'
     markerDescription.textContent = photo.markerDescription || 'No marker description'
 
+    // Load and display metadata
+    if (storage) {
+      currentPhotoMetadata = await loadMetadata(storage, photo.id)
+      const metadataViewHtml = generateInlineViewHtml(currentPhotoMetadata.definitions, currentPhotoMetadata.values)
+      if (metadataViewContainer) {
+        metadataViewContainer.innerHTML = metadataViewHtml
+      }
+    }
+
     // Show single photo view
     currentView = 'single'
     singleView.classList.add('active')
@@ -408,6 +488,9 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
     if (paginationContainer) {
       paginationContainer.style.display = 'none'
     }
+
+    // Ensure we're in view mode (not edit mode) when switching photos
+    togglePhotoEditMode(false)
   }
 
   // Set up navigation buttons
@@ -441,6 +524,46 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
         onDeletePhoto(photoId)
       }
     }
+  })
+
+  // Edit photo button - enter edit mode
+  editPhotoBtn?.addEventListener('click', async () => {
+    if (!storage || currentPhotoIndex < 0 || currentPhotoIndex >= photos.length) return
+
+    const photo = photos[currentPhotoIndex]
+    const metadata = await loadMetadata(storage, photo.id)
+    const metadataEditHtml = generateInlineEditHtml(metadata.definitions, metadata.values)
+    togglePhotoEditMode(true, metadataEditHtml)
+  })
+
+  // Save photo button - save metadata and exit edit mode
+  savePhotoBtn?.addEventListener('click', async () => {
+    if (!storage || currentPhotoIndex < 0 || currentPhotoIndex >= photos.length) return
+
+    const photo = photos[currentPhotoIndex]
+
+    // Save metadata
+    if (currentPhotoMetadata.definitions && currentPhotoMetadata.definitions.length > 0) {
+      const metadataSaved = await saveMetadataValues(modal, storage, photo.id, currentPhotoMetadata.definitions)
+      if (!metadataSaved) {
+        // Validation failed, stay in edit mode
+        return
+      }
+
+      // Reload metadata and update view
+      currentPhotoMetadata = await loadMetadata(storage, photo.id)
+      const viewHtml = generateInlineViewHtml(currentPhotoMetadata.definitions, currentPhotoMetadata.values)
+      if (metadataViewContainer) {
+        metadataViewContainer.innerHTML = viewHtml
+      }
+    }
+
+    togglePhotoEditMode(false)
+  })
+
+  // Cancel photo edit button - revert and exit edit mode
+  cancelPhotoEditBtn?.addEventListener('click', () => {
+    togglePhotoEditMode(false)
   })
 
   // Set up swipe and keyboard navigation
