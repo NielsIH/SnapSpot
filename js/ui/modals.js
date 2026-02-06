@@ -64,10 +64,11 @@ export class ModalManager {
      * Create upload modal for map file selection (delegates to upload-modal.js)
      * @param {Function} onUpload - Callback when file is uploaded
      * @param {Function} onCancel - Callback when upload is cancelled
+     * @param {Object} storage - MapStorage instance for metadata
      * @returns {HTMLElement} - Modal element
      */
-  createUploadModal (onUpload, onCancel) {
-    return createUploadModal(this, onUpload, onCancel)
+  createUploadModal (onUpload, onCancel, storage = null) {
+    return createUploadModal(this, onUpload, onCancel, storage)
   }
 
   /**

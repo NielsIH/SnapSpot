@@ -216,7 +216,7 @@ export class MetadataFormGenerator {
 
       switch (definition.fieldType) {
         case 'text':
-          value = input.value.trim()
+          value = input.value ? input.value.trim() : ''
           break
 
         case 'number':
@@ -240,7 +240,8 @@ export class MetadataFormGenerator {
       }
 
       // Only include non-empty values (or boolean values)
-      if (value !== null && value !== '' && value !== undefined) {
+      // For boolean, always include the value (true or false)
+      if (definition.fieldType === 'boolean' || (value !== null && value !== '' && value !== undefined)) {
         metadataValues.push({
           id: crypto.randomUUID(),
           definitionId: definition.id,

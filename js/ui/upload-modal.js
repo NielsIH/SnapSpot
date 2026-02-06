@@ -346,24 +346,32 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager, stora
     if (storage) {
       try {
         const allDefinitions = await storage.getAllMetadataDefinitions()
+        console.log('UploadModal: Loaded definitions:', allDefinitions)
         // Filter for map-level definitions (global or map-specific)
         metadataDefinitions = allDefinitions.filter(def => def.appliesTo.includes('map'))
+        console.log('UploadModal: Map-level definitions:', metadataDefinitions)
 
         const metadataSection = modal.querySelector('#map-metadata-section')
         if (metadataSection) {
           if (metadataDefinitions.length > 0) {
             const formHtml = MetadataFormGenerator.generateForm(metadataDefinitions, [], 'map')
+            console.log('UploadModal: Generated form HTML:', formHtml.substring(0, 200))
             metadataSection.innerHTML = `
               <h4>Additional Information</h4>
               ${formHtml}
             `
           } else {
+            console.log('UploadModal: No map-level metadata definitions found')
             metadataSection.innerHTML = '' // No definitions, hide section
           }
+        } else {
+          console.warn('UploadModal: #map-metadata-section not found in DOM')
         }
       } catch (error) {
         console.error('Error loading metadata definitions:', error)
       }
+    } else {
+      console.warn('UploadModal: Storage not provided to modal')
     }
 
     setTimeout(() => modal.querySelector('#map-name').focus(), 100)
