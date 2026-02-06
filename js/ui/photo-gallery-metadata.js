@@ -70,11 +70,8 @@ export function generateInlineViewHtml (definitions, values) {
     .filter(row => row !== '')
     .join('')
 
-  if (rows === '') {
-    return '' // Return empty string if no valid rows to display
-  }
-
-  return `<div id="photo-metadata-view">${rows}</div>`
+  // Return just the content, not wrapped in a div (container already exists in DOM)
+  return rows
 }
 
 /**
