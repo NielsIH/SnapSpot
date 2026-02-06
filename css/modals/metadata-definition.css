@@ -1,0 +1,124 @@
+/* Metadata Definition Modal Specific Styles */
+.medium-modal {
+  width: 700px;
+  max-width: 95vw;
+  max-height: 95vh;
+}
+
+.required-indicator {
+  color: var(--danger-color);
+  font-weight: 600;
+}
+
+.form-error {
+  display: block;
+  color: var(--danger-color);
+  font-size: 0.85rem;
+  margin-top: var(--spacing-xs);
+  min-height: 1.2em;
+}
+
+.checkbox-group,
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.checkbox-label,
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  font-weight: normal;
+  color: var(--text-primary);
+}
+
+.checkbox-label input[type="checkbox"],
+.radio-label input[type="radio"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+/* Options Management */
+#options-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.option-input-row {
+  display: flex;
+  gap: var(--spacing-xs);
+  align-items: center;
+}
+
+.option-input-row .option-input {
+  flex: 1;
+}
+
+.option-input-row .remove-option-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+/* Preview Section */
+.metadata-field-preview {
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-md);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+
+.metadata-field-preview h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.metadata-field-preview .form-group {
+  margin-bottom: 0;
+}
+
+.metadata-field-preview input:disabled,
+.metadata-field-preview select:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .medium-modal {
+    width: 95vw;
+    margin: var(--spacing-sm);
+  }
+
+  .checkbox-group,
+  .radio-group {
+    gap: var(--spacing-md);
+  }
+
+  .option-input-row .remove-option-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 1.3rem;
+  }
+
+  .metadata-field-preview {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
+  }
+}

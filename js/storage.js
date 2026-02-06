@@ -1638,43 +1638,37 @@ export class MapStorage {
       throw new Error('Storage not initialized')
     }
 
+    // First, get all values that need to be deleted (before creating delete transaction)
+    const values = await this.getMetadataValuesByDefinition(id)
+    console.log(`MapStorage: Found ${values.length} metadata values to delete for definition ${id}`)
+
     return new Promise((resolve, reject) => {
       const transaction = this.db.transaction([this.metadataDefinitionsStoreName, this.metadataValuesStoreName], 'readwrite')
       const defStore = transaction.objectStore(this.metadataDefinitionsStoreName)
       const valStore = transaction.objectStore(this.metadataValuesStoreName)
 
-      const deleteDefinitionAndValues = async () => {
-        try {
-          // First, delete all values associated with this definition
-          const values = await this.getMetadataValuesByDefinition(id)
-          const valueDeletePromises = values.map(value => {
-            return new Promise((resolve, reject) => {
-              const req = valStore.delete(value.id)
-              req.onsuccess = () => resolve()
-              req.onerror = (e) => reject(e)
-            })
-          })
-          await Promise.all(valueDeletePromises)
-          console.log(`MapStorage: Deleted ${values.length} metadata values for definition ${id}`)
+      // Delete all associated values
+      values.forEach(value => {
+        valStore.delete(value.id)
+      })
 
-          // Then delete the definition itself
-          const deleteDefRequest = defStore.delete(id)
-          deleteDefRequest.onsuccess = () => {
-            console.log('MapStorage: Metadata definition deleted successfully', id)
-          }
-          deleteDefRequest.onerror = (event) => {
-            console.error('MapStorage: Failed to delete metadata definition', event.target.error)
-            reject(new Error(`Failed to delete metadata definition: ${event.target.error}`))
-          }
+      // Delete the definition itself
+      defStore.delete(id)
 
-          transaction.oncomplete = () => resolve(true)
-          transaction.onerror = (event) => reject(new Error(`Transaction failed: ${event.target.error}`))
-          transaction.onabort = (event) => reject(new Error(`Transaction aborted: ${event.target.error}`))
-        } catch (error) {
-          reject(error)
-        }
+      transaction.oncomplete = () => {
+        console.log(`MapStorage: Deleted metadata definition and ${values.length} associated values`)
+        resolve(true)
       }
-      deleteDefinitionAndValues()
+
+      transaction.onerror = (event) => {
+        console.error('MapStorage: Failed to delete metadata definition', event.target.error)
+        reject(new Error(`Failed to delete metadata definition: ${event.target.error}`))
+      }
+
+      transaction.onabort = (event) => {
+        console.error('MapStorage: Transaction aborted while deleting metadata definition', event.target.error)
+        reject(new Error(`Transaction aborted: ${event.target.error}`))
+      }
     })
   }
 

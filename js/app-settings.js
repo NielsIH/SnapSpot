@@ -4,7 +4,7 @@
  * All functions take `app` instance as first param.
  */
 
-/* global localStorage */
+/* global localStorage confirm crypto Blob URL document */
 
 import { handleViewImageInViewer } from './app-marker-photo-manager.js'
 
@@ -251,7 +251,145 @@ export async function showSettings (app, initialTab = 'general-settings') {
       getCustomMarkerColors: () => getCustomMarkerColors(app),
       getCustomMarkerOperators: () => getCustomMarkerOperators(app),
       getCurrentCustomMarkerRules: () => getCurrentCustomMarkerRules(app),
-      setAndPersistCustomMarkerRules: (rules) => setAndPersistCustomMarkerRules(app, rules)
+      setAndPersistCustomMarkerRules: (rules) => setAndPersistCustomMarkerRules(app, rules),
+      // Metadata Callbacks
+      getMetadataDefinitions: async () => {
+        return await app.storage.getAllMetadataDefinitions()
+      },
+      onAddMetadataDefinition: async (scope, onComplete) => {
+        const { createMetadataDefinitionModal } = await import('./ui/metadata-definition-modal.js')
+        createMetadataDefinitionModal(app.modalManager, {
+          definition: null,
+          scope,
+          activeMapId: currentActiveMapId,
+          onSave: async (definitionData) => {
+            try {
+              await app.storage.addMetadataDefinition(definitionData)
+              app.showNotification(`Metadata field "${definitionData.name}" created.`, 'success')
+              if (onComplete) onComplete()
+            } catch (error) {
+              console.error('Error saving metadata definition:', error)
+              app.showNotification('Failed to create metadata field.', 'error')
+            }
+          }
+        })
+      },
+      onEditMetadataDefinition: async (defId, onComplete) => {
+        const definition = await app.storage.getMetadataDefinition(defId)
+        if (!definition) {
+          app.showNotification('Metadata field not found.', 'error')
+          return
+        }
+        const { createMetadataDefinitionModal } = await import('./ui/metadata-definition-modal.js')
+        createMetadataDefinitionModal(app.modalManager, {
+          definition,
+          scope: definition.scope,
+          activeMapId: currentActiveMapId,
+          onSave: async (definitionData) => {
+            try {
+              await app.storage.updateMetadataDefinition(definitionData)
+              app.showNotification(`Metadata field "${definitionData.name}" updated.`, 'success')
+              if (onComplete) onComplete()
+            } catch (error) {
+              console.error('Error updating metadata definition:', error)
+              app.showNotification('Failed to update metadata field.', 'error')
+            }
+          }
+        })
+      },
+      onDeleteMetadataDefinition: async (defId) => {
+        const definition = await app.storage.getMetadataDefinition(defId)
+        if (!definition) {
+          app.showNotification('Metadata field not found.', 'error')
+          return
+        }
+        const values = await app.storage.getMetadataValuesByDefinition(defId)
+        const valueCount = values.length
+        const message = valueCount > 0
+          ? `Delete "${definition.name}"?\n\nThis field has ${valueCount} value${valueCount === 1 ? '' : 's'} that will also be deleted. This cannot be undone.`
+          : `Delete "${definition.name}"?\n\nThis cannot be undone.`
+        if (!confirm(message)) {
+          return
+        }
+        try {
+          await app.storage.deleteMetadataDefinition(defId)
+          app.showNotification(`Metadata field "${definition.name}" deleted.`, 'success')
+        } catch (error) {
+          console.error('Error deleting metadata definition:', error)
+          app.showNotification('Failed to delete metadata field.', 'error')
+        }
+      },
+      onExportMetadataDefinitions: async () => {
+        try {
+          const allDefinitions = await app.storage.getAllMetadataDefinitions()
+          const globalDefinitions = allDefinitions.filter(def => def.scope === 'global')
+          if (globalDefinitions.length === 0) {
+            app.showNotification('No global metadata definitions to export.', 'info')
+            return
+          }
+          const exportData = {
+            version: '1.2',
+            type: 'snapspot-metadata-definitions',
+            sourceApp: 'SnapSpot',
+            timestamp: new Date().toISOString(),
+            definitions: globalDefinitions
+          }
+          const json = JSON.stringify(exportData, null, 2)
+          const blob = new Blob([json], { type: 'application/json' })
+          const filename = `snapspot-metadata-definitions-${new Date().toISOString().split('T')[0]}.json`
+          // Trigger download
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = filename
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+          app.showNotification(`Exported ${globalDefinitions.length} metadata definition${globalDefinitions.length === 1 ? '' : 's'}.`, 'success')
+        } catch (error) {
+          console.error('Error exporting metadata definitions:', error)
+          app.showNotification('Failed to export metadata definitions.', 'error')
+        }
+      },
+      onImportMetadataDefinitions: async (file) => {
+        try {
+          const text = await file.text()
+          const importData = JSON.parse(text)
+          if (importData.type !== 'snapspot-metadata-definitions') {
+            app.showNotification('Invalid metadata definitions file.', 'error')
+            return
+          }
+          if (!importData.definitions || !Array.isArray(importData.definitions)) {
+            app.showNotification('Invalid metadata definitions format.', 'error')
+            return
+          }
+          const existingDefinitions = await app.storage.getAllMetadataDefinitions()
+          const existingNames = new Set(existingDefinitions.map(def => def.name.toLowerCase()))
+          let imported = 0
+          let skipped = 0
+          for (const def of importData.definitions) {
+            if (existingNames.has(def.name.toLowerCase())) {
+              const overwrite = confirm(`A field named "${def.name}" already exists. Overwrite it?`)
+              if (!overwrite) {
+                skipped++
+                continue
+              }
+              const existingDef = existingDefinitions.find(d => d.name.toLowerCase() === def.name.toLowerCase())
+              def.id = existingDef.id
+              await app.storage.updateMetadataDefinition(def)
+            } else {
+              def.id = crypto.randomUUID()
+              await app.storage.addMetadataDefinition(def)
+            }
+            imported++
+          }
+          app.showNotification(`Imported ${imported} metadata definition${imported === 1 ? '' : 's'}${skipped > 0 ? `, skipped ${skipped}` : ''}.`, 'success')
+        } catch (error) {
+          console.error('Error importing metadata definitions:', error)
+          app.showNotification('Failed to import metadata definitions.', 'error')
+        }
+      }
     }
     // Create and display the settings modal
     app.modalManager.createSettingsModal(

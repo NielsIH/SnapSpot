@@ -559,17 +559,17 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
   })
 
   // Add definition button
-  addMetadataDefBtn?.addEventListener('click', () => {
+  addMetadataDefBtn?.addEventListener('click', async () => {
     if (callbacks.onAddMetadataDefinition) {
       const scope = currentMetadataScope === 'global' ? 'global' : activeMapId
-      callbacks.onAddMetadataDefinition(scope, () => renderMetadataDefinitions())
+      await callbacks.onAddMetadataDefinition(scope, () => renderMetadataDefinitions())
     }
   })
 
   // Export definitions button
-  exportMetadataDefBtn?.addEventListener('click', () => {
+  exportMetadataDefBtn?.addEventListener('click', async () => {
     if (callbacks.onExportMetadataDefinitions) {
-      callbacks.onExportMetadataDefinitions()
+      await callbacks.onExportMetadataDefinitions()
     }
   })
 
