@@ -110,7 +110,7 @@ if (!result.valid) {
 ### Merger API
 
 #### `mergeExports(targetExport, sourceExport, options)`
-Merge two SnapSpot exports intelligently.
+Merge two SnapSpot exports intelligently, including markers, photos, and metadata.
 
 **Parameters:**
 - `targetExport` (Object) - Base export to merge into
@@ -120,9 +120,14 @@ Merge two SnapSpot exports intelligently.
 **Options:**
 ```javascript
 {
-  coordinateTolerance: 0,      // Pixel tolerance for duplicate detection
-  duplicatePhotoStrategy: 'skip',   // 'skip' or 'rename'
-  preserveTimestamps: true     // Keep original dates
+  duplicateStrategy: 'coordinates',     // 'none', 'coordinates', 'label', 'photos', or 'smart'
+  coordinateTolerance: 5,               // Pixel tolerance for coordinate-based matching
+  photoMatchThreshold: 0.7,             // Fraction of filenames that must match (0.0-1.0)
+  duplicatePhotoStrategy: 'skip',       // 'skip' or 'rename'
+  preserveTimestamps: true,             // Keep original creation dates
+  mergeMetadata: true,                  // Whether to merge metadata
+  metadataConflictStrategy: 'skip',     // 'skip', 'overwrite', or 'keep-both'
+  idGenerator: generateId               // Custom ID generator function
 }
 ```
 
@@ -134,10 +139,62 @@ Merge two SnapSpot exports intelligently.
 import { mergeExports } from './lib/snapspot-data/merger.js'
 
 const merged = mergeExports(existingExport, importedExport, {
+  duplicateStrategy: 'smart',
   coordinateTolerance: 5,
-  duplicatePhotoStrategy: 'skip'
+  duplicatePhotoStrategy: 'skip',
+  mergeMetadata: true,
+  metadataConflictStrategy: 'keep-both'
 })
 ```
+
+#### `getMergeStatistics(targetExport, sourceExport, options)`
+Get merge statistics without performing the actual merge.
+
+**Parameters:**
+- `targetExport` (Object) - Base export
+- `sourceExport` (Object) - Export to merge
+- `options` (Object) - Same options as mergeExports
+
+**Returns:**
+- `Object` - Statistics about the merge operation:
+  ```javascript
+  {
+    duplicateMarkers: number,
+    newMarkers: number,
+    duplicatePhotos: number,
+    newPhotos: number,
+    totalSourceMarkers: number,
+    totalSourcePhotos: number,
+    duplicateMetadataDefinitions: number,
+    newMetadataDefinitions: number,
+    totalSourceMetadataDefinitions: number,
+    newMetadataValues: number,
+    totalSourceMetadataValues: number
+  }
+  ```
+
+**Example:**
+```javascript
+import { getMergeStatistics } from './lib/snapspot-data/merger.js'
+
+const stats = getMergeStatistics(existing, imported, { duplicateStrategy: 'smart' })
+console.log(`Will add ${stats.newMarkers} markers and ${stats.newPhotos} photos`)
+console.log(`Will add ${stats.newMetadataDefinitions} metadata definitions`)
+```
+
+#### Metadata Merge Strategies
+
+**skip** (default): Skip duplicate definitions, keep existing ones
+- Duplicate definitions are not imported
+- Metadata values reference existing definitions
+
+**overwrite**: Replace existing definitions with imported ones
+- Existing definitions are updated with imported data
+- Useful when importing updated field definitions
+
+**keep-both**: Keep both versions of duplicate definitions
+- Imported definitions get new IDs and renamed (e.g., "Field Name (imported)")
+- Useful when you want to preserve both versions
 
 ---
 

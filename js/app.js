@@ -1365,7 +1365,16 @@ class SnapSpotApp {
       this.updateAppStatus('Exporting map data...')
 
       if (exportDecision.action === 'exportComplete') {
-        await StorageExporterImporter.exportData(map, allMarkers, allPhotos, this.imageProcessor, {}, this.storage)
+        await StorageExporterImporter.exportData(
+          map,
+          allMarkers,
+          allPhotos,
+          this.imageProcessor,
+          {
+            includeMetadata: exportDecision.includeMetadata
+          },
+          this.storage
+        )
         this.updateAppStatus(`JSON data for map "${map.name}" exported completely.`, 'success')
       } else if (exportDecision.action === 'exportByDays') {
         await StorageExporterImporter.exportData(

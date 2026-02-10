@@ -1,8 +1,8 @@
 # Phase 4: Metadata Export/Import Functionality
 
-**Status:** Not Started  
+**Status:** In Progress  
 **Estimated Duration:** 1-2 days  
-**Started:** TBD  
+**Started:** 2026-02-10  
 **Completed:** TBD  
 **Prerequisites:** Phase 1, 2, and 3 complete
 
@@ -123,7 +123,7 @@ Implement export and import functionality for metadata:
 
 ## Tasks
 
-### ☐ Task 4.1: Update Writer to Export Metadata
+### ✅ Task 4.1: Update Writer to Export Metadata
 
 **Actions:**
 1. Update `lib/snapspot-data/writer.js`:
@@ -164,15 +164,15 @@ Implement export and import functionality for metadata:
 - `lib/snapspot-data/README.md` (update API docs)
 
 **Acceptance Criteria:**
-- [ ] Writer accepts metadata parameters
-- [ ] Metadata included in export when provided
-- [ ] Backward compatible (works without metadata)
-- [ ] Only relevant metadata included (scope filtering)
-- [ ] JSDoc comments updated
+- [x] Writer accepts metadata parameters
+- [x] Metadata included in export when provided
+- [x] Backward compatible (works without metadata)
+- [x] Only relevant metadata included (scope filtering)
+- [x] JSDoc comments updated
 
 ---
 
-### ☐ Task 4.2: Update Parser to Import Metadata
+### ✅ Task 4.2: Update Parser to Import Metadata
 
 **Actions:**
 1. Update `lib/snapspot-data/parser.js`:
@@ -201,12 +201,12 @@ Implement export and import functionality for metadata:
 - `lib/snapspot-data/README.md`
 
 **Acceptance Criteria:**
-- [ ] Parser extracts metadata if present
-- [ ] Returns empty arrays if metadata missing (v1.1)
-- [ ] No errors on files without metadata
-- [ ] JSDoc updated
+- [x] Parser extracts metadata if present
+- [x] Returns empty arrays if metadata missing (v1.1)
+- [x] No errors on files without metadata
+- [x] JSDoc updated
 
---- ### ☐ Task 4.3: Update Validator for Metadata
+--- ### ✅ Task 4.3: Update Validator for Metadata
 
 **Actions:**
 *Note: This was partially done in Phase 1, Task 1.5. Complete it here.*
@@ -231,14 +231,14 @@ Implement export and import functionality for metadata:
 - `lib/snapspot-data/validator.js`
 
 **Acceptance Criteria:**
-- [ ] Metadata schema validation complete
-- [ ] Validates field types and constraints
-- [ ] Warns on referential integrity issues
-- [ ] Doesn't break on valid v1.1 or v1.2 files
+- [x] Metadata schema validation complete (already done in Phase 1)
+- [x] Validates field types and constraints
+- [x] Warns on referential integrity issues
+- [x] Doesn't break on valid v1.1 or v1.2 files
 
 ---
 
-### ☐ Task 4.4: Add Export Options to StorageExporterImporter
+### ✅ Task 4.4: Add Export Options to StorageExporterImporter
 
 **Actions:**
 1. Update `lib/snapspot-storage/exporter-importer.js`:
@@ -287,14 +287,14 @@ Implement export and import functionality for metadata:
 - `lib/snapspot-storage/README.md`
 
 **Acceptance Criteria:**
-- [ ] `includeMetadata` option works
-- [ ] Fetches and includes metadata when true
-- [ ] Excludes metadata when false
-- [ ] No errors when mapStorage not provided
+- [x] `includeMetadata` option works
+- [x] Fetches and includes metadata when true
+- [x] Excludes metadata when false
+- [x] No errors when mapStorage not provided
 
 ---
 
-### ☐ Task 4.5: Update Export Decision Modal
+### ✅ Task 4.5: Update Export Decision Modal
 
 **Actions:**
 1. Update export decision modal (wherever it exists in UI):
@@ -319,8 +319,8 @@ Implement export and import functionality for metadata:
 - `css/modals/export-decision.css`
 
 **Acceptance Criteria:**
-- [ ] Checkbox appears in export modal
-- [ ] Option passes through to export function
+- [x] Checkbox appears in export modal
+- [x] Option passes through to export function
 - [ ] Works correctly (verified in testing)
 - [ ] UI is clear about what's included/excluded
 
@@ -494,38 +494,40 @@ Implement export and import functionality for metadata:
 
 ---
 
-### ☐ Task 4.10: Update Merger for Metadata
+### ☑ Task 4.10: Update Merger for Metadata
+
+**Status:** Complete
 
 **Actions:**
 1. Update `lib/snapspot-data/merger.js`:
-   - Merge metadata definitions from two exports
-   - Merge metadata values from two exports
-   - Handle definition conflicts (match by name or ID)
-   - Link values to correct definitions in merged export
+   - Merge metadata definitions from two exports ✓
+   - Merge metadata values from two exports ✓
+   - Handle definition conflicts (match by name or ID) ✓
+   - Link values to correct definitions in merged export ✓
 
 2. Add merge options:
    ```javascript
    {
-     mergeMetadataDefinitions: true,
-     metadataConflictStrategy: 'keep-both' // 'skip' | 'overwrite' | 'keep-both'
+     mergeMetadata: true,
+     metadataConflictStrategy: 'skip' // 'skip' | 'overwrite' | 'keep-both'
    }
    ```
 
 3. Merge logic:
-   - Definitions with same ID → keep target, skip source (or strategy)
-   - Definitions with same name but different ID → warning, keep-both
-   - Values reference definition IDs → update if definitions merged
+   - Definitions with same ID → keep target, skip source (or strategy) ✓
+   - Definitions with same name but different ID → warning, keep-both ✓
+   - Values reference definition IDs → update if definitions merged ✓
 
-**Files to modify:**
-- `lib/snapspot-data/merger.js`
-- `lib/snapspot-data/README.md`
+**Files modified:**
+- `lib/snapspot-data/merger.js` ✓
+- `lib/snapspot-data/README.md` ✓
 
 **Acceptance Criteria:**
-- [ ] Merger handles metadata
-- [ ] Definitions merge correctly
-- [ ] Values link to right definitions
-- [ ] Conflict strategies work
-- [ ] JSDoc updated
+- [x] Merger handles metadata
+- [x] Definitions merge correctly
+- [x] Values link to right definitions
+- [x] Conflict strategies work
+- [x] JSDoc updated
 
 ---
 

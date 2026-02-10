@@ -692,6 +692,15 @@ export class ModalManager {
               <h4>Full Map Export</h4>
               <button class="btn btn-primary" id="btn-export-complete" type="button">📊 Export Complete Map</button>
               <p class="text-secondary text-xs mt-sm">Exports the entire map, including all markers and photos.</p>
+              
+              <div class="form-group mt-md">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="include-metadata-checkbox" checked />
+                  <span class="checkmark"></span>
+                  Include custom metadata fields
+                </label>
+                <p class="text-secondary text-xs">Exports your custom metadata definitions and values. Uncheck to exclude metadata from the export.</p>
+              </div>
             </div>
 
             <hr class="my-md">
@@ -785,7 +794,8 @@ export class ModalManager {
 
     if (completeExportBtn) {
       completeExportBtn.addEventListener('click', () => {
-        closeAndResolve({ action: 'exportComplete' })
+        const includeMetadata = modal.querySelector('#include-metadata-checkbox')?.checked ?? true
+        closeAndResolve({ action: 'exportComplete', includeMetadata })
       })
     }
 

@@ -1,11 +1,10 @@
 /* global caches self */
 
-const CACHE_NAME = 'image-mapper-v2026-02-06-29'
+const CACHE_NAME = 'image-mapper-v2026-02-10-07'
 const STATIC_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  // CSS (PWA only)
   './css/main.css',
   './css/modals.css',
   './css/base.css',
@@ -27,7 +26,6 @@ const STATIC_ASSETS = [
   './css/modals/search.css',
   './css/modals/settings.css',
   './css/modals/upload.css',
-  // JS (PWA only)
   './js/app.js',
   './js/storage.js',
   './js/ui/uiRenderer.js',
@@ -54,7 +52,6 @@ const STATIC_ASSETS = [
   './js/ui/search-modal.js',
   './js/ui/settings-modal.js',
   './js/ui/upload-modal.js',
-  // lib/ (PWA shared libraries only)
   './lib/snapspot-data/merger.js',
   './lib/snapspot-data/parser.js',
   './lib/snapspot-data/splitter.js',
@@ -63,7 +60,6 @@ const STATIC_ASSETS = [
   './lib/snapspot-image/converter.js',
   './lib/snapspot-image/hasher.js',
   './lib/snapspot-storage/exporter-importer.js'
-  // No snapspot-utils files included (not part of PWA)
 ]
 console.log('🚀 SERVICE WORKER SCRIPT LOADED - VERSION:', CACHE_NAME)
 
