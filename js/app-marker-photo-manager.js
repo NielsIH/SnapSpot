@@ -277,16 +277,16 @@ export async function addPhotosToMarker (app, markerId) {
     }
 
     const photoIdsToAdd = []
-    // Fetch all photos currently on the active map once before the loop
-    // MODIFIED: Use this.currentMap.id to get photos for the active map
-    const allPhotosOnMap = await app.storage.getPhotosForMap(app.currentMap.id)
+    // Fetch only filenames of photos on the active map (optimized for duplicate checking)
+    // MODIFIED: Use this.currentMap.id and optimized method for faster duplicate detection
+    const existingFileNames = await app.storage.getPhotoFileNamesForMap(app.currentMap.id)
 
     for (const file of selectedFiles) {
       app.updateAppStatus(`Processing photo: ${file.name}...`)
       const isDuplicateAllowedSetting = app.allowDuplicatePhotos
 
       if (!isDuplicateAllowedSetting) { // Only do check IF setting says NO duplicates
-        const isDuplicateFound = allPhotosOnMap.some(p => p.fileName === file.name)
+        const isDuplicateFound = existingFileNames.has(file.name)
         // If a duplicate is found ANYWHERE on the map, skip this file
         if (isDuplicateFound) {
           app.showNotification(`Skipping duplicate photo: ${file.name} (already exists on this map)`, 'warning')

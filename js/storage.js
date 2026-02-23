@@ -1230,6 +1230,66 @@ export class MapStorage {
     })
   }
 
+  /**
+   * Get only the filenames of all photos for a given map (optimized for duplicate checking)
+   * @param {string} mapId - The ID of the map
+   * @returns {Promise<Set<string>>} Set of photo filenames
+   */
+  async getPhotoFileNamesForMap (mapId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      ;(async () => {
+        try {
+          const transaction = this.db.transaction([this.markerStoreName, this.photoStoreName], 'readonly')
+          const markerStore = transaction.objectStore(this.markerStoreName)
+          const photoStore = transaction.objectStore(this.photoStoreName)
+
+          // 1. Get all markers for the given mapId
+          const markers = await new Promise((resolve, reject) => {
+            const markersRequest = markerStore.index('mapId').getAll(mapId)
+
+            markersRequest.onsuccess = () => resolve(markersRequest.result || [])
+            markersRequest.onerror = (e) => reject(e)
+          })
+
+          // 2. Collect all unique photoIds
+          const allPhotoIds = new Set()
+          markers.forEach(marker => {
+            if (marker.photoIds) {
+              marker.photoIds.forEach(photoId => allPhotoIds.add(photoId))
+            }
+          })
+
+          // 3. Fetch only the fileName property from each photo (not full photo objects)
+          const fileNamePromises = Array.from(allPhotoIds).map(photoId => {
+            return new Promise((resolve, reject) => {
+              const photoRequest = photoStore.get(photoId)
+
+              photoRequest.onsuccess = () => {
+                const photo = photoRequest.result
+                resolve(photo ? photo.fileName : null)
+              }
+              photoRequest.onerror = (e) => reject(e)
+            })
+          })
+
+          const fileNames = (await Promise.all(fileNamePromises)).filter(fileName => fileName != null)
+
+          // Return as Set for O(1) lookup performance
+          const fileNameSet = new Set(fileNames)
+          console.log(`MapStorage: Retrieved ${fileNameSet.size} photo filenames for map ${mapId}`)
+          resolve(fileNameSet)
+        } catch (error) {
+          console.error('MapStorage: Failed to get photo filenames for map', error)
+          reject(new Error(`Failed to load photo filenames for map: ${error.message}`))
+        }
+      })()
+    })
+  }
+
   // ========================================
 
   // Remaining Utility Methods

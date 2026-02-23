@@ -1,109 +1,83 @@
-# SnapSpot PWA
+# SnapSpot
 
-## 🚨 Safari Blob Storage Compatibility Fix (2025-12)
+A Progressive Web App for mapping photos to specific locations on any map, floor plan, or site diagram. SnapSpot is designed to work completely offline, making it perfect for construction sites, field surveys, property inspections, and any environment where GPS or internet connectivity is unavailable.
 
-**SnapSpot now supports all versions of Safari, including iOS/iPadOS, by migrating all map and photo image data in IndexedDB from Blob format to Base64 strings.**
+**Live Demo:** [https://nielsih.github.io/SnapSpot](https://nielsih.github.io/SnapSpot)
 
-- **Why?** Older Safari browsers do not support storing Blob objects in IndexedDB, causing failures when saving or loading maps/photos.
-- **How?**
-  - All image data is now stored as Base64 strings in IndexedDB.
-  - On first launch after update, any legacy Blob data is automatically migrated to Base64 (one-time migration).
-  - A full-screen overlay blocks UI and shows "Updating maps, please stand by" during migration.
-  - Import/export, gallery, and thumbnails are fully compatible with both formats.
-  - Migration is robust and error-tolerant; errors are logged but do not block app startup.
-- **Result:** SnapSpot works seamlessly on Chrome, Firefox, Edge, and all Safari versions (desktop and mobile).
+## Features
 
-See [docs/SafariBlobFix.md](docs/SafariBlobFix.md) and [docs/SafariBlobFix_Tasks.md](docs/SafariBlobFix_Tasks.md) for technical details and implementation notes.
+### Map Management
+- Upload and manage multiple maps (PNG, JPG, SVG, or any image format)
+- Support for Vector Graphics (SVG) with infinite zoom quality
+- Rotate maps in 90-degree increments with persistent orientation
+- Switch between multiple maps instantly
+- Name and describe maps for easy organization
+- Import and export map data with all markers and photos
 
----
+### Marker System
+- Place numbered markers at specific locations on maps
+- Drag markers to reposition them precisely
+- Add descriptions and notes to any marker
+- Attach multiple photos to each marker
+- View marker coordinates and creation timestamps
+- Custom marker colors based on description keywords
+- Lock markers to prevent accidental movement
+- Limit visible markers to the most recent ones
 
-# SnapSpot PWA
+### Photo Management
+- Associate photos with specific map locations
+- Full-size photo viewer with zoom capability
+- Photo gallery to browse all images on the active map
+- Duplicate photo detection (optional)
+- Configurable image quality settings
+- Delete photos directly from the viewer
+- Search photos by filename across all maps
 
-A Progressive Web App for mapping photos and images to specific locations on any map or floor plan. Perfect for construction sites, archaeological surveys, property inspections, event planning, and more. Designed to work offline for use in any environment.
+### Navigation & Display
+- Pan and zoom with mouse or touch gestures
+- Pinch-to-zoom on touch devices
+- Crosshair overlay for precise marker placement
+- Responsive design optimized for desktop, tablet, and mobile
+- Touch-friendly interface with 44px minimum touch targets
+- Adaptive button layout (bottom in portrait, side in landscape)
 
-## Phase 1A: PWA Foundation ✅
+### Search & Discovery
+- Search across maps, markers, and photos
+- Filter search results to active map only
+- "Show on Map" function to navigate to any marker
+- Search by image file to find specific maps
 
-This phase establishes the basic PWA infrastructure and offline capabilities.
+### Data Management
+- Import/Export individual maps or all data
+- Merge imported data into existing maps
+- Export data filtered by specific dates
+- Generate HTML reports with embedded images
+- Full IndexedDB storage for offline capability
+- Automatic data migration for compatibility updates
 
-### Features Implemented
-- ✅ Progressive Web App setup with manifest.json
-- ✅ Service Worker for offline functionality
-- ✅ Responsive design optimized for mobile/tablet use
-- ✅ Touch-friendly interface
-- ✅ Connection status monitoring
-- ✅ Basic app structure and navigation
+### Offline Functionality
+- Progressive Web App (PWA) with Service Worker
+- Works completely offline after first visit
+- Install as standalone app on any device
+- No internet required for any feature
+- Connection status monitoring
 
-### Files Structure
-```
-image-mapper/
-├── DEPLOYMENT.md             # Instructions for deployment
-├── index.html                # Main app HTML
-├── manifest.json             # PWA configuration
-├── README.md                 # This file
-├── service-worker.js         # Offline functionality
-│
-├── css/
-│   ├── base.css              # Base styles
-│   ├── components.css        # UI component styles
-│   ├── layout.css            # Layout-specific styles
-│   ├── main.css              # Main application styles
-│   ├── map-display.css       # Map display specific styles
-│   ├── modals/               # Modal-specific styles (reorganized for clarity)
-│   │   ├── marker-details.css# Marker details modal styles
-│   │   ├── responsive.css    # Responsive adjustments for modals
-│   │   ├── import-decision.css # Styling for the import decision modal
-│   │   └── export-decision.css # Styling for the export decision modal (NEW)
-│   ├── notifications.css     # Notification styles
-│   ├── responsive.css        # General responsive adjustments
-│   └── utilities.css         # Utility classes
-│
-├── icons/
-│   ├── apple-touch-icon.png
-│   ├── favicon-96x96.png
-│   ├── favicon.ico
-│   ├── favicon.svg
-│   ├── README.md             # Icon usage documentation
-│   ├── screenshot-narrow.png
-│   ├── screenshot-wide.png
-│   └── web-app-manifest-192x192.png
-│   └── web-app-manifest-512x512.png
-│
-└── js/
-    ├── app.js                # Main application logic (refactored)
-    ├── app-map-interactions.js # Map interaction handlers (pan, zoom, rotate)
-    ├── app-marker-photo-manager.js # Marker and photo management
-    ├── app-search.js         # Search functionality
-    ├── app-settings.js       # Settings orchestration
-    ├── app-storage-manager.js # Storage and display management
-    ├── fileManager.js        # Utility for file selection and processing
-    ├── HtmlReportGenerator.js# Generates HTML reports for map data
-    ├── imageProcessor.js     # Utility for image manipulation and thumbnail generation
-    ├── MapDataExporterImporter.js # Handles importing/exporting map data
-    ├── mapRenderer.js        # Manages canvas rendering, pan, zoom, markers
-    ├── searchManager.js      # Manages the search modal and its logic
-    ├── storage.js            # Handles IndexedDB interactions (MapStorage class)
-    │
-    └── ui/                   # UI-specific components
-        ├── marker-details-modal.js # Marker details modal
-        ├── modals.js         # Manages UI for various modals (ModalManager class)
-        ├── photo-gallery-modal.js # Photo gallery modal
-        ├── search-modal.js   # Search modal
-        ├── settings-modal.js # Settings modal
-        ├── uiRenderer.js     # Renders common UI components like card elements
-        └── upload-modal.js   # Upload modal
-```
+### Cross-Platform Support
+- Chrome, Firefox, Edge, Safari (desktop and mobile)
+- Full compatibility with iOS and iPadOS
+- Optimized for both mouse and touch input
+- GPU-accelerated rendering for smooth performance
 
 ## Getting Started
 
-### 🚀 Live Demo
-Visit the deployed app: `https://nielsih.github.io/SnapSpot`
+### Installation
 
-### 📱 Install as PWA
-1. Visit the app URL on any device
-2. Look for "Install" or "Add to Home Screen" option or just bookmark the url
-3. The app works offline after installation
+**Option 1: Use Online (Recommended)**
+1. Visit [https://nielsih.github.io/SnapSpot](https://nielsih.github.io/SnapSpot) in any web browser
+2. Click the install button or "Add to Home Screen" option
+3. Launch the installed app - it works offline after installation
 
-### 🛠️ Local Development
+**Option 2: Local Development**
 1. Clone this repository
 2. Serve files using a local web server:
    ```bash
@@ -118,199 +92,177 @@ Visit the deployed app: `https://nielsih.github.io/SnapSpot`
    ```
 3. Open `http://localhost:8000` in your browser
 
-### 📋 Deployment
-See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed GitHub Pages setup instructions.
+### Basic Usage
 
-### Testing Offline Functionality
-1. Load the app while online
-2. Go to Developer Tools → Application → Service Workers
-3. Check "Offline" to simulate offline mode
-4. Refresh the page - the app should still work
+**1. Upload Your First Map**
+- Click the Settings button (gear icon)
+- Navigate to "Map Management" tab
+- Click "Upload New Map" and select an image file
+- Give your map a name and optional description
+- Click "Save" to store the map
 
-## Implemented Phases ✨
+**2. Place Markers**
+- Pan or zoom to position the crosshair where you want to place a marker
+- Click "Place Marker" button (center-bottom on mobile, right side on desktop)
+- Markers are numbered automatically in chronological order
 
-### Phase 1B: File Management ✅
-- ✅ Map file upload and storage
-- ✅ Map naming and descriptions (including editing in map management modal)
-- ✅ Map list management (CRUD operations, including active map selection, deletion, export)
-- ✅ Local storage of map metadata (using IndexedDB)
-- ✅ "Clear All App Data" function for complete data reset
+**3. Add Photos to Markers**
+- Click on any marker to open the marker details
+- Click "Add Photo" and select image files
+- Add descriptions or notes to the marker
+- Photos are stored locally and work offline
 
-### Phase 1C: Map Display Engine ✅
-- ✅ Canvas-based map rendering
-- ✅ Pan and zoom functionality (mouse and touch gestures)
-- ✅ Touch and mouse interaction (panning, pinch-zoom)
-- ✅ Map switching interface (via map management modal)
-- ✅ Resizable map canvas that adapts to screen size
-- ✅ Toggleable zoom controls and action buttons (minimize/maximize to icons)
-- ✅ Crosshair visibility toggle and persistence
-- ✅ Marker lock/unlock toggle and persistence
-- ✅ Marker display size toggle and persistence
-- ✅ Map rotation (90-degree increments) and persistence
-- ✅ Consolidated and enhanced image viewer modal for maps and photos.
+**4. Navigate Your Map**
+- **Pan:** Click and drag (mouse) or swipe (touch)
+- **Zoom:** Mouse wheel, pinch gesture, or zoom buttons
+- **Rotate:** Use the rotate button to change orientation
+- **Move Markers:** Unlock markers, then drag them to new positions
 
-### Phase 1D: Marker System ✅
-- ✅ Click/tap to place markers at canvas center
-- ✅ Markers are numbered chronologically by creation date.
-- ✅ Marker dragging (mouse and touch, now preserves position across map rotations)
-- ✅ Marker details modal (showing description, coordinates, associated photos)
-- ✅ Enhanced: Marker details modal now displays full-size photos for readability, especially for text.
-- ✅ Marker description editing
-- ✅ Marker deletion
-- ✅ Image association with markers (uploading photos to markers)
-- ✅ Direct image deletion from the full-size image viewer modal
-- ✅ Implemented comprehensive map-wide duplicate photo detection.
-- ✅ Note-taking functionality (marker description)
-- ✅ Coordinate tracking (display in marker details)
+**5. Search and Find**
+- Click the Search button (magnifying glass icon)
+- Search for maps, markers, or photos by name
+- Use "Show on Map" to navigate to any result
+- Toggle "Active map" to limit search to current map
 
-### Phase 2: Export and Sync ✅
-- ✅ **Safari Blob Storage Fix (Base64 Migration):**
-  - All map and photo image data now stored as Base64 in IndexedDB for full Safari compatibility.
-  - Import/export logic updated to convert Base64 to Blob and vice versa as needed.
-  - Gallery and thumbnail handling robust for all imported/exported maps and photos.
-  - Data migration logic ensures legacy Blob data is converted automatically.
-  - Thorough cross-browser testing (Chrome, Firefox, Safari desktop/iOS).
-  - Service Worker cache version bumped for deployment.
-- ✅ Data export in multiple formats (HTML report implemented)
-- ✅ Import and export of maps with markers and images
-- ✅ **New: Merge Map Data functionality**:
-  -   Allows merging imported map data (markers and photos) into an existing map based on image content (hash).
-  -   Option to replace an existing map with imported data (maintaining map ID).
-  -   Handles legacy import files (without content hashes) as new maps.
-  -   Detects and skips duplicate markers during merge, while adding new photos to existing markers.
-- ✅ **Enhanced: Advanced Export Options**:
-  -   Introduced a dedicated modal for map export options.
-  -   Allows users to select specific days for marker and photo export.
-  -   Option to export selected day(s) into a single combined JSON file.
-  -   Option to export each selected day into separate JSON files.
+**6. Export Your Data**
+- Open Settings → Map Management
+- Click the export icon next to any map
+- Choose export options (all data or specific dates)
+- Save the JSON file - it contains all markers and photos
 
-### Safari Blob Storage Fix: Implementation Tasks ✅
+### Tips for New Users
 
-See `docs/SafariBlobFix_Tasks.md` for full checklist. Key tasks now completed:
-
-- ✅ Storage layer now converts Blobs to Base64 and vice versa for all map/photo data
-- ✅ Import/export logic robust for Base64 and Blob formats
-- ✅ Gallery and thumbnail handling fixed for imported maps/photos
-- ✅ Data migration for legacy Blob data
-- ✅ Cross-browser testing (Chrome, Firefox, Safari desktop/iOS)
-- ✅ Service Worker cache version bump
-- ✅ Documentation and code comments updated
-
-All tasks for the Safari Blob Storage Fix are now complete.
-
-### Phase 3: App Settings & Customization ✅
-- ✅ Comprehensive, tabbed settings modal for centralized configuration.
-- ✅ Image Processing settings: Configurable quality for photos added to markers.
-- ✅ App Behavior settings: Toggle for auto-closing marker details after adding photos.
-- ✅ App Behavior settings: Toggle for allowing/preventing duplicate photos on a map.
-- ✅ Map Management features migrated into settings modal with full CRUD operations for maps (select, import, export, delete).
-- ✅ Data Management features (Import/Export data) integrated into settings modal.
-- ✅ Clear All App Data moved to "Danger Zone" tab within settings.
-- ✅ Crosshair visibility toggle and persistence integrated into Map Display settings.
-- ✅ **New:** Setting to limit the maximum number of markers displayed on the map, showing only the most recent ones.
-- ✅ Dedicated search modal for maps, markers, and photos.
-- ✅ Unified search across map names, descriptions, and file names.
-- ✅ Search by Image File (via selection) for map lookup.
-- ✅ "Clear Search" functionality (X button) within the search input.
-- ✅ **Active Map Filter**: Configurable search scope control with persistent state:
-  - Toggle "Active map" checkbox to filter photos to the current active map only.
-  - When OFF, photos are searched across all maps.
-  - Maps are always searched across the entire database.
-  - Preference is saved in browser localStorage and preserved across sessions.
-- ✅ Map thumbnail/image click in search results and settings list opens image viewer.
-- ✅ Photo search by filename and display in search results with thumbnails.
-- ✅ "Show on Map" action for photo search results, switching to map, panning to and highlighting the associated marker.
-- ✅ Image Galery to browse and display all photos added to markers on the active map with "Show on Map" function.
-- ✅ Custom coloring for markers based on the content of their "description" field.
-
-### Phase 4: Enhanced Responsive UI & UX (Action Buttons) ✅
-- ✅ Dynamically positioned action button bar:
-  -   **Portrait Orientation (Mobile/Tablets)**: Buttons are fixed at the bottom with icons and labels, prominently featuring an enlarged "Place Marker" button in the center.
-  -   **Landscape Orientation (All Devices)**: Buttons are fixed on the right side with icons and labels for easy access.
-- ✅ Unified and redesigned action buttons with consistent sizing and clear labels across orientations.
-- ✅ Touch-optimized zoom controls: Explicit zoom buttons are automatically hidden on touch-first devices, relying on pinch-to-zoom gestures.
-
-## SVG Support Implementation ✅
-
-**Complete SVG (Scalable Vector Graphics) support has been implemented, allowing users to upload and work with vector-based maps while maintaining infinite zoom quality.**
-
-### Phase 1: Basic SVG Support ✅
-- ✅ **SVG File Detection**: Automatic detection of SVG files by MIME type (`image/svg+xml`)
-- ✅ **Dimension Parsing**: Extracts dimensions from SVG `width`/`height` attributes or `viewBox`
-- ✅ **Compression Bypass**: SVG files skip raster compression to preserve vector quality
-- ✅ **Vector Rendering**: SVG maps render with perfect sharpness at all zoom levels
-- ✅ **Marker Placement**: Full marker functionality on SVG maps (placement, dragging, photos)
-- ✅ **Export/Import**: SVG maps preserved in JSON exports and HTML reports
-- ✅ **Thumbnail Generation**: SVG thumbnails properly generated for map lists
-
-### Phase 2: SVG Rotation Support ✅
-- ✅ **Full Rotation**: SVG maps now support 90-degree rotation increments
-- ✅ **Vector Quality Preservation**: Rotation applied via canvas transforms maintains vector sharpness
-- ✅ **Coordinate Accuracy**: Marker positions correctly maintained across all rotation angles
-- ✅ **UI Integration**: Rotation controls always visible for all map types
-- ✅ **Performance**: GPU-accelerated transforms for smooth rotation experience
-
-### Technical Implementation
-- **File Processing**: `fileManager.js` - Added `getSvgMetadata()` for SVG dimension extraction
-- **Rendering Engine**: `mapRenderer.js` - Enhanced `renderImage()` with SVG-specific rotation logic
-- **Image Processing**: `imageProcessor.js` - Fixed thumbnail generation for SVG files
-- **UI Controls**: `app.js` - Rotation controls always available for all map types
-- **Storage**: Full compatibility with existing Base64 storage system
-
-### Benefits
-- ✅ **Infinite Zoom Quality**: Vector graphics remain sharp at any magnification
-- ✅ **Smaller File Sizes**: Technical drawings typically 50-90% smaller than raster equivalents
-- ✅ **Perfect for CAD/Floor Plans**: Ideal for architectural plans, site maps, technical diagrams
-- ✅ **Cross-Platform**: Works on all browsers and devices
-- ✅ **Backward Compatible**: Existing raster maps continue working unchanged
-
-See [docs/SVG-Support-Implementation.md](docs/SVG-Support-Implementation.md) for detailed technical documentation.
-
-## Technical Stack
-
-- **Frontend**: Vanilla JavaScript (ES6+), HTML5, CSS3
-- **Storage**: IndexedDB for offline data, Cache API for files
-- **PWA**: Service Worker, Web App Manifest
-- **Bundler**: ES Modules (seamless modularity without complex build steps)
-
-## Browser Support
-
-- Chrome/Edge 88+
-- Firefox 85+
-- Safari 14+
-- Mobile browsers with PWA support
-
-## Development Notes
-
-
-### Key Design Decisions
-- **Offline-first approach**: Everything must work without internet
-- **Touch-optimized**: 44px minimum touch targets
-- **Lightweight**: No external frameworks for core functionality
-- **Modular**: Clean separation between phases for iterative development
-- **ES Modules**: Modern JavaScript modularity for better maintainability and performance.
+- **Always Lock Markers:** After placing markers, use the lock button to prevent accidental movement
+- **Backup Regularly:** Export your map data periodically as a backup
+- **Use Descriptions:** Add keywords to marker descriptions for easier searching and color-coding
+- **Offline First:** After the first visit, SnapSpot works completely offline
+- **Clear Crosshair:** Toggle off the crosshair after marker placement for clearer viewing
+- **Photo Quality:** Adjust image quality in settings to balance file size and clarity
+- **SVG for Plans:** Use SVG files for floor plans and CAD drawings - they zoom infinitely without blur
 
 ## Use Cases
 
-**SnapSpot is perfect for:**
-- **Construction projects** - Map progress photos to floor plans and site layouts  
-- **Archaeological surveys** - Document findings with precise location mapping
-- **Property inspections** - Link inspection photos to property maps and floor plans
-- **Event planning** - Map photos and notes to venue layouts
-- **Facility management** - Track maintenance and asset photos by location
-- **Research projects** - Geolocate field photos and documentation
-- **Underground work** - Map photos in areas without GPS signal
+SnapSpot is ideal for any situation where you need to document and organize photos by location:
+
+- **Construction Projects** - Track progress photos across floor plans and site layouts
+- **Property Inspections** - Link inspection photos to specific locations on property maps
+- **Archaeological Surveys** - Document findings with precise location mapping
+- **Facility Management** - Track maintenance work, equipment, and asset locations
+- **Underground/Indoor Work** - Map photos in areas without GPS signal
+- **Event Planning** - Organize venue layouts and logistics with photo documentation
+- **Research & Field Work** - Document observations with precise location data
+- **Quality Control** - Track inspections and issues across facility maps
+
+## Technical Information
+
+### Architecture
+- **Frontend**: Vanilla JavaScript (ES6+), HTML5 Canvas, CSS3
+- **Storage**: IndexedDB for persistent offline data storage
+- **PWA**: Service Worker for offline functionality and app installation
+- **No Dependencies**: Zero external frameworks - lightweight and fast
+
+### Browser Compatibility
+- Chrome/Edge 88+
+- Firefox 85+  
+- Safari 14+ (desktop and mobile - full iOS/iPadOS support)
+- Any browser with IndexedDB and Service Worker support
+
+### File Structure
+```
+SnapSpot/
+├── index.html                    # Main application HTML
+├── manifest.json                 # PWA configuration
+├── service-worker.js             # Offline functionality & caching
+├── LICENSE                       # MIT License
+├── README.md                     # This file
+│
+├── css/                          # Modular stylesheets
+│   ├── base.css                  # Base styles & variables
+│   ├── components.css            # Reusable UI components
+│   ├── layout.css                # Layout & positioning
+│   ├── main.css                  # Main application styles
+│   ├── map-display.css           # Map canvas & controls
+│   ├── migration-overlay.css     # Data migration overlay
+│   ├── modals.css                # General modal styles
+│   ├── notifications.css         # Toast notifications
+│   ├── responsive.css            # Responsive breakpoints
+│   ├── utilities.css             # Utility classes
+│   └── modals/                   # Modal-specific styles
+│       ├── base.css              # Modal base styles
+│       ├── components.css        # Modal components
+│       ├── export-decision.css   # Export options modal
+│       ├── image-viewer.css      # Image viewer modal
+│       ├── import-decision.css   # Import options modal
+│       ├── marker-details.css    # Marker details modal
+│       ├── photo-gallery.css     # Photo gallery modal
+│       ├── responsive.css        # Modal responsive styles
+│       ├── search.css            # Search modal
+│       ├── settings.css          # Settings modal
+│       └── upload.css            # Upload modal
+│
+├── js/                           # JavaScript modules
+│   ├── app.js                    # Main application controller
+│   ├── app-map-interactions.js   # Pan, zoom, rotate handlers
+│   ├── app-marker-photo-manager.js # Marker & photo management
+│   ├── app-search.js             # Search functionality
+│   ├── app-settings.js           # Settings orchestration
+│   ├── app-storage-manager.js    # Storage & display management
+│   ├── fileManager.js            # File selection & processing
+│   ├── HtmlReportGenerator.js    # HTML report generation
+│   ├── imageProcessor.js         # Image manipulation & thumbnails
+│   ├── mapRenderer.js            # Canvas rendering engine
+│   ├── searchManager.js          # Search modal logic
+│   ├── storage.js                # IndexedDB interface (MapStorage)
+│   └── ui/                       # UI component modules
+│       ├── marker-details-modal.js # Marker details UI
+│       ├── modals.js             # Modal manager (ModalManager)
+│       ├── photo-gallery-modal.js # Photo gallery UI
+│       ├── search-modal.js       # Search UI
+│       ├── settings-modal.js     # Settings UI
+│       ├── uiRenderer.js         # Common UI components
+│       └── upload-modal.js       # Upload UI
+│
+├── lib/                          # Data handling libraries
+│   ├── snapspot-data/            # Data import/export/merge
+│   │   ├── merger.js             # Map data merging logic
+│   │   ├── parser.js             # JSON parsing & validation
+│   │   ├── splitter.js           # Date-based data splitting
+│   │   ├── validator.js          # Data validation
+│   │   └── writer.js             # JSON/HTML export writer
+│   ├── snapspot-image/           # Image processing utilities
+│   │   ├── converter.js          # Format conversion (Blob/Base64)
+│   │   └── hasher.js             # Image content hashing
+│   └── snapspot-storage/         # Storage utilities
+│       └── exporter-importer.js  # Export/import orchestration
+│
+├── icons/                        # PWA icons & app images
+│   ├── favicon.ico               # Browser favicon
+│   ├── favicon.svg               # SVG favicon
+│   ├── favicon-96x96.png         # PNG favicon
+│   ├── apple-touch-icon.png      # iOS home screen icon
+│   ├── web-app-manifest-192x192.png # PWA icon (192px)
+│   ├── web-app-manifest-512x512.png # PWA icon (512px)
+│   ├── screenshot-narrow.png     # PWA screenshot (mobile)
+│   └── screenshot-wide.png       # PWA screenshot (desktop)
+│
+└── docs/                         # Documentation
+    ├── Instructions.md           # Development instructions
+```
+
+### Development
+1. Clone the repository
+2. Serve with any static web server (Python, Node.js, PHP)
+3. Code changes are instantly reflected - no build step required
+4. Test offline mode using browser DevTools
 
 ## Contributing
 
-This project focuses on versatile photo-to-location mapping. Future phases will build incrementally on this foundation.
-
-### Code Standards
-- Use ES6+ JavaScript features
-- Follow BEM methodology for CSS classes where applicable
-- Maintain touch-friendly interface standards
-- Ensure all features work offline
+Contributions are welcome! Please ensure:
+- Code works completely offline
+- Touch targets are at least 44px for mobile usability
+- Changes are tested across Chrome, Firefox, and Safari
+- ES6+ JavaScript standards are followed
 
 ## License
 
-This project is developed for versatile photo mapping and location documentation use cases.
+MIT License - See LICENSE file for details

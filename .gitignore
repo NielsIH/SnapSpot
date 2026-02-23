@@ -28,6 +28,7 @@ npm-debug.log*
 # Local development
 .env
 .env.local
+.hintrc
 
 # Build outputs (for future phases)
 dist/
