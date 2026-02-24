@@ -573,7 +573,11 @@ export class MapStorage {
       createdDate: new Date(),
       lastModified: new Date(),
       description: markerData.description || '',
-      photoIds: [] // Array of photo IDs linked to this marker
+      photoIds: markerData.photoIds || [], // Array of photo IDs linked to this marker
+      ...(markerData.type ? { type: markerData.type } : {}),
+      ...(markerData.lineGroupId ? { lineGroupId: markerData.lineGroupId } : {}),
+      ...(markerData.lineColor ? { lineColor: markerData.lineColor } : {}),
+      ...(markerData.lineCaption !== undefined ? { lineCaption: markerData.lineCaption } : {})
     }
 
     return new Promise((resolve, reject) => {
@@ -1506,7 +1510,11 @@ export class MapStorage {
       createdDate: markerData.createdDate ? new Date(markerData.createdDate) : new Date(),
       lastModified: new Date(), // Always update lastModified on save
       description: markerData.description || '',
-      photoIds: markerData.photoIds || [] // Ensure it's an array
+      photoIds: markerData.photoIds || [], // Ensure it's an array
+      ...(markerData.type ? { type: markerData.type } : {}),
+      ...(markerData.lineGroupId ? { lineGroupId: markerData.lineGroupId } : {}),
+      ...(markerData.lineColor ? { lineColor: markerData.lineColor } : {}),
+      ...(markerData.lineCaption !== undefined ? { lineCaption: markerData.lineCaption } : {})
     }
 
     return new Promise((resolve, reject) => {

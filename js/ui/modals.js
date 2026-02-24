@@ -12,6 +12,7 @@
 import { createUploadModal } from './upload-modal.js'
 import { createSettingsModal } from './settings-modal.js'
 import { createMarkerDetailsModal, updateMarkerDetailsDescription } from './marker-details-modal.js'
+import { createLineMarkerDetailsModal } from './line-marker-details-modal.js'
 import { createSearchModal } from './search-modal.js'
 import { createPhotoGalleryModal } from './photo-gallery-modal.js'
 
@@ -208,6 +209,10 @@ export class ModalManager {
     onClose
   ) {
     return createMarkerDetailsModal(this, markerDetails, onAddPhotos, onEditMarker, onSaveDescription, onDeleteMarker, onDeletePhoto, onViewPhoto, onClose)
+  }
+
+  createLineMarkerDetailsModal (markerData, callbacks) {
+    return createLineMarkerDetailsModal(this, markerData, callbacks)
   }
 
   /**
