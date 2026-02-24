@@ -108,6 +108,12 @@ A Progressive Web App for mapping photos to specific locations on any map, floor
 - Click "Place Marker" button (center-bottom on mobile, right side on desktop)
 - Markers are numbered automatically in chronological order
 
+**2.5 Place Line Markers**
+- Click "Place Line" button to create a paired line marker
+- Two endpoints will be placed automatically, connected by a colored line
+- Click on either endpoint to edit line properties (label, color, caption)
+- Drag endpoints to adjust the line position
+
 **3. Add Photos to Markers**
 - Click on any marker to open the marker details
 - Click "Add Photo" and select image files
@@ -135,6 +141,7 @@ A Progressive Web App for mapping photos to specific locations on any map, floor
 ### Tips for New Users
 
 - **Always Lock Markers:** After placing markers, use the lock button to prevent accidental movement
+- **Use Line Markers for Boundaries:** Place line markers to highlight walls, property lines, or measurement areas
 - **Backup Regularly:** Export your map data periodically as a backup
 - **Use Descriptions:** Add keywords to marker descriptions for easier searching and color-coding
 - **Offline First:** After the first visit, SnapSpot works completely offline
