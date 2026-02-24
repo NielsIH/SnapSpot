@@ -934,18 +934,94 @@ export class MapRenderer {
   renderMarkers () {
     if (!this.markers || this.markers.length === 0) return
 
-    this.markers.forEach((marker, index) => {
-      // Convert original map (image) coordinates to screen (canvas) coordinates
-      // using the updated mapToScreen which handles current rotation
+    const photoMarkers = this.markers.filter(marker => marker.type !== 'line')
+    const lineMarkers = this.markers.filter(marker => marker.type === 'line')
+
+    this.renderLineConnectors(lineMarkers)
+
+    photoMarkers.forEach((marker, index) => {
       const screenCoords = this.mapToScreen(marker.x, marker.y)
       if (
         screenCoords &&
         screenCoords.x > -20 && screenCoords.x < this.canvas.width + 20 &&
         screenCoords.y > -20 && screenCoords.y < this.canvas.height + 20
       ) {
-        // Pass the full marker object to drawMarker
         this.drawMarker(screenCoords.x, screenCoords.y, index + 1, marker)
       }
+    })
+
+    lineMarkers.forEach((marker) => {
+      const screenCoords = this.mapToScreen(marker.x, marker.y)
+      if (
+        screenCoords &&
+        screenCoords.x > -20 && screenCoords.x < this.canvas.width + 20 &&
+        screenCoords.y > -20 && screenCoords.y < this.canvas.height + 20
+      ) {
+        this.drawMarker(screenCoords.x, screenCoords.y, null, marker)
+      }
+    })
+  }
+
+  renderLineConnectors (lineMarkers) {
+    if (!lineMarkers || lineMarkers.length === 0) return
+
+    const markersByGroup = new Map()
+
+    lineMarkers.forEach(marker => {
+      if (!marker.lineGroupId) return
+      if (!markersByGroup.has(marker.lineGroupId)) {
+        markersByGroup.set(marker.lineGroupId, [])
+      }
+      markersByGroup.get(marker.lineGroupId).push(marker)
+    })
+
+    markersByGroup.forEach(groupMarkers => {
+      if (groupMarkers.length < 2) return
+
+      const firstMarker = groupMarkers[0]
+      const secondMarker = groupMarkers[1]
+      const firstScreen = this.mapToScreen(firstMarker.x, firstMarker.y)
+      const secondScreen = this.mapToScreen(secondMarker.x, secondMarker.y)
+
+      if (!firstScreen || !secondScreen) return
+
+      const firstVisible =
+        firstScreen.x > -20 && firstScreen.x < this.canvas.width + 20 &&
+        firstScreen.y > -20 && firstScreen.y < this.canvas.height + 20
+      const secondVisible =
+        secondScreen.x > -20 && secondScreen.x < this.canvas.width + 20 &&
+        secondScreen.y > -20 && secondScreen.y < this.canvas.height + 20
+
+      if (!firstVisible || !secondVisible) return
+
+      const lineColor = firstMarker.lineColor || secondMarker.lineColor || '#e53e3e'
+      const lineCaption = (firstMarker.lineCaption || secondMarker.lineCaption || '').trim()
+
+      this.ctx.save()
+      this.ctx.beginPath()
+      this.ctx.moveTo(firstScreen.x, firstScreen.y)
+      this.ctx.lineTo(secondScreen.x, secondScreen.y)
+      this.ctx.strokeStyle = lineColor
+      this.ctx.lineWidth = 3
+      this.ctx.lineCap = 'round'
+      this.ctx.stroke()
+
+      if (lineCaption) {
+        const midX = (firstScreen.x + secondScreen.x) / 2
+        const midY = (firstScreen.y + secondScreen.y) / 2
+
+        this.ctx.font = 'bold 14px Arial, sans-serif'
+        this.ctx.textAlign = 'center'
+        this.ctx.textBaseline = 'middle'
+
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+        this.ctx.fillText(lineCaption, midX + 1, midY + 1)
+
+        this.ctx.fillStyle = lineColor
+        this.ctx.fillText(lineCaption, midX, midY)
+      }
+
+      this.ctx.restore()
     })
   }
 
@@ -1006,6 +1082,29 @@ export class MapRenderer {
     const radius = currentSize.radius
     const fontSize = radius * currentSize.fontSizeFactor
     const borderWidth = 2
+
+    if (marker.type === 'line') {
+      const lineColor = marker.lineColor || '#e53e3e'
+
+      this.ctx.save()
+
+      if (this.markersAreEditable) {
+        this.ctx.shadowColor = lineColor
+        this.ctx.shadowBlur = 10
+      }
+
+      this.ctx.translate(x, y)
+      this.ctx.rotate(Math.PI / 4)
+      this.ctx.fillStyle = lineColor
+      this.ctx.strokeStyle = this.markersAreEditable ? '#ffffff' : lineColor
+      this.ctx.lineWidth = this.markersAreEditable ? 2 : borderWidth
+      this.ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
+      this.ctx.strokeRect(-radius, -radius, radius * 2, radius * 2)
+
+      this.ctx.restore()
+      return
+    }
+
     let borderColor
     let fillColor
     let textColor

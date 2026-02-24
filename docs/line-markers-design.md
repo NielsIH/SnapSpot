@@ -27,10 +27,11 @@ Line markers allow users to mark boundaries or zones on a map by placing pairs o
 ### Placing a Line
 
 1. User taps/clicks **Place Line** in the toolbar or menu.
-2. A colour picker and optional caption input are presented in a compact dialog (reuse the existing modal system).
-3. On confirmation SnapSpot places two line markers near the current view centre, slightly offset from each other, and draws a line between them.
-4. The user drags the two endpoints to the desired positions using the existing marker-drag interaction.
-5. Repeat for additional segments of the boundary.
+2. SnapSpot **immediately** places two line markers near the current view centre, slightly offset from each other, and draws a red line between them. No dialog is shown; the goal is fast, friction-free placement.
+3. Markers are automatically set to **unlocked/editable** after placement so the user can drag both endpoints straight away.
+4. The user drags the two endpoints to the desired positions.
+5. To change the line colour or add a caption, the user taps an endpoint to open the **Line Marker Details** modal.
+6. Repeat from step 1 for additional boundary segments.
 
 ### Visual Design
 
@@ -168,25 +169,18 @@ No extra work needed: the existing drag mechanism already calls `mapRenderer.ren
 
 ## New UI Components
 
-### "Place Line" dialog
+### Line Marker Details modal
 
-A minimal modal (similar pattern to the existing upload modal) presented before placing the pair:
+A **dedicated modal** opened when the user taps a line marker endpoint. Implemented as a new, separate file (`js/ui/line-marker-details-modal.js`) so the existing `marker-details-modal.js` is kept clean and unmodified.
 
-- **Line colour** – a row of 5–6 preset swatches (red, orange, yellow, green, blue, purple) plus a small native `<input type="color">` for custom colours. Default: red.
-- **Caption** – a single short text field (max ~40 chars, optional).
-- **Place** / **Cancel** buttons.
+Contents:
 
-Implementation location: `js/ui/line-marker-modal.js` (new file), registered in `js/ui/modals.js` following the existing pattern.
+- **Line label** – editable text field (uses the `description` field), pre-filled with `"Line boundary"`.
+- **Colour** – a row of six preset swatches plus a native `<input type="color">`. Current colour pre-selected. Saves to both markers in the pair.
+- **Caption** – a short text field (max 40 chars, optional). Saved value is rendered along the line midpoint on the canvas. Saves to both markers in the pair.
+- **Delete pair** button – removes both linked markers in a single operation.
 
-### Line marker details panel
-
-Reuse the existing marker details modal structure but:
-
-- Hide the photo section entirely for `type === 'line'` markers.
-- Show colour swatch and caption fields as editable fields.
-- Provide a **Delete pair** button that deletes both linked markers in a single operation.
-
-The existing `marker-details-modal.js` will receive a `isLineMarker` flag and render conditionally.
+The existing `marker-details-modal.js` is **not modified**. `app-marker-photo-manager.js` detects `marker.type === 'line'` and opens the new modal instead of the existing one.
 
 ---
 
@@ -196,13 +190,13 @@ The existing `marker-details-modal.js` will receive a `isLineMarker` flag and re
 |---|---|
 | `js/app-marker-photo-manager.js` | Add `placeLinePair()` function; update `deleteMarker()` to also delete the partner when `type === 'line'` |
 | `js/mapRenderer.js` | Update `renderMarkers()` to draw lines before markers; update `drawMarker()` for diamond style |
-| `js/ui/line-marker-modal.js` | **New file** – "Place Line" colour/caption dialog |
-| `js/ui/modals.js` | Register `createLinePlacementModal()` |
-| `js/ui/marker-details-modal.js` | Conditional rendering for line marker fields; Delete pair action |
+| `js/ui/line-marker-details-modal.js` | **New file** – dedicated details modal for line markers (colour, caption, delete pair) |
+| `js/ui/modals.js` | Register `createLineMarkerDetailsModal()` |
+| `js/ui/marker-details-modal.js` | **Not modified** |
 | `js/app.js` | Wire up Place Line toolbar button/menu item |
 | `lib/snapspot-data/writer.js` | Forward optional line-marker fields in export |
 | `lib/snapspot-data/validator.js` | Allow (not require) new optional fields |
-| `css/modals/line-marker.css` | **New file** – styles for colour swatches and diamond icon in modals |
+| `css/modals/line-marker-details.css` | **New file** – styles for colour swatches, diamond icon, and details modal layout |
 | `css/main.css` | Import new stylesheet |
 | `service-worker.js` | Add new JS/CSS files to `STATIC_ASSETS` |
 | `index.html` | Add Place Line button/menu item to toolbar |

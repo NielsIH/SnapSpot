@@ -51,6 +51,68 @@ export async function placeMarker (app) {
   }
 }
 
+export async function placeLinePair (app) {
+  if (!app.currentMap || !app.mapRenderer.imageData) {
+    console.warn('Cannot place line: No map loaded or image data unavailable.')
+    app.showNotification('Please load a map first before placing a line.', 'warning')
+    return
+  }
+
+  app.showLoading('Placing line...')
+
+  try {
+    const centerX = app.mapRenderer.canvas.width / 2
+    const centerY = app.mapRenderer.canvas.height / 2
+    const offset = app.mapRenderer.canvas.width * 0.15
+    const lineGroupId = crypto.randomUUID()
+
+    const startMapCoords = app.mapRenderer.screenToMap(centerX - offset, centerY)
+    const endMapCoords = app.mapRenderer.screenToMap(centerX + offset, centerY)
+
+    if (!startMapCoords || !endMapCoords) {
+      throw new Error('Failed to convert screen coordinates to map coordinates.')
+    }
+
+    const baseLineMarker = {
+      mapId: app.currentMap.id,
+      type: 'line',
+      lineGroupId,
+      lineColor: '#e53e3e',
+      lineCaption: '',
+      description: 'Line boundary'
+    }
+
+    const firstLineMarker = await app.storage.addMarker({
+      ...baseLineMarker,
+      x: startMapCoords.x,
+      y: startMapCoords.y
+    })
+
+    const secondLineMarker = await app.storage.addMarker({
+      ...baseLineMarker,
+      x: endMapCoords.x,
+      y: endMapCoords.y
+    })
+
+    app.markers.push(firstLineMarker, secondLineMarker)
+
+    app.markersLocked = false
+    window.localStorage.setItem('markersLocked', 'false')
+    app.updateMarkerLockButtonUI()
+    app.mapRenderer.setMarkersEditable(true)
+    app.mapRenderer.setMarkers(app.markers)
+    app.mapRenderer.render()
+
+    app.showNotification('Line placed – drag the endpoints to position it.', 'success')
+    app.updateAppStatus('Line added')
+  } catch (error) {
+    console.error('Failed to place line:', error)
+    app.showErrorMessage('Error Placing Line', error.message)
+  } finally {
+    app.hideLoading()
+  }
+}
+
 export function getMarkerAtPoint (app, clientX, clientY) {
   return MapInteractions.getMarkerAtPoint(app, clientX, clientY)
 }
@@ -61,6 +123,55 @@ export async function showMarkerDetails (app, markerId) {
     const marker = await app.storage.getMarker(markerId)
     if (!marker) {
       throw new Error('Marker not found.')
+    }
+
+    if (marker.type === 'line') {
+      app.modalManager.createLineMarkerDetailsModal(
+        marker,
+        {
+          onSave: async (markerIdToSave, updates) => {
+            app.showLoading('Saving line details...')
+            try {
+              const sourceMarker = app.markers.find(m => m.id === markerIdToSave) || marker
+              const pairMarkers = app.markers.filter(m => m.lineGroupId === sourceMarker.lineGroupId)
+              if (pairMarkers.length === 0) {
+                pairMarkers.push(sourceMarker)
+              }
+
+              await Promise.all(pairMarkers.map(async pairMarker => {
+                await app.storage.updateMarker(pairMarker.id, {
+                  description: updates.description,
+                  lineColor: updates.lineColor,
+                  lineCaption: updates.lineCaption
+                })
+                pairMarker.description = updates.description
+                pairMarker.lineColor = updates.lineColor
+                pairMarker.lineCaption = updates.lineCaption
+              }))
+
+              app.mapRenderer.setMarkers(app.markers)
+              app.mapRenderer.render()
+              app.showNotification('Line details updated.', 'success')
+              return true
+            } catch (error) {
+              console.error('Failed to save line details:', error)
+              app.showErrorMessage('Save Error', `Failed to save line details: ${error.message}`)
+              return false
+            } finally {
+              app.hideLoading()
+            }
+          },
+          onDeletePair: async (markerIdToDelete) => {
+            app.modalManager.closeTopModal()
+            await deleteMarker(app, markerIdToDelete)
+          },
+          onClose: () => {
+            app.updateAppStatus('Ready')
+          }
+        }
+      )
+      app.updateAppStatus(`Viewing line marker: ${marker.id}`)
+      return
     }
 
     const allPhotosForMarker = await app.storage.getPhotosForMarker(marker.id)
@@ -242,16 +353,26 @@ export async function showMarkerDetails (app, markerId) {
 export async function deleteMarker (app, markerId) {
   app.showLoading('Deleting marker...')
   try {
-    // 1. Delete from IndexedDB (this also handles associated photos via storage.js)
-    await app.storage.deleteMarker(markerId)
-    console.log(`Marker ${markerId} and its photos deleted from storage.`)
+    const markerToDelete = app.markers.find(m => m.id === markerId) || await app.storage.getMarker(markerId)
 
-    // 2. Remove from local markers array and update mapRenderer
-    app.markers = app.markers.filter(m => m.id !== markerId)
+    const markerIdsToDelete = [markerId]
+    if (markerToDelete && markerToDelete.type === 'line' && markerToDelete.lineGroupId) {
+      const partnerMarker = app.markers.find(m => m.id !== markerId && m.lineGroupId === markerToDelete.lineGroupId)
+      if (partnerMarker) {
+        markerIdsToDelete.push(partnerMarker.id)
+      }
+    }
+
+    for (const idToDelete of markerIdsToDelete) {
+      await app.storage.deleteMarker(idToDelete)
+      console.log(`Marker ${idToDelete} and its photos deleted from storage.`)
+    }
+
+    app.markers = app.markers.filter(m => !markerIdsToDelete.includes(m.id))
     app.mapRenderer.setMarkers(app.markers)
     app.mapRenderer.render() // Re-render map to remove the marker visually
 
-    app.showNotification('Marker deleted successfully.', 'success')
+    app.showNotification(markerIdsToDelete.length > 1 ? 'Line pair deleted successfully.' : 'Marker deleted successfully.', 'success')
     app.updateAppStatus('Marker deleted.')
 
     // If the currently viewed map has no markers left, update status or provide a hint

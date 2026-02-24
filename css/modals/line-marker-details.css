@@ -1,0 +1,73 @@
+/* Line Marker Details Modal */
+.line-marker-modal .modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.line-marker-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.line-marker-form-group label {
+  font-weight: 600;
+}
+
+.line-marker-inline {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.line-marker-inline .form-control {
+  flex: 1;
+}
+
+.line-marker-icon {
+  color: var(--primary-color);
+  margin-right: var(--spacing-xs);
+}
+
+.line-color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+.line-color-swatch {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 2px solid var(--border-color);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.line-color-swatch:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.line-color-swatch:hover,
+.line-color-swatch.is-selected {
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+#line-marker-color-input {
+  width: 56px;
+  height: 44px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 2px;
+  background: var(--bg-primary);
+}
+
+div.modal-footer button#btn-save-line-details,
+div.modal-footer button#btn-delete-line-pair {
+  min-width: 100px;
+}

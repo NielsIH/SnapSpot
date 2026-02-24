@@ -56,87 +56,85 @@ Work is organised into four phases. Complete each phase in order and verify the 
 
 ---
 
-## Phase 3 – Placement UI & Interaction
+## Phase 3 – Placement & Interaction
 
 ### Tasks
 
-- [ ] **3.1 – `js/ui/line-marker-modal.js`** *(new file)*  
-  Create `createLinePlacementModal(modalManager, onPlace, onCancel)`. The modal contains:
-  - A row of six colour swatches (see design doc colour palette) with `aria-label` and keyboard support. Selected swatch has an active outline. Default selection: red.
-  - A native `<input type="color">` for custom colour input, synced with the swatch selection.
-  - A text input for an optional caption (max 40 chars, `placeholder="Short caption (optional)"`).
-  - **Place** button: calls `onPlace({ color, caption })` and closes the modal.
-  - **Cancel** button: calls `onCancel()` and closes the modal.
-
-- [ ] **3.2 – `css/modals/line-marker.css`** *(new file)*  
-  Styles for colour swatches (≥44 px, rounded, border on focus/active), the modal layout, and the diamond icon used as a visual hint inside the modal.
-
-- [ ] **3.3 – `css/main.css`**  
-  Import `css/modals/line-marker.css`.
-
-- [ ] **3.4 – `js/ui/modals.js`**  
-  Add `createLinePlacementModal()` as a method on `ModalManager` (delegating to the new module), following the existing pattern used for `createUploadModal`, etc.
-
-- [ ] **3.5 – `js/app-marker-photo-manager.js` – add `placeLinePair()`**  
+- [ ] **3.1 – `js/app-marker-photo-manager.js` – add `placeLinePair()`**
   ```
-  async placeLinePair(app, color, caption):
+  async placeLinePair(app):
     - Generate a shared lineGroupId (crypto.randomUUID()).
     - Compute two screen positions offset from the canvas centre (e.g. ±15 % of canvas width).
     - Convert both to map coordinates via screenToMap().
-    - Build two marker objects with type='line', lineGroupId, lineColor, lineCaption, description='Line boundary'.
+    - Build two marker objects with type='line', lineGroupId, lineColor='#e53e3e',
+      lineCaption='', description='Line boundary'.
     - Save both via app.storage.addMarker() in sequence.
-    - Push both to app.markers, call app.mapRenderer.setMarkers() and app.mapRenderer.render().
-    - Show a success notification.
+    - Push both to app.markers.
+    - Ensure markers are in editable/unlocked state so the user can drag immediately
+      (call app.mapRenderer.setMarkersEditable(true) or the equivalent unlock mechanism).
+    - Call app.mapRenderer.setMarkers() and app.mapRenderer.render().
+    - Show a brief notification: 'Line placed – drag the endpoints to position it.'.
   ```
+  No modal is opened during placement.
 
-- [ ] **3.6 – `js/app-marker-photo-manager.js` – update `deleteMarker()`**  
+- [ ] **3.2 – `js/app-marker-photo-manager.js` – update `deleteMarker()`**
   After deleting a marker, check if it had `type === 'line'` and a `lineGroupId`. If so, find the partner in `app.markers` and delete it too (storage + local array), keeping them in sync.
 
-- [ ] **3.7 – `js/app.js`**  
-  Wire up a **Place Line** toolbar action:
-  - Call `app.modalManager.createLinePlacementModal(...)`.
-  - In the `onPlace` callback call `placeLinePair(app, color, caption)`.
+- [ ] **3.3 – `js/app.js`**
+  Wire up a **Place Line** toolbar action that calls `placeLinePair(app)` directly, with no intermediate modal.
 
-- [ ] **3.8 – `index.html`**  
+- [ ] **3.4 – `index.html`**
   Add a **Place Line** button to the toolbar/menu alongside the existing **Place Marker** button.
 
 ### Manual Tests – Phase 3
 
-- Open a map and tap **Place Line**. Verify the modal appears with colour swatches and caption field.
-- Select a non-default colour, enter a caption, tap **Place**. Verify two diamond markers appear with a connecting line in the chosen colour and the caption text rendered midline.
-- Tap **Cancel** and verify nothing is placed.
-- Tap a line marker endpoint to confirm the marker details modal opens (can be a stub at this stage).
-- Drag a line endpoint to a new position; verify the line redraws.
+- Open a map and tap **Place Line**. Verify two diamond endpoints appear immediately with a red connecting line – no dialog is shown.
+- Verify the markers are in the unlocked/editable state after placement so they can be dragged without any extra step.
+- Drag each endpoint; verify the connecting line redraws live.
+- Tap a line marker endpoint to confirm a details modal opens (can be a stub at this stage).
 
 ---
 
-## Phase 4 – Line Marker Details & Deletion
+## Phase 4 – Line Marker Details Modal & Deletion
 
 ### Tasks
 
-- [ ] **4.1 – `js/ui/marker-details-modal.js`**  
-  Accept an additional `isLineMarker` flag (derived from `marker.type === 'line'`). When true:
-  - Hide the photo gallery / add photo section.
-  - Replace the generic description field label with "Line label".
-  - Show a read-only colour swatch reflecting `marker.lineColor`.
-  - Show an editable caption field reflecting `marker.lineCaption` (saved on blur/submit via existing `onSaveDescription`-style callback).
-  - Replace the existing **Delete** button with **Delete pair** (label and tooltip updated).
+- [ ] **4.1 – `js/ui/line-marker-details-modal.js`** *(new file)*
+  Create `createLineMarkerDetailsModal(modalManager, markerData, callbacks)`. The modal contains:
+  - **Line label** – editable text field bound to `marker.description`. Saved via `onSaveLabel(id, newLabel)`.
+  - **Colour swatches** – a row of six preset swatches (see design doc palette) plus a native `<input type="color">`. Pre-selects the marker's current `lineColor`. Saved via `onSaveColor(id, newColor)` which updates **both** markers in the pair.
+  - **Caption** – editable short text field (max 40 chars) bound to `marker.lineCaption`. Saved via `onSaveCaption(id, newCaption)` which also updates the partner.
+  - **Delete pair** button – calls `onDeletePair(id)` and closes the modal.
+  - **Close** button / backdrop click – calls `onClose()`.
 
-- [ ] **4.2 – `js/app-marker-photo-manager.js` – `showMarkerDetails()` update**  
-  When opening details for a line marker, pass `isLineMarker: true` and `lineColor`/`lineCaption` to the modal constructor. Wire the **Delete pair** callback to `deleteMarker()` (which already handles partner deletion after task 3.6).
+  `js/ui/marker-details-modal.js` is **not modified**.
 
-- [ ] **4.3 – Save caption edits**  
-  The caption field save should call `app.storage.updateMarker()` with `{ lineCaption: newCaption }` and update the local marker object in `app.markers`, then re-render.
+- [ ] **4.2 – `css/modals/line-marker-details.css`** *(new file)*
+  Styles for colour swatches (≥44 px, rounded, border on focus/active), the modal layout, and the diamond icon used as a visual hint.
 
-- [ ] **4.4 – Save colour edits (stretch goal)**  
-  If time permits, allow the user to change the line colour from the details modal via a compact swatch row, saving via `app.storage.updateMarker()` and re-rendering. This is optional for the initial implementation.
+- [ ] **4.3 – `css/main.css`**
+  Import `css/modals/line-marker-details.css`.
+
+- [ ] **4.4 – `js/ui/modals.js`**
+  Add `createLineMarkerDetailsModal()` as a method on `ModalManager`, delegating to the new module.
+
+- [ ] **4.5 – `js/app-marker-photo-manager.js` – `showMarkerDetails()` update**
+  At the top of the function, check `if (marker.type === 'line')`. If true, call `app.modalManager.createLineMarkerDetailsModal(...)` with the appropriate callbacks and return early. The existing photo-marker code path is unchanged.
+
+- [ ] **4.6 – Implement save callbacks in `app-marker-photo-manager.js`**
+  - `onSaveLabel`: call `app.storage.updateMarker()` for the tapped endpoint; update local `app.markers` entry; re-render.
+  - `onSaveColor`: call `app.storage.updateMarker()` for **both** markers in the pair (find partner by `lineGroupId` in `app.markers`); update both local objects; re-render.
+  - `onSaveCaption`: same pair-update pattern as colour.
+  - `onDeletePair`: delegate to `deleteMarker()` (which already handles partner deletion after task 3.2).
 
 ### Manual Tests – Phase 4
 
-- Tap a line marker endpoint; verify the details modal opens showing label, colour swatch, and caption (no photo section).
-- Edit the caption and save; verify the caption updates on the canvas immediately.
+- Tap a line marker endpoint; verify the **Line Marker Details** modal opens (not the regular marker details modal).
+- Verify the modal shows the current label, correct colour swatch pre-selected, and caption field.
+- Edit the caption and save; verify the caption text appears on the canvas midline immediately.
+- Change the colour to blue; verify the line and both endpoints update to blue immediately.
 - Tap **Delete pair** on one endpoint; verify both endpoints and the connecting line disappear.
-- Delete one endpoint via a non-pair path (direct storage delete in DevTools) and verify the orphan endpoint renders without a connecting line (no crash).
+- Delete one endpoint via DevTools (direct storage delete) and verify the orphan endpoint renders without a connecting line and without throwing an error.
 
 ---
 
@@ -147,8 +145,8 @@ Work is organised into four phases. Complete each phase in order and verify the 
 - [ ] **5.1 – Run linter**  
   `npx standard --fix` on all modified/new JS files. Resolve any remaining warnings manually.
 
-- [ ] **5.2 – `service-worker.js`**  
-  Add `js/ui/line-marker-modal.js` and `css/modals/line-marker.css` to `STATIC_ASSETS`. Bump the cache version string.
+- [ ] **5.2 – `service-worker.js`**
+  Add `js/ui/line-marker-details-modal.js` and `css/modals/line-marker-details.css` to `STATIC_ASSETS`. Bump the cache version string.
 
 - [ ] **5.3 – Offline test**  
   DevTools → Application → Service Workers → Offline. Load the app, place a line, pan/zoom, delete. Verify everything works offline.

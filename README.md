@@ -16,8 +16,10 @@ A Progressive Web App for mapping photos to specific locations on any map, floor
 
 ### Marker System
 - Place numbered markers at specific locations on maps
+- Place paired line markers with connecting boundary lines
 - Drag markers to reposition them precisely
 - Add descriptions and notes to any marker
+- Configure line color and optional line caption from endpoint details
 - Attach multiple photos to each marker
 - View marker coordinates and creation timestamps
 - Custom marker colors based on description keywords
