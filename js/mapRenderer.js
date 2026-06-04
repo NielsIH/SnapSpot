@@ -962,6 +962,60 @@ export class MapRenderer {
     })
   }
 
+  /**
+   * Clip a line segment to the canvas boundaries using the Liang-Barsky algorithm.
+   * Given two screen-space points, returns the clipped segment endpoints,
+   * or null if the line is entirely outside the canvas.
+   * @param {number} x0 - Start point X in screen coords
+   * @param {number} y0 - Start point Y in screen coords
+   * @param {number} x1 - End point X in screen coords
+   * @param {number} y1 - End point Y in screen coords
+   * @returns {{ x0: number, y0: number, x1: number, y1: number } | null}
+   */
+  clipLineToCanvas (x0, y0, x1, y1) {
+    const xmin = 0
+    const ymin = 0
+    const xmax = this.canvas.width
+    const ymax = this.canvas.height
+
+    const dx = x1 - x0
+    const dy = y1 - y0
+
+    // Parametric: P(t) = P0 + t * (P1 - P0), t in [0, 1]
+    const p = [-dx, dx, -dy, dy]
+    const q = [x0 - xmin, xmax - x0, y0 - ymin, ymax - y0]
+
+    let t0 = 0
+    let t1 = 1
+
+    for (let i = 0; i < 4; i++) {
+      if (p[i] === 0) {
+        // Line is parallel to this edge
+        if (q[i] < 0) {
+          return null // Line is entirely outside
+        }
+      } else {
+        const t = q[i] / p[i]
+        if (p[i] < 0) {
+          // Entering the clipping boundary
+          if (t > t0) t0 = t
+        } else {
+          // Leaving the clipping boundary
+          if (t < t1) t1 = t
+        }
+      }
+    }
+
+    if (t0 > t1) return null // Line is entirely outside
+
+    return {
+      x0: x0 + t0 * dx,
+      y0: y0 + t0 * dy,
+      x1: x0 + t1 * dx,
+      y1: y0 + t1 * dy
+    }
+  }
+
   renderLineConnectors (lineMarkers) {
     if (!lineMarkers || lineMarkers.length === 0) return
 
@@ -985,30 +1039,31 @@ export class MapRenderer {
 
       if (!firstScreen || !secondScreen) return
 
-      const firstVisible =
-        firstScreen.x > -20 && firstScreen.x < this.canvas.width + 20 &&
-        firstScreen.y > -20 && firstScreen.y < this.canvas.height + 20
-      const secondVisible =
-        secondScreen.x > -20 && secondScreen.x < this.canvas.width + 20 &&
-        secondScreen.y > -20 && secondScreen.y < this.canvas.height + 20
+      // Clip the line segment to the visible canvas area
+      const clipped = this.clipLineToCanvas(
+        firstScreen.x, firstScreen.y,
+        secondScreen.x, secondScreen.y
+      )
 
-      if (!firstVisible || !secondVisible) return
+      // Line is entirely outside the canvas — nothing to draw
+      if (!clipped) return
 
       const lineColor = firstMarker.lineColor || secondMarker.lineColor || '#e53e3e'
       const lineCaption = (firstMarker.lineCaption || secondMarker.lineCaption || '').trim()
 
       this.ctx.save()
       this.ctx.beginPath()
-      this.ctx.moveTo(firstScreen.x, firstScreen.y)
-      this.ctx.lineTo(secondScreen.x, secondScreen.y)
+      this.ctx.moveTo(clipped.x0, clipped.y0)
+      this.ctx.lineTo(clipped.x1, clipped.y1)
       this.ctx.strokeStyle = lineColor
       this.ctx.lineWidth = 3
       this.ctx.lineCap = 'round'
       this.ctx.stroke()
 
       if (lineCaption) {
-        const midX = (firstScreen.x + secondScreen.x) / 2
-        const midY = (firstScreen.y + secondScreen.y) / 2
+        // Place caption at the midpoint of the visible (clipped) segment
+        const midX = (clipped.x0 + clipped.x1) / 2
+        const midY = (clipped.y0 + clipped.y1) / 2
 
         this.ctx.font = 'bold 14px Arial, sans-serif'
         this.ctx.textAlign = 'center'
