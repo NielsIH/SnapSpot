@@ -17,6 +17,7 @@
 
 /* Modals */
 @import 'modals.css';
+@import 'modals/line-marker-details.css';
 
 /* Utility classes */
 @import 'utilities.css';

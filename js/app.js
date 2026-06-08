@@ -23,6 +23,7 @@ import { ModalManager } from './ui/modals.js'
 import * as MapInteractions from './app-map-interactions.js'
 import {
   placeMarker,
+  placeLinePair,
   showMapPhotoGallery,
   handleViewImageInViewer
 } from './app-marker-photo-manager.js'
@@ -264,6 +265,11 @@ class SnapSpotApp {
     const placeMarkerBtn = document.getElementById('btn-place-marker')
     if (placeMarkerBtn) {
       placeMarkerBtn.addEventListener('click', () => placeMarker(this))
+    }
+
+    const placeLineBtn = document.getElementById('btn-place-line')
+    if (placeLineBtn) {
+      placeLineBtn.addEventListener('click', () => placeLinePair(this))
     }
 
     // Toggle Marker Lock button

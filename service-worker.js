@@ -1,6 +1,6 @@
 /* global caches self */
 
-const CACHE_NAME = 'image-mapper-v2026-02-10-07'
+const CACHE_NAME = 'image-mapper-v2026-06-07-01'
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -20,6 +20,7 @@ const STATIC_ASSETS = [
   './css/modals/export-decision.css',
   './css/modals/image-viewer.css',
   './css/modals/import-decision.css',
+  './css/modals/line-marker-details.css',
   './css/modals/marker-details.css',
   './css/modals/photo-gallery.css',
   './css/modals/responsive.css',
@@ -47,6 +48,7 @@ const STATIC_ASSETS = [
   './js/ui/marker-details-metadata.js',
   './js/ui/metadata-definition-modal.js',
   './js/ui/metadata-form-generator.js',
+  './js/ui/line-marker-details-modal.js',
   './js/ui/photo-gallery-modal.js',
   './js/ui/photo-gallery-metadata.js',
   './js/ui/search-modal.js',
