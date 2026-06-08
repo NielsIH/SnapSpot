@@ -465,7 +465,8 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
 
     // Load and display metadata
     if (storage) {
-      currentPhotoMetadata = await loadMetadata(storage, photo.id)
+      const mapId = photo.mapId || 'global'
+      currentPhotoMetadata = await loadMetadata(storage, photo.id, mapId)
       const metadataViewHtml = generateInlineViewHtml(currentPhotoMetadata.definitions, currentPhotoMetadata.values)
       if (metadataViewContainer) {
         metadataViewContainer.innerHTML = metadataViewHtml
@@ -545,7 +546,8 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
     if (!storage || currentPhotoIndex < 0 || currentPhotoIndex >= photos.length) return
 
     const photo = photos[currentPhotoIndex]
-    const metadata = await loadMetadata(storage, photo.id)
+    const mapId = photo.mapId || 'global'
+    const metadata = await loadMetadata(storage, photo.id, mapId)
     const metadataEditHtml = generateInlineEditHtml(metadata.definitions, metadata.values)
     togglePhotoEditMode(true, metadataEditHtml)
   })
@@ -565,7 +567,8 @@ function setupPhotoGalleryModal (modalManager, modal, photos, options, photoObje
       }
 
       // Reload metadata and update view
-      currentPhotoMetadata = await loadMetadata(storage, photo.id)
+      const mapId = photo.mapId || 'global'
+      currentPhotoMetadata = await loadMetadata(storage, photo.id, mapId)
       const viewHtml = generateInlineViewHtml(currentPhotoMetadata.definitions, currentPhotoMetadata.values)
       if (metadataViewContainer) {
         metadataViewContainer.innerHTML = viewHtml

@@ -11,16 +11,16 @@ import { MetadataFormGenerator } from './metadata-form-generator.js'
  * Load metadata definitions and values for a marker
  * @param {Object} storage - MapStorage instance
  * @param {string} markerId - Marker ID
+ * @param {string} mapId - Map ID for scope filtering (global + map-specific)
  * @returns {Promise<{definitions: Array, values: Array}>}
  */
-export async function loadMetadata (storage, markerId) {
+export async function loadMetadata (storage, markerId, mapId = 'global') {
   if (!storage) {
     return { definitions: [], values: [] }
   }
 
   try {
-    const allDefinitions = await storage.getAllMetadataDefinitions()
-    const markerDefinitions = allDefinitions.filter(def => def.appliesTo.includes('marker'))
+    const markerDefinitions = await storage.getMetadataDefinitionsForEntity('marker', mapId)
     const metadataValues = await storage.getMetadataValuesForEntity('marker', markerId)
 
     return {

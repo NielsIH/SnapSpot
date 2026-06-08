@@ -11,16 +11,16 @@ import { MetadataFormGenerator } from './metadata-form-generator.js'
  * Load metadata definitions and values for a photo
  * @param {Object} storage - MapStorage instance
  * @param {string} photoId - Photo ID
+ * @param {string} mapId - Map ID for scope filtering (global + map-specific)
  * @returns {Promise<{definitions: Array, values: Array}>}
  */
-export async function loadMetadata (storage, photoId) {
+export async function loadMetadata (storage, photoId, mapId = 'global') {
   if (!storage) {
     return { definitions: [], values: [] }
   }
 
   try {
-    const allDefinitions = await storage.getAllMetadataDefinitions()
-    const photoDefinitions = allDefinitions.filter(def => def.appliesTo.includes('photo'))
+    const photoDefinitions = await storage.getMetadataDefinitionsForEntity('photo', mapId)
     const metadataValues = await storage.getMetadataValuesForEntity('photo', photoId)
 
     return {

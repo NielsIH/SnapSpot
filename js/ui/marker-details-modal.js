@@ -47,7 +47,8 @@ export async function createMarkerDetailsModal (
   storage = null
 ) {
   // Load metadata
-  const metadata = await loadMetadata(storage, markerDetails.id)
+  const mapId = markerDetails.mapId || 'global'
+  const metadata = await loadMetadata(storage, markerDetails.id, mapId)
   const metadataViewHtml = generateInlineViewHtml(metadata.definitions, metadata.values)
   const metadataEditHtml = generateInlineEditHtml(metadata.definitions, metadata.values)
 

@@ -345,11 +345,8 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager, stora
     // Load and generate metadata form
     if (storage) {
       try {
-        const allDefinitions = await storage.getAllMetadataDefinitions()
-        console.log('UploadModal: Loaded definitions:', allDefinitions)
-        // Filter for map-level definitions (global or map-specific)
-        metadataDefinitions = allDefinitions.filter(def => def.appliesTo.includes('map'))
-        console.log('UploadModal: Map-level definitions:', metadataDefinitions)
+        metadataDefinitions = await storage.getMetadataDefinitionsForEntity('map', 'global')
+        console.log('UploadModal: Map-level global definitions:', metadataDefinitions)
 
         const metadataSection = modal.querySelector('#map-metadata-section')
         if (metadataSection) {

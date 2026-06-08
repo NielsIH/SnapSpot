@@ -183,6 +183,7 @@ export async function showMarkerDetails (app, markerId) {
     app.modalManager.createMarkerDetailsModal(
       {
         id: marker.id,
+        mapId: marker.mapId,
         description: marker.description,
         coords: `X: ${displayX}, Y: ${displayY}`,
         photoCount: validPhotos.length,
@@ -284,6 +285,7 @@ export async function showMarkerDetails (app, markerId) {
 
           return {
             ...photo,
+            mapId: app.currentMap ? app.currentMap.id : null,
             thumbnailDataUrl: thumbnailDataUrl || null,
             markerDescription: associatedMarker ? associatedMarker.description : 'No marker description'
           }

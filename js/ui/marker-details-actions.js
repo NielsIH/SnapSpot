@@ -104,7 +104,8 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
     let currentMetadataEditHtml = metadataEditHtml
     if (storage && metadataDefinitions && metadataDefinitions.length > 0) {
       const { loadMetadata, generateInlineEditHtml } = await import('./marker-details-metadata.js')
-      const { definitions, values } = await loadMetadata(storage, markerDetails.id)
+      const mapId = markerDetails.mapId || 'global'
+      const { definitions, values } = await loadMetadata(storage, markerDetails.id, mapId)
       currentMetadataEditHtml = generateInlineEditHtml(definitions, values)
     }
 
@@ -126,7 +127,8 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
       }
 
       // Reload metadata and update view
-      const { definitions, values } = await loadMetadata(storage, markerDetails.id)
+      const mapId = markerDetails.mapId || 'global'
+      const { definitions, values } = await loadMetadata(storage, markerDetails.id, mapId)
       const viewHtml = generateInlineViewHtml(definitions, values)
       const metadataViewContainer = modal.querySelector('#marker-metadata-view')
       if (metadataViewContainer) {
