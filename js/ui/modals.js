@@ -66,10 +66,12 @@ export class ModalManager {
      * @param {Function} onUpload - Callback when file is uploaded
      * @param {Function} onCancel - Callback when upload is cancelled
      * @param {Object} storage - MapStorage instance for metadata
+     * @param {Function} onEdit - Callback when existing map is edited (edit mode only)
+     * @param {Object} existingMap - Map object to edit (null for new map creation)
      * @returns {HTMLElement} - Modal element
      */
-  createUploadModal (onUpload, onCancel, storage = null) {
-    return createUploadModal(this, onUpload, onCancel, storage)
+  createUploadModal (onUpload, onCancel, storage = null, onEdit = null, existingMap = null) {
+    return createUploadModal(this, onUpload, onCancel, storage, onEdit, existingMap)
   }
 
   /**

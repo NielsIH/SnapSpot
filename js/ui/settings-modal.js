@@ -38,6 +38,7 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
         {
           onMapSelected: callbacks.onMapSelected,
           onMapDelete: callbacks.onMapDelete,
+          onEditMap: callbacks.onEditMap,
           onExportHtmlMap: callbacks.onExportHtmlMap,
           onExportJsonMap: callbacks.onExportJsonMap,
           onSettingsModalRefresh: callbacks.onSettingsModalRefresh,

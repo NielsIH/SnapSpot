@@ -14,12 +14,16 @@
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
 
 /* Individual Fields */
 .metadata-field {
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.metadata-field:last-child {
+  margin-bottom: 0;
 }
 
 .metadata-field label {
@@ -50,12 +54,15 @@
 }
 
 /* Error Messages */
-.metadata-error {
-  display: block;
+.form-group .metadata-error {
+  display: none;
   color: var(--danger-color);
   font-size: 0.85rem;
   margin-top: var(--spacing-xs);
-  min-height: 1.2em;
+}
+
+.form-group .metadata-error.has-error {
+  display: block;
 }
 
 /* Empty State */

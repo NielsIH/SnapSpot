@@ -208,6 +208,9 @@ export async function showSettings (app, initialTab = 'general-settings') {
       onAddNewMap: () => {
         app.showUploadModal()
       },
+      onEditMap: (mapId) => {
+        app.showEditMapModal(mapId)
+      },
       onExportHtmlMap: async (mapId) => {
         await app.exportHtmlReport(mapId)
       },

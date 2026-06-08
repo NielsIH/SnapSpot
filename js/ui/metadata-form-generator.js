@@ -133,6 +133,7 @@ export class MetadataFormGenerator {
       const errorElement = formElement.querySelector(`.metadata-error[data-definition-id="${definition.id}"]`)
       if (errorElement) {
         errorElement.textContent = ''
+        errorElement.classList.remove('has-error')
       }
 
       // Validate required fields
@@ -185,6 +186,7 @@ export class MetadataFormGenerator {
       const errorElement = formElement.querySelector(`.metadata-error[data-definition-id="${error.definitionId}"]`)
       if (errorElement) {
         errorElement.textContent = error.message
+        errorElement.classList.add('has-error')
       }
     })
 

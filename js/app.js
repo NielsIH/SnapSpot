@@ -1100,6 +1100,42 @@ class SnapSpotApp {
   }
 
   /**
+   * Show the upload modal in edit mode for an existing map
+   * @param {string} mapId - ID of the map to edit
+   */
+  async showEditMapModal (mapId) {
+    console.log('Opening edit map modal for:', mapId)
+
+    // Fetch the full map data from storage
+    const map = await this.storage.getMap(mapId)
+    if (!map) {
+      this.showErrorMessage('Edit Error', 'Map not found.')
+      return
+    }
+
+    const modal = this.modalManager.createUploadModal(
+      // onUpload callback (not used in edit mode, but required for signature)
+      null,
+      // onCancel callback
+      () => {
+        console.log('Map edit cancelled')
+        this.updateAppStatus('Map edit cancelled')
+      },
+      // storage parameter for metadata
+      this.storage,
+      // onEdit callback
+      async (mapId, updatedData) => {
+        await this.handleMapEdit(mapId, updatedData)
+      },
+      // existingMap data
+      map
+    )
+
+    this.updateAppStatus(`Editing map: ${map.name}`)
+    return modal
+  }
+
+  /**
    * Handle map upload from the modal
    * @param {Object} mapData - Processed map metadata from FileManager (currently processed basic file info)
    * @param {File} originalFile - Original file object (important, this will be the Blob from ImageProcessor now)
@@ -1203,6 +1239,69 @@ class SnapSpotApp {
       throw error
     } finally {
       this.hideLoading()
+    }
+  }
+
+  /**
+   * Handle map edit from the modal (edit mode)
+   * @param {string} mapId - ID of the map being edited
+   * @param {Object} updatedData - { name, description, isActive, metadata }
+   */
+  async handleMapEdit (mapId, updatedData) {
+    console.log('App: Updating map...', mapId)
+
+    try {
+      this.updateAppStatus('Saving map changes...')
+
+      // Update the map in storage
+      const updates = {
+        name: updatedData.name,
+        description: updatedData.description,
+        lastModified: new Date()
+      }
+      await this.storage.updateMap(mapId, updates)
+
+      // Handle isActive change
+      if (updatedData.isActive) {
+        await this.storage.setActiveMap(mapId)
+      }
+
+      // Save/update metadata values (upsert: delete old, re-save new)
+      if (updatedData.metadata && Array.isArray(updatedData.metadata)) {
+        // Delete existing metadata values for this map
+        const existingValues = await this.storage.getMetadataValuesForEntity('map', mapId)
+        for (const existing of existingValues) {
+          await this.storage.deleteMetadataValue(existing.id)
+        }
+
+        // Save new metadata values (skip empty values)
+        for (const metadataValue of updatedData.metadata) {
+          if (metadataValue.value !== null && metadataValue.value !== undefined && metadataValue.value !== '') {
+            await this.storage.addMetadataValue(metadataValue)
+          }
+        }
+        console.log(`Updated ${updatedData.metadata.length} metadata values for map ${mapId}`)
+      }
+
+      // Reload maps list to reflect changes
+      await this.loadMaps()
+
+      // Update current map reference if editing the active map
+      if (this.currentMap && this.currentMap.id === mapId) {
+        const refreshedMap = await this.storage.getMap(mapId)
+        if (refreshedMap) {
+          this.currentMap = refreshedMap
+        }
+      }
+
+      this.showNotification(`Map "${updatedData.name}" updated successfully!`, 'success')
+      this.updateAppStatus(`Map updated: ${updatedData.name}`)
+
+      console.log('Map edit completed successfully')
+    } catch (error) {
+      console.error('Map edit failed:', error)
+      this.showErrorMessage('Map Edit Error', `Failed to update map: ${error.message}`)
+      throw error
     }
   }
 
