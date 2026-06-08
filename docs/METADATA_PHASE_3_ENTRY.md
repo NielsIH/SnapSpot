@@ -25,6 +25,7 @@ Photo metadata entry is **ONLY** available in the photo gallery, **NEVER** durin
 
 **Next Steps:**
 - Manual testing of marker and photo metadata
+- **Task 3.11: Make Upload Modal support editing existing maps** (PRIORITY)
 - Consider map metadata integration (Task 3.4)
 - Refactoring/helper methods if needed (Task 3.7)
 
@@ -68,9 +69,9 @@ Build user interface for entering and editing metadata values on maps, markers, 
 
 ### Integration Points
 
-1. **Upload Map Modal** - Add metadata section for map-level fields
+1. **Upload/Edit Map Modal** - Add metadata section for map-level fields (create AND edit)
 2. **Marker Details Modal** - Add metadata section for marker-level fields
-3. **Photo Upload** - Add metadata section for photo-level fields
+3. **Photo Gallery** - Add metadata section for photo-level fields (view/edit inline)
 
 ---
 
@@ -351,6 +352,112 @@ Follow the same pattern as marker metadata integration:
 - [ ] Test on mobile - verify overlay scrollable, doesn't obscure photo
 - [ ] Test with no metadata definitions (empty state)
 - [ ] Test with definitions but no values
+
+---
+
+### ☐ Task 3.11: Make Upload Modal Support Editing Existing Maps (EDIT MAP)
+
+**Problem:** Map-level metadata can only be entered when creating new maps via the Upload modal. There is no way to edit a map's name, description, or metadata after creation.
+
+**Solution:** Refactor the Upload Map modal to serve a dual purpose: creating new maps AND editing existing map data. When editing, the file upload step is skipped and the form is pre-filled with existing values.
+
+**Actions:**
+
+1. **Add `existingMap` parameter to `createUploadModal()` in `js/ui/upload-modal.js`:**
+   - Add optional `existingMap` parameter (null for new maps, map object for editing)
+   - When `existingMap` is provided:
+     - Change modal title to "Edit Map"
+     - Change primary button text to "Save Changes"
+     - Skip file selection step entirely (go directly to details step)
+     - Pre-fill name and description from `existingMap`
+     - Pre-fill "Set as active" checkbox based on `existingMap.isActive`
+     - Load and pre-fill existing metadata values via `storage.getMetadataValuesForEntity('map', existingMap.id)`
+     - Hide the "Back" button (no file re-selection needed)
+   - When `existingMap` is NOT provided (new map):
+     - Keep existing behavior unchanged (title "Upload New Map", button "Create Map")
+
+2. **Update save logic in `setupUploadModal()`:**
+   - Detect mode: if `existingMap` is present, call `onEdit` callback instead of `onUpload`
+   - Pass map ID, updated fields, and metadata values to the edit callback
+   - For edit mode, only pass changed data (not a full map object)
+
+3. **Add `onEditMap` callback in `js/app-settings.js` → `showSettings()`:**
+   - Add `onEditMap` to `settingsCallbacks` object
+   - Implement: calls `app.showEditMapModal(mapId)` (new method on app)
+   - Wire into the settings modal's map card callbacks
+
+4. **Add `showEditMapModal()` and `handleMapEdit()` in `js/app.js`:**
+   - `showEditMapModal(mapId)`: Fetch map from storage, open upload modal in edit mode with `existingMap`
+   - `handleMapEdit(mapId, updatedData, metadataValues)`: 
+     - Call `storage.updateMap(mapId, { name, description, isActive })` 
+     - Save/update metadata values (upsert pattern: delete existing values for entity, re-save)
+     - If `isActive` changed, call `storage.setActiveMap()`
+     - Refresh map list and display
+     - Show success notification
+
+5. **Add "Edit" button to map cards in `js/ui/uiRenderer.js`:**
+   - Add `onEditMap` callback to `createCardElement()` parameter list
+   - Add an "✏️ Edit" button in the map actions row (always visible, unlike Delete)
+   - Position: between Export and Delete buttons
+
+6. **Update `js/ui/modals.js` → `ModalManager.createUploadModal()`:**
+   - Add optional `existingMap` parameter, pass through to `createUploadModal()`
+   - Add optional `onEdit` callback parameter
+
+7. **Wire edit button in `js/ui/settings-modal.js`:**
+   - Pass `onEditMap` callback when calling `UIRenderer.createCardElement()`
+
+8. **CSS updates in `css/modals/upload.css`:**
+   - Ensure edit-mode styling is consistent (same form layout, just different header/button text)
+   - No major CSS changes expected
+
+**Files to create:**
+- None (all changes are modifications)
+
+**Files to modify:**
+- `js/ui/upload-modal.js` - Dual-mode support (primary changes)
+- `js/app.js` - `showEditMapModal()`, `handleMapEdit()`
+- `js/app-settings.js` - `onEditMap` callback in `showSettings()`
+- `js/ui/uiRenderer.js` - "Edit" button on map cards
+- `js/ui/modals.js` - Updated `createUploadModal()` signature
+- `js/ui/settings-modal.js` - Pass `onEditMap` to card renderer
+- `css/modals/upload.css` - Minor edits if needed
+- `service-worker.js` - Bump `CACHE_NAME`
+
+**Acceptance Criteria:**
+- [ ] Upload modal title shows "Edit Map" when editing, "Upload New Map" when creating
+- [ ] Edit mode skips file selection, goes directly to details step
+- [ ] Name, description, and "Set as active" are pre-filled with existing values
+- [ ] Existing metadata values are loaded and displayed in the form
+- [ ] "Back" button is hidden in edit mode
+- [ ] Save button reads "Save Changes" in edit mode
+- [ ] Saving updates the map in IndexedDB via `storage.updateMap()`
+- [ ] Metadata values are correctly saved/updated (old values replaced)
+- [ ] "Edit" button appears on map cards in Settings → Maps Management
+- [ ] Clicking "Edit" opens the modal in edit mode
+- [ ] Canceling edit does not modify the map
+- [ ] Creating new maps still works exactly as before (no regression)
+- [ ] Required field validation works in both modes
+- [ ] Zero console errors
+- [ ] Linting passes (`npm run lint`)
+
+**Manual Testing Checklist:**
+- [ ] Create a new map with metadata → verify it works as before
+- [ ] Open Settings → Maps Management → click "✏️ Edit" on a map
+- [ ] Verify modal shows "Edit Map" title and "Save Changes" button
+- [ ] Verify name and description are pre-filled
+- [ ] Verify metadata fields show existing values
+- [ ] Change name, description, and metadata values
+- [ ] Click "Save Changes" → verify success notification
+- [ ] Reopen edit modal → verify updated values persist
+- [ ] Test editing a map with no metadata definitions
+- [ ] Test editing a map that has metadata definitions but no values yet
+- [ ] Test "Set as active" toggle in edit mode
+- [ ] Test cancel in edit mode → verify no changes persisted
+- [ ] Test required metadata field validation in edit mode
+- [ ] Test on mobile viewport
+- [ ] Test with map that has markers → verify markers are unaffected
+- [ ] Test creating a brand new map → verify no regression
 
 ---
 
@@ -655,10 +762,12 @@ Follow the same pattern as marker metadata integration:
 
 ## Acceptance Criteria (Phase Complete)
 
-- [ ] All tasks marked complete
-- [ ] All 20 manual tests passed
+- [ ] All tasks marked complete (including Task 3.11: Edit Map)
+- [ ] All manual tests passed (Tasks 3.1-3.10 + Task 3.11)
 - [ ] Zero linting errors (`npm run lint`)
 - [ ] Metadata forms work for maps, markers, and photos
+- [ ] Map metadata can be created AND edited (not just at upload time)
+- [ ] Upload modal works for both new maps and editing existing maps
 - [ ] All field types render and validate correctly
 - [ ] Responsive design works on mobile
 - [ ] Empty states are user-friendly
@@ -667,8 +776,9 @@ Follow the same pattern as marker metadata integration:
 
 ---
 
-## Commit Message
+## Commit Messages
 
+**Phase 3 original:**
 ```
 feat: add metadata entry forms to map/marker/photo modals
 
@@ -681,6 +791,20 @@ feat: add metadata entry forms to map/marker/photo modals
 - Handle empty states gracefully
 
 Phase 3 of 6 for metadata system implementation.
+```
+
+**Task 3.11 (Edit Map):**
+```
+feat: add edit map modal for updating map metadata and details
+
+- Refactor upload modal to support both create and edit modes
+- Add edit button to map cards in Settings → Maps Management
+- Implement handleMapEdit() using storage.updateMap()
+- Pre-fill existing metadata values when editing
+- Support metadata value upsert on edit
+- Add showEditMapModal() to app.js
+
+Task 3.11 of Phase 3 metadata system.
 ```
 
 ---
