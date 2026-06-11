@@ -35,6 +35,18 @@ A Progressive Web App for mapping photos to specific locations on any map, floor
 - Delete photos directly from the viewer
 - Search photos by filename across all maps
 
+### Custom Metadata Fields
+- Define custom fields for maps, markers, and photos
+- Field types: text, number, date, boolean, and select (dropdown)
+- Global fields (available across all maps) or map-specific fields
+- Dynamic forms generated automatically from field definitions
+- Enter metadata when creating maps, editing markers, or in the photo gallery
+- Inline view/edit pattern — toggle between reading and editing metadata
+- Required field validation with visual indicators
+- Metadata travels with map exports for team sharing
+- Export/import metadata definitions separately to share field schemas
+- Cascade cleanup: deleting a map, marker, or photo also removes its metadata
+
 ### Navigation & Display
 - Pan and zoom with mouse or touch gestures
 - Pinch-to-zoom on touch devices
@@ -56,6 +68,8 @@ A Progressive Web App for mapping photos to specific locations on any map, floor
 - Generate HTML reports with embedded images
 - Full IndexedDB storage for offline capability
 - Automatic data migration for compatibility updates
+- Metadata definitions and values included in exports (v1.2)
+- Separate metadata definition export for sharing field schemas
 
 ### Offline Functionality
 - Progressive Web App (PWA) with Service Worker
@@ -144,6 +158,7 @@ A Progressive Web App for mapping photos to specific locations on any map, floor
 - **Use Line Markers for Boundaries:** Place line markers to highlight walls, property lines, or measurement areas
 - **Backup Regularly:** Export your map data periodically as a backup
 - **Use Descriptions:** Add keywords to marker descriptions for easier searching and color-coding
+- **Custom Metadata:** Define fields like "Condition" or "Date Inspected" in Settings → Metadata for structured data entry
 - **Offline First:** After the first visit, SnapSpot works completely offline
 - **Clear Crosshair:** Toggle off the crosshair after marker placement for clearer viewing
 - **Photo Quality:** Adjust image quality in settings to balance file size and clarity
@@ -155,7 +170,7 @@ SnapSpot is ideal for any situation where you need to document and organize phot
 
 - **Construction Projects** - Track progress photos across floor plans and site layouts
 - **Property Inspections** - Link inspection photos to specific locations on property maps
-- **Archaeological Surveys** - Document findings with precise location mapping
+- **Archaeological Surveys** - Document findings with custom metadata fields and precise location mapping
 - **Facility Management** - Track maintenance work, equipment, and asset locations
 - **Underground/Indoor Work** - Map photos in areas without GPS signal
 - **Event Planning** - Organize venue layouts and logistics with photo documentation
@@ -196,18 +211,22 @@ SnapSpot/
 │   ├── notifications.css         # Toast notifications
 │   ├── responsive.css            # Responsive breakpoints
 │   ├── utilities.css             # Utility classes
-│   └── modals/                   # Modal-specific styles
+│   ├── modals/                   # Modal-specific styles
 │       ├── base.css              # Modal base styles
 │       ├── components.css        # Modal components
 │       ├── export-decision.css   # Export options modal
 │       ├── image-viewer.css      # Image viewer modal
 │       ├── import-decision.css   # Import options modal
+│       ├── line-marker-details.css # Line marker detail modal
 │       ├── marker-details.css    # Marker details modal
+│       ├── metadata-definition.css # Metadata definition modal
 │       ├── photo-gallery.css     # Photo gallery modal
 │       ├── responsive.css        # Modal responsive styles
 │       ├── search.css            # Search modal
 │       ├── settings.css          # Settings modal
 │       └── upload.css            # Upload modal
+│   └── components/
+│       └── metadata-form.css     # Metadata form styling
 │
 ├── js/                           # JavaScript modules
 │   ├── app.js                    # Main application controller
@@ -229,7 +248,15 @@ SnapSpot/
 │       ├── search-modal.js       # Search UI
 │       ├── settings-modal.js     # Settings UI
 │       ├── uiRenderer.js         # Common UI components
-│       └── upload-modal.js       # Upload UI
+│       ├── upload-modal.js       # Upload UI
+│       ├── marker-details-actions.js  # Marker action handlers
+│       ├── marker-details-metadata.js # Marker metadata integration
+│       ├── marker-details-photos.js   # Photo management in markers
+│       ├── marker-details-renderer.js # Marker detail rendering
+│       ├── metadata-definition-modal.js # Metadata field definition form
+│       ├── metadata-form-generator.js # Dynamic metadata form builder
+│       ├── photo-gallery-metadata.js  # Photo metadata integration
+│       └── line-marker-details-modal.js # Line marker detail UI
 │
 ├── lib/                          # Data handling libraries
 │   ├── snapspot-data/            # Data import/export/merge
