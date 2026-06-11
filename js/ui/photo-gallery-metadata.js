@@ -7,6 +7,15 @@
 
 import { MetadataFormGenerator } from './metadata-form-generator.js'
 
+function escapeHtml (input) {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 /**
  * Load metadata definitions and values for a photo
  * @param {Object} storage - MapStorage instance
@@ -65,7 +74,9 @@ export function generateInlineViewHtml (definitions, values) {
         displayValue = date.toLocaleDateString()
       }
 
-      return `<p><strong>${definition.name}:</strong> ${displayValue}</p>`
+      const safeLabel = escapeHtml(definition.name)
+      const safeValue = escapeHtml(displayValue)
+      return `<p><strong>${safeLabel}:</strong> ${safeValue}</p>`
     })
     .filter(row => row !== '')
     .join('')

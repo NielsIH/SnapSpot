@@ -39,14 +39,16 @@ export function generateModalHtml (markerDetails, metadataViewHtml = '') {
  * @returns {string} HTML for marker info section
  */
 function generateMarkerInfoSection (markerDetails, metadataViewHtml = '') {
+  const escapedDescription = escapeHtml(markerDetails.description || '')
+
   return `
     <div class="marker-info-section">
       <p><strong>ID:</strong> <span class="text-xs text-secondary">${markerDetails.id}</span></p>
       <p><strong>Coordinates:</strong> ${markerDetails.coords}</p>
       <p>
         <strong>Description:</strong>
-        <span class="marker-description-display">${markerDetails.description || 'No description'}</span>
-        <textarea class="marker-description-edit hidden" rows="3" maxlength="500" placeholder="Enter description">${markerDetails.description || ''}</textarea>
+        <span class="marker-description-display">${markerDetails.description ? escapedDescription : 'No description'}</span>
+        <textarea class="marker-description-edit hidden" rows="3" maxlength="500" placeholder="Enter description">${escapedDescription}</textarea>
       </p>
       ${metadataViewHtml}
       <div class="marker-metadata-edit hidden" id="marker-metadata-edit"></div>
@@ -92,6 +94,20 @@ function generatePhotoThumbnailsHtml (photos) {
       `
     )
     .join('')
+}
+
+/**
+ * Escape HTML special characters for safe insertion into HTML content.
+ * @param {string} value - Raw text value
+ * @returns {string} Escaped HTML string
+ */
+function escapeHtml (value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 /**

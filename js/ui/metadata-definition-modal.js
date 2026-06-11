@@ -37,11 +37,18 @@ export function createMetadataDefinitionModal (modalManager, options) {
   const scopeGlobalChecked = fieldScope === 'global' ? 'checked' : ''
   const scopeMapChecked = fieldScope !== 'global' ? 'checked' : ''
 
+  const escapeHtmlAttribute = (value) => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
   // Options inputs (for select type)
   const optionsInputsHtml = fieldOptions.length > 0
     ? fieldOptions.map((opt, idx) => `
         <div class="option-input-row">
-          <input type="text" class="form-control option-input" data-option-index="${idx}" value="${opt}" placeholder="Option ${idx + 1}" />
+          <input type="text" class="form-control option-input" data-option-index="${idx}" value="${escapeHtmlAttribute(opt)}" placeholder="Option ${idx + 1}" />
           <button type="button" class="btn btn-sm btn-danger remove-option-btn" data-option-index="${idx}">×</button>
         </div>
       `).join('')

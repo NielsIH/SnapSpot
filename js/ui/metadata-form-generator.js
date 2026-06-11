@@ -10,6 +10,19 @@
  */
 export class MetadataFormGenerator {
   /**
+   * Escape a value for safe use in HTML attributes
+   * @param {*} value - Value to escape
+   * @returns {string} - Escaped string
+   */
+  static escapeAttributeValue (value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+  }
+
+  /**
    * Generate complete metadata form HTML
    * @param {Array<Object>} definitions - Array of metadata definitions
    * @param {Array<Object>} existingValues - Array of existing metadata values (for edit mode)
@@ -57,20 +70,21 @@ export class MetadataFormGenerator {
     const requiredIndicator = required ? '<span class="required-indicator">*</span>' : ''
     const fieldId = `metadata-field-${id}`
     const helpText = description ? `<small class="text-secondary">${description}</small>` : ''
+    const escapedExistingValue = this.escapeAttributeValue(existingValue)
 
     let inputHtml = ''
 
     switch (fieldType) {
       case 'text':
-        inputHtml = `<input type="text" id="${fieldId}" class="form-control metadata-input" data-definition-id="${id}" data-field-type="text" value="${existingValue || ''}" ${required ? 'required' : ''} />`
+        inputHtml = `<input type="text" id="${fieldId}" class="form-control metadata-input" data-definition-id="${id}" data-field-type="text" value="${escapedExistingValue}" ${required ? 'required' : ''} />`
         break
 
       case 'number':
-        inputHtml = `<input type="number" id="${fieldId}" class="form-control metadata-input" data-definition-id="${id}" data-field-type="number" value="${existingValue || ''}" ${required ? 'required' : ''} />`
+        inputHtml = `<input type="number" id="${fieldId}" class="form-control metadata-input" data-definition-id="${id}" data-field-type="number" value="${escapedExistingValue}" ${required ? 'required' : ''} />`
         break
 
       case 'date':
-        inputHtml = `<input type="date" id="${fieldId}" class="form-control metadata-input" data-definition-id="${id}" data-field-type="date" value="${existingValue || ''}" ${required ? 'required' : ''} />`
+        inputHtml = `<input type="date" id="${fieldId}" class="form-control metadata-input" data-definition-id="${id}" data-field-type="date" value="${escapedExistingValue}" ${required ? 'required' : ''} />`
         break
 
       case 'boolean': {
@@ -105,7 +119,7 @@ export class MetadataFormGenerator {
 
     return `
       <div class="form-group metadata-field" data-definition-id="${id}">
-        <label for="${fieldId}">${name} ${requiredIndicator}</label>
+        <label for="${fieldId}">${this.escapeAttributeValue(name)} ${requiredIndicator}</label>
         ${inputHtml}
         ${helpText}
         <small class="form-error metadata-error" data-definition-id="${id}"></small>
