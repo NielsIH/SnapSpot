@@ -183,6 +183,7 @@ export async function showMarkerDetails (app, markerId) {
     app.modalManager.createMarkerDetailsModal(
       {
         id: marker.id,
+        mapId: marker.mapId,
         description: marker.description,
         coords: `X: ${displayX}, Y: ${displayY}`,
         photoCount: validPhotos.length,
@@ -284,6 +285,7 @@ export async function showMarkerDetails (app, markerId) {
 
           return {
             ...photo,
+            mapId: app.currentMap ? app.currentMap.id : null,
             thumbnailDataUrl: thumbnailDataUrl || null,
             markerDescription: associatedMarker ? associatedMarker.description : 'No marker description'
           }
@@ -332,14 +334,17 @@ export async function showMarkerDetails (app, markerId) {
             console.log('Marker photo gallery closed.')
             // Reopen marker details after gallery closes
             await showMarkerDetails(app, marker.id)
-          }
+          },
+          app.storage // Pass storage for metadata
         )
       },
       // onClose callback
       () => {
         console.log('Marker details modal closed.')
         app.updateAppStatus('Ready')
-      }
+      },
+      // storage instance for metadata
+      app.storage
     )
     app.updateAppStatus(`Viewing marker: ${marker.id}`)
   } catch (error) {
@@ -614,7 +619,8 @@ export async function showMapPhotoGallery (app) {
       () => {
         console.log('Map photo gallery closed.')
         app.updateAppStatus('Ready')
-      }
+      },
+      app.storage // Pass storage for metadata
     )
     app.updateAppStatus(`Viewing photo gallery for map: ${app.currentMap.name}`)
   } catch (error) {

@@ -1,0 +1,162 @@
+/**
+ * SnapSpot PWA - Photo Gallery Metadata
+ * Handles metadata functionality for photo gallery modal
+ */
+
+/* global console */
+
+import { MetadataFormGenerator } from './metadata-form-generator.js'
+
+function escapeHtml (input) {
+  return String(input ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+/**
+ * Load metadata definitions and values for a photo
+ * @param {Object} storage - MapStorage instance
+ * @param {string} photoId - Photo ID
+ * @param {string} mapId - Map ID for scope filtering (global + map-specific)
+ * @returns {Promise<{definitions: Array, values: Array}>}
+ */
+export async function loadMetadata (storage, photoId, mapId = 'global') {
+  if (!storage) {
+    return { definitions: [], values: [] }
+  }
+
+  try {
+    const photoDefinitions = await storage.getMetadataDefinitionsForEntity('photo', mapId)
+    const metadataValues = await storage.getMetadataValuesForEntity('photo', photoId)
+
+    return {
+      definitions: photoDefinitions,
+      values: metadataValues
+    }
+  } catch (error) {
+    console.error('Error loading photo metadata:', error)
+    return { definitions: [], values: [] }
+  }
+}
+
+/**
+ * Generate inline HTML for view mode (read-only display in overlay)
+ * @param {Array<Object>} definitions - Metadata definitions
+ * @param {Array<Object>} values - Metadata values
+ * @returns {string} HTML for inline display
+ */
+export function generateInlineViewHtml (definitions, values) {
+  if (!definitions || definitions.length === 0 || !values || values.length === 0) {
+    return '' // Return empty string when no metadata to display
+  }
+
+  // Create a map of definitions by ID
+  const definitionsMap = new Map()
+  definitions.forEach(def => {
+    definitionsMap.set(def.id, def)
+  })
+
+  const rows = values
+    .map(value => {
+      const definition = definitionsMap.get(value.definitionId)
+      if (!definition) return ''
+
+      let displayValue = value.value
+
+      // Format value based on type
+      if (definition.fieldType === 'boolean') {
+        displayValue = value.value === true || value.value === 'true' ? 'Yes' : 'No'
+      } else if (definition.fieldType === 'date' && value.value) {
+        const date = new Date(value.value)
+        displayValue = date.toLocaleDateString()
+      }
+
+      const safeLabel = escapeHtml(definition.name)
+      const safeValue = escapeHtml(displayValue)
+      return `<p><strong>${safeLabel}:</strong> ${safeValue}</p>`
+    })
+    .filter(row => row !== '')
+    .join('')
+
+  // Return just the content, not wrapped in a div (container already exists in DOM)
+  return rows
+}
+
+/**
+ * Generate inline HTML for edit mode (form fields only, no headers or buttons)
+ * @param {Array<Object>} definitions - Metadata definitions
+ * @param {Array<Object>} values - Metadata values
+ * @returns {string} HTML for inline form
+ */
+export function generateInlineEditHtml (definitions, values) {
+  if (!definitions || definitions.length === 0) {
+    return ''
+  }
+
+  const formHtml = MetadataFormGenerator.generateForm(definitions, values, 'photo')
+  return `<div id="photo-metadata-form">${formHtml}</div>`
+}
+
+/**
+ * Save metadata values for a photo
+ * @param {HTMLElement} modal - Modal element
+ * @param {Object} storage - MapStorage instance
+ * @param {string} photoId - Photo ID
+ * @param {Array<Object>} definitions - Metadata definitions
+ * @returns {Promise<boolean>} Success status
+ */
+export async function saveMetadataValues (modal, storage, photoId, definitions) {
+  if (!storage || !definitions || definitions.length === 0) {
+    return true // Nothing to save
+  }
+
+  // Find the metadata edit container
+  const metadataEditContainer = modal.querySelector('#photo-metadata-edit')
+  if (!metadataEditContainer) {
+    console.warn('photo-gallery-metadata: #photo-metadata-edit container not found')
+    return true
+  }
+
+  // Find the form container within it
+  const metadataFormContainer = metadataEditContainer.querySelector('.metadata-form-container')
+  if (!metadataFormContainer) {
+    console.warn('photo-gallery-metadata: .metadata-form-container not found within #photo-metadata-edit')
+    return true // No form means no metadata to save
+  }
+
+  // Validate form
+  const validation = MetadataFormGenerator.validateForm(metadataFormContainer, definitions)
+  if (!validation.valid) {
+    console.warn('photo-gallery-metadata: Validation failed', validation.errors)
+    return false
+  }
+
+  try {
+    // Extract values from the form container
+    const metadataValues = MetadataFormGenerator.extractValues(
+      metadataFormContainer,
+      definitions,
+      'photo',
+      photoId
+    )
+
+    // Delete existing metadata values for this photo
+    const existingValues = await storage.getMetadataValuesForEntity('photo', photoId)
+    for (const value of existingValues) {
+      await storage.deleteMetadataValue(value.id)
+    }
+
+    // Save new values
+    for (const value of metadataValues) {
+      await storage.addMetadataValue(value)
+    }
+
+    return true
+  } catch (error) {
+    console.error('Error saving photo metadata values:', error)
+    return false
+  }
+}

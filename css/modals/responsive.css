@@ -331,6 +331,23 @@
        here we just adjust sizing and spacing further. */
   }
 
+  /* On very small screens, allow map card actions to wrap below content
+     so the map name gets more horizontal space */
+  .map-list-item {
+    flex-wrap: wrap;
+  }
+
+  .map-list-item .map-card-content {
+    flex: 1 1 auto;
+  }
+
+  .map-list-item .map-item-actions-wrapper {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: var(--spacing-xs);
+    margin-left: 0;
+  }
+
   .map-list-item.active {
     /* Active state styling adjustment */
     padding: calc(var(--spacing-xs) - 1px);
@@ -641,16 +658,10 @@
 
   .map-action-btn .btn-text,
   .photo-action-btn .btn-text {
-    display: inline;
-    /* Show button text on desktop */
-    white-space: nowrap;
-    /* Ensure button text stays on one line */
-    overflow: hidden;
-    /* Hide overflow */
-    text-overflow: ellipsis;
-    /* Add ellipsis if needed */
-    max-width: 80px;
-    /* OR a reasonable fixed max width in px. Limits how wide button text can get. Adjust as needed. */
-    /* You might need to adjust this max-width based on your actual button text lengths */
+    display: none;
+    /* Hide button text on desktop — the settings modal (900px) with
+       its tab sidebar leaves insufficient room for map names when
+       4-5 action buttons have visible text labels. Icons + native
+       title tooltips are sufficient for all actions. */
   }
 }

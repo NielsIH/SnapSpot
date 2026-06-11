@@ -1,0 +1,822 @@
+# Phase 3: Metadata Entry UI
+
+**Status:** Complete  
+**Estimated Duration:** 2-3 days  
+**Started:** 2026-02-06  
+**Completed:** 2026-02-10  
+**Prerequisites:** Phase 1 and Phase 2 complete
+
+---
+
+## Progress Summary
+
+**Completed:**
+- ✅ Task 3.1: Metadata Form Generator (`metadata-form-generator.js`)
+- ✅ Task 3.2: CSS Styling for forms (`css/components/metadata-form.css`)
+- ✅ Task 3.3: Marker Details Integration (inline view/edit pattern)
+- ✅ Task 3.6: Photo Gallery Metadata Integration (inline view/edit pattern)
+
+**Ready for Testing:**
+- Marker metadata entry (Phase 3.3)
+- Photo metadata entry (Phase 3.6)
+
+**Key Design Decision:**
+Photo metadata entry is **ONLY** available in the photo gallery, **NEVER** during photo upload. This ensures fast field workflow while providing full-size photo viewing for accurate metadata entry.
+
+**Next Steps:**
+- Manual testing of marker and photo metadata
+- **Task 3.11: Make Upload Modal support editing existing maps** (PRIORITY)
+- Consider map metadata integration (Task 3.4)
+- Refactoring/helper methods if needed (Task 3.7)
+
+---
+
+Build user interface for entering and editing metadata values on maps, markers, and photos:
+1. Generate dynamic forms from metadata definitions
+2. Add metadata sections to Upload Map modal
+3. Add metadata sections to Marker Details modal
+4. Add metadata sections to Photo Upload
+5. Display metadata in detail views (read mode)
+6. Validate and save metadata values
+7. Edit existing metadata values
+
+---
+
+## UI Design Specification
+
+### Dynamic Metadata Form Structure
+
+**Forms are generated dynamically based on active definitions**
+
+```
+┌──────────────────────────────────────────┐
+│ Additional Information (Metadata)        │
+├──────────────────────────────────────────┤
+│                                          │
+│  Inscription Author:                     │
+│  [___________________________]           │
+│                                          │
+│  Date Documented:                        │
+│  [____/____/________]  (date picker)     │
+│                                          │
+│  Condition:                              │
+│  [▼ Select...        ]                   │
+│                                          │
+│  Verified: ☐                             │
+│                                          │
+└──────────────────────────────────────────┘
+```
+
+### Integration Points
+
+1. **Upload/Edit Map Modal** - Add metadata section for map-level fields (create AND edit)
+2. **Marker Details Modal** - Add metadata section for marker-level fields
+3. **Photo Gallery** - Add metadata section for photo-level fields (view/edit inline)
+
+---
+
+## Tasks
+
+### ✅ Task 3.1: Create Metadata Form Generator
+
+**Actions:**
+1. Create new utility file: `js/ui/metadata-form-generator.js`
+
+2. Implement `MetadataFormGenerator` class with methods:
+   - `generateForm(definitions, existingValues, entityType)`
+     - Returns HTML for metadata form based on definitions
+     - Pre-fills with existingValues if editing
+   
+   - `renderField(definition, existingValue)`
+     - Renders individual field based on fieldType
+     - Includes label, input, and help text
+   
+   - `validateForm(formElement, definitions)`
+     - Validates all fields meet requirements
+     - Returns validation result and errors
+   
+   - `extractValues(formElement, definitions)`
+     - Extracts values from form
+     - Returns array of MetadataValue objects
+
+3. Field rendering by type:
+   - **text**: `<input type="text">`
+   - **number**: `<input type="number">`
+   - **date**: `<input type="date">` (HTML5 date picker)
+   - **boolean**: `<input type="checkbox">`
+   - **select**: `<select>` with options from definition
+
+4. Add required field indicators:
+   - Visual asterisk (*) for required fields
+   - Validation highlighting for empty required fields
+
+5. Add help text display:
+   - Show definition.description below field (if present)
+   - Use muted text style
+
+**Files to create:**
+- `js/ui/metadata-form-generator.js`
+
+**Files to modify:**
+- Add CSS for metadata form styling (see Task 3.2)
+
+**Acceptance Criteria:**
+- [x] Class structure complete
+- [x] All field types render correctly
+- [x] Required indicators show
+- [x] Validation works for all types
+- [x] Values extract properly
+- [x] JSDoc comments added
+
+---
+
+### ✅ Task 3.2: Add Metadata Form Styles
+
+**Actions:**
+1. Create new CSS file: `css/components/metadata-form.css`
+
+2. Add styles for:
+   - Metadata section container
+   - Field labels (with required indicators)
+   - Input fields (consistent with existing form inputs)
+   - Help text (muted, smaller font)
+   - Error messages (validation feedback)
+   - Empty state message ("No custom fields defined")
+
+3. Ensure responsive design:
+   - Stack labels and inputs on mobile
+   - Proper spacing and padding
+   - Touch-friendly input sizes
+
+4. Import in `css/main.css`
+
+**Files to create:**
+- `css/components/metadata-form.css`
+
+**Files to modify:**
+- `css/main.css` (add import)
+
+**Acceptance Criteria:**
+- [x] Styles match existing SnapSpot design
+- [x] Forms are readable and usable
+- [x] Responsive on mobile
+- [x] Error states are clear
+
+---
+
+### ✅ Task 3.3: Integrate Metadata into Upload Map Modal
+
+**Actions:**
+1. Update `js/ui/upload-modal.js`:
+   - Import MetadataFormGenerator
+   - After map name field, add metadata section
+   - Query definitions: `getMetadataDefinitionsForEntity('map', scope)`
+   - Generate and insert metadata form
+   - If no definitions, show message: "No custom fields defined for maps"
+
+2. Update save logic:
+   - Extract metadata values from form
+   - Validate metadata before saving map
+   - Save map first, then save metadata values with mapId
+   - Handle errors gracefully
+
+3. Add to upload workflow:
+   - User uploads image → fills name → **fills metadata** → saves
+   - Metadata is optional unless fields are marked required
+
+**Files to modify:**
+- `js/ui/upload-modal.js`
+- `css/modals/upload.css` (if styling needed)
+
+**Acceptance Criteria:**
+- [x] Metadata section appears in upload modal
+- [x] Form generates correctly from definitions
+- [x] Values save to storage when map is saved
+- [x] Required validation works
+- [x] Empty state shows if no definitions
+- [x] No console errors
+
+---
+
+### ✅ Task 3.4: Integrate Metadata into Marker Details Modal
+
+**Actions:**
+1. Update `js/ui/marker-details-modal.js`:
+   - Import MetadataFormGenerator
+   - Add metadata section (after description, before photos)
+   - Two modes: View mode and Edit mode
+
+2. **View Mode** (when viewing existing marker):
+   - Fetch metadata values for marker
+   - Display in read-only format:
+     ```
+     Inscription Author: John Doe
+     Date Documented: 2026-02-05
+     Condition: Good
+     Verified: Yes
+     ```
+   - If no metadata, don't show section
+   - Only show metadata with a value
+   - Add "Edit" button to switch to edit mode
+
+3. **Edit Mode** (when creating or editing marker):
+   - Generate editable form
+   - Pre-fill with existing values
+   - Save/cancel buttons
+
+4. Update save logic:
+   - Save marker first
+   - Then save/update metadata values
+   - Refresh view mode after save
+
+**Files to modify:**
+- `js/ui/marker-details-modal.js`
+- `css/modals/marker-details.css`
+
+**Acceptance Criteria:**
+- [x] Metadata displays in view mode
+- [x] Edit mode shows editable form
+- [x] Values save correctly
+- [x] Switching modes works smoothly
+- [x] No metadata shows nothing (graceful)
+
+**Notes:**
+- Refactored marker-details-modal into modular structure first
+- Created marker-details-metadata.js for metadata handling
+- Implemented view/edit mode toggling
+- Integrated with MetadataFormGenerator
+
+---
+
+### ☐ Task 3.5: Design Decision: Photo Metadata Entry Location
+
+**DECISION: Photo metadata ONLY in gallery, NEVER during upload**
+
+**Rationale:**
+1. **Fast field workflow:** Adding photos (especially multiple) must be quick and uninterrupted
+2. **Accurate entry requires study:** Users need full-size photo view to enter accurate metadata
+3. **Existing pattern:** Marker details already uses gallery for photo viewing
+4. **Clear separation:** Upload = fast capture, Gallery = detailed review and annotation
+
+**Implementation:**
+- ❌ NO metadata form in upload modal
+- ✅ Metadata entry ONLY in photo gallery single-photo view
+- ✅ Edit button in single-photo view to toggle edit mode
+- ✅ Metadata displays read-only below photo info
+
+**This task is REPLACED by Task 3.6 (Gallery Integration)**
+
+---
+
+### ✅ Task 3.6: Add Metadata Display/Edit in Photo Gallery (PRIORITY)
+
+**Primary Entry Point for Photo Metadata**
+
+**Strategy:**
+Follow the same pattern as marker metadata integration:
+- Inline metadata view in photo overlay info
+- Toggle to edit mode with form
+- Save/cancel integrated with other photo actions
+
+**Actions:**
+
+1. **Create photo metadata helper module:** `js/ui/photo-gallery-metadata.js`
+   - `loadMetadata(storage, photoId)` - Load definitions and values
+   - `generateInlineViewHtml(definitions, values)` - Read-only display
+   - `generateInlineEditHtml(definitions, values)` - Edit form
+   - `saveMetadataValues(modal, storage, photoId, definitions)` - Validate and save
+   - Follow same pattern as `marker-details-metadata.js`
+
+2. **Update photo gallery single-photo view structure:**
+   - Add metadata view container in `.photo-overlay-info`
+   - Add metadata edit container (hidden initially)
+   - Add "Edit Photo" button to modal footer
+   - Add "Save" and "Cancel" buttons (hidden initially)
+
+3. **Implement view/edit toggle:**
+   - Edit button shows metadata form alongside existing photo info
+   - Save button validates and saves both filename (if editable) and metadata
+   - Cancel button reverts to view mode
+   - Pattern identical to marker details
+
+4. **Layout considerations:**
+   - Metadata displays below filename and marker info in overlay
+   - In edit mode, expand overlay or make scrollable if needed
+   - Mobile: ensure overlay doesn't obscure photo too much
+
+5. **Update `photo-gallery-modal.js`:**
+   - Import photo metadata helpers
+   - Load metadata when showing single photo
+   - Setup edit mode handlers
+   - Handle save/cancel actions
+
+**Files to create:**
+- `js/ui/photo-gallery-metadata.js` (new)
+
+**Files to modify:**
+- `js/ui/photo-gallery-modal.js`
+- `css/modals/photo-gallery.css`
+- `service-worker.js` (add new file to cache)
+
+**Acceptance Criteria:**
+- [x] Photo metadata displays in single-photo view
+- [x] "Edit Photo" button toggles edit mode
+- [x] Edit mode shows metadata form
+- [x] Values validate and save correctly
+- [x] Cancel reverts without saving
+- [x] Mobile layout doesn't obscure photo (uses scrollable overlay)
+- [x] Pattern matches marker details UX
+
+**Implementation Notes:**
+- Created `photo-gallery-metadata.js` with same pattern as `marker-details-metadata.js`
+- Metadata displays in photo overlay info below filename and marker
+- Edit mode shows form in overlay with dark theme styling
+- Overlay is scrollable (max-height: 40%) to accommodate metadata
+- Edit Photo/Save/Cancel buttons integrated into modal footer
+- Navigation and other actions disabled during edit mode
+- Storage parameter passed through from app-marker-photo-manager.js
+- Service worker updated to cache new file (v2026-02-06-29)
+
+**Manual Testing Checklist:**
+- [ ] Create photo metadata definitions in Settings → Metadata
+- [ ] Upload photo to a marker
+- [ ] Open photo gallery (via marker details photos or map gallery)
+- [ ] Verify metadata view shows in single-photo view overlay
+- [ ] Click "Edit Photo" button
+- [ ] Verify form appears with correct fields
+- [ ] Fill in metadata values (test required fields, validation)
+- [ ] Click "Save" and verify values persist
+- [ ] Reopen gallery and verify values display correctly
+- [ ] Test "Cancel" button reverts without saving
+- [ ] Test navigation disabled during edit mode
+- [ ] Test on mobile - verify overlay scrollable, doesn't obscure photo
+- [ ] Test with no metadata definitions (empty state)
+- [ ] Test with definitions but no values
+
+---
+
+### ☐ Task 3.11: Make Upload Modal Support Editing Existing Maps (EDIT MAP)
+
+**Problem:** Map-level metadata can only be entered when creating new maps via the Upload modal. There is no way to edit a map's name, description, or metadata after creation.
+
+**Solution:** Refactor the Upload Map modal to serve a dual purpose: creating new maps AND editing existing map data. When editing, the file upload step is skipped and the form is pre-filled with existing values.
+
+**Actions:**
+
+1. **Add `existingMap` parameter to `createUploadModal()` in `js/ui/upload-modal.js`:**
+   - Add optional `existingMap` parameter (null for new maps, map object for editing)
+   - When `existingMap` is provided:
+     - Change modal title to "Edit Map"
+     - Change primary button text to "Save Changes"
+     - Skip file selection step entirely (go directly to details step)
+     - Pre-fill name and description from `existingMap`
+     - Pre-fill "Set as active" checkbox based on `existingMap.isActive`
+     - Load and pre-fill existing metadata values via `storage.getMetadataValuesForEntity('map', existingMap.id)`
+     - Hide the "Back" button (no file re-selection needed)
+   - When `existingMap` is NOT provided (new map):
+     - Keep existing behavior unchanged (title "Upload New Map", button "Create Map")
+
+2. **Update save logic in `setupUploadModal()`:**
+   - Detect mode: if `existingMap` is present, call `onEdit` callback instead of `onUpload`
+   - Pass map ID, updated fields, and metadata values to the edit callback
+   - For edit mode, only pass changed data (not a full map object)
+
+3. **Add `onEditMap` callback in `js/app-settings.js` → `showSettings()`:**
+   - Add `onEditMap` to `settingsCallbacks` object
+   - Implement: calls `app.showEditMapModal(mapId)` (new method on app)
+   - Wire into the settings modal's map card callbacks
+
+4. **Add `showEditMapModal()` and `handleMapEdit()` in `js/app.js`:**
+   - `showEditMapModal(mapId)`: Fetch map from storage, open upload modal in edit mode with `existingMap`
+   - `handleMapEdit(mapId, updatedData, metadataValues)`: 
+     - Call `storage.updateMap(mapId, { name, description, isActive })` 
+     - Save/update metadata values (upsert pattern: delete existing values for entity, re-save)
+     - If `isActive` changed, call `storage.setActiveMap()`
+     - Refresh map list and display
+     - Show success notification
+
+5. **Add "Edit" button to map cards in `js/ui/uiRenderer.js`:**
+   - Add `onEditMap` callback to `createCardElement()` parameter list
+   - Add an "✏️ Edit" button in the map actions row (always visible, unlike Delete)
+   - Position: between Export and Delete buttons
+
+6. **Update `js/ui/modals.js` → `ModalManager.createUploadModal()`:**
+   - Add optional `existingMap` parameter, pass through to `createUploadModal()`
+   - Add optional `onEdit` callback parameter
+
+7. **Wire edit button in `js/ui/settings-modal.js`:**
+   - Pass `onEditMap` callback when calling `UIRenderer.createCardElement()`
+
+8. **CSS updates in `css/modals/upload.css`:**
+   - Ensure edit-mode styling is consistent (same form layout, just different header/button text)
+   - No major CSS changes expected
+
+**Files to create:**
+- None (all changes are modifications)
+
+**Files to modify:**
+- `js/ui/upload-modal.js` - Dual-mode support (primary changes)
+- `js/app.js` - `showEditMapModal()`, `handleMapEdit()`
+- `js/app-settings.js` - `onEditMap` callback in `showSettings()`
+- `js/ui/uiRenderer.js` - "Edit" button on map cards
+- `js/ui/modals.js` - Updated `createUploadModal()` signature
+- `js/ui/settings-modal.js` - Pass `onEditMap` to card renderer
+- `css/modals/upload.css` - Minor edits if needed
+- `service-worker.js` - Bump `CACHE_NAME`
+
+**Acceptance Criteria:**
+- [ ] Upload modal title shows "Edit Map" when editing, "Upload New Map" when creating
+- [ ] Edit mode skips file selection, goes directly to details step
+- [ ] Name, description, and "Set as active" are pre-filled with existing values
+- [ ] Existing metadata values are loaded and displayed in the form
+- [ ] "Back" button is hidden in edit mode
+- [ ] Save button reads "Save Changes" in edit mode
+- [ ] Saving updates the map in IndexedDB via `storage.updateMap()`
+- [ ] Metadata values are correctly saved/updated (old values replaced)
+- [ ] "Edit" button appears on map cards in Settings → Maps Management
+- [ ] Clicking "Edit" opens the modal in edit mode
+- [ ] Canceling edit does not modify the map
+- [ ] Creating new maps still works exactly as before (no regression)
+- [ ] Required field validation works in both modes
+- [ ] Zero console errors
+- [ ] Linting passes (`npm run lint`)
+
+**Manual Testing Checklist:**
+- [ ] Create a new map with metadata → verify it works as before
+- [ ] Open Settings → Maps Management → click "✏️ Edit" on a map
+- [ ] Verify modal shows "Edit Map" title and "Save Changes" button
+- [ ] Verify name and description are pre-filled
+- [ ] Verify metadata fields show existing values
+- [ ] Change name, description, and metadata values
+- [ ] Click "Save Changes" → verify success notification
+- [ ] Reopen edit modal → verify updated values persist
+- [ ] Test editing a map with no metadata definitions
+- [ ] Test editing a map that has metadata definitions but no values yet
+- [ ] Test "Set as active" toggle in edit mode
+- [ ] Test cancel in edit mode → verify no changes persisted
+- [ ] Test required metadata field validation in edit mode
+- [ ] Test on mobile viewport
+- [ ] Test with map that has markers → verify markers are unaffected
+- [ ] Test creating a brand new map → verify no regression
+
+---
+
+### ☐ Task 3.7: Implement Metadata Value Lifecycle Management
+
+**Actions:**
+1. Create helper methods in `app.js` or new module:
+   - `saveMetadataForEntity(entityType, entityId, formValues)`
+     - Validates values
+     - Saves or updates each value
+     - Returns success/failure
+   
+   - `loadMetadataForEntity(entityType, entityId)`
+     - Fetches all metadata values for entity
+     - Joins with definitions for display
+     - Returns array of {definition, value} pairs
+   
+   - `deleteMetadataForEntity(entityType, entityId)`
+     - Deletes all metadata values for entity
+     - Called when entity is deleted (already in storage cascade)
+
+2. Handle edge cases:
+   - Definition deleted but values exist → skip display
+   - Required field but no value → show warning/error
+   - Value type mismatch → handle gracefully
+
+**Files to modify:**
+- `js/app.js` or new `js/app-metadata-manager.js`
+
+**Acceptance Criteria:**
+- [ ] Helper methods implemented
+- [ ] Edge cases handled
+- [ ] Error handling in place
+- [ ] Logging for debugging
+
+---
+
+### ☐ Task 3.8: Add Empty State Messaging
+
+**Actions:**
+1. For each integration point, add friendly empty states:
+   - **No definitions**: "No custom fields defined. Add fields in Settings → Metadata."
+   - **No values**: Don't show metadata section (or show collapsed/optional)
+
+2. Make empty states actionable:
+   - Link to Settings → Metadata tab
+   - "Add Field" quick action (if feasible)
+
+**Files to modify:**
+- All modal files from previous tasks
+
+**Acceptance Criteria:**
+- [ ] Empty states are clear and helpful
+- [ ] Links to settings work
+- [ ] User understands why metadata section is empty/missing
+
+---
+
+### ☐ Task 3.9: Implement Validation and Error Handling
+
+**Actions:**
+1. Add real-time validation:
+   - Required fields turn red if empty and user tries to save
+   - Number fields reject non-numeric input
+   - Date fields use native validation
+   - Select fields require selection if required
+
+2. Show validation errors:
+   - Inline below field: "This field is required"
+   - Summary at top of form: "Please fix 2 errors"
+   - Prevent save until valid
+
+3. Handle save errors:
+   - If metadata save fails, show error but don't lose data
+   - Allow user to retry or skip metadata
+   - Log errors to console
+
+**Files to modify:**
+- `js/ui/metadata-form-generator.js`
+- All modal integration files
+
+**Acceptance Criteria:**
+- [ ] Required fields validated
+- [ ] Type validation works
+- [ ] Error messages are clear
+- [ ] User can recover from errors
+
+---
+
+### ☐ Task 3.10: Responsive Design Testing
+
+**Actions:**
+1. Test all metadata forms on mobile viewport (375px - 768px)
+2. Ensure:
+   - Forms are scrollable
+   - Inputs are touch-friendly
+   - Date pickers work on mobile
+   - Buttons are accessible
+
+3. Optimize for small screens:
+   - Stack labels above inputs
+   - Full-width inputs
+   - Adequate spacing for touch
+
+**Files to modify:**
+- `css/components/metadata-form.css`
+- Modal-specific CSS files
+
+**Acceptance Criteria:**
+- [ ] All forms usable on 375px viewport
+- [ ] No horizontal scrolling
+- [ ] Touch-friendly UI
+
+
+---
+
+## Manual Testing
+
+**After completing all tasks, perform these tests:**
+
+### Test 3.1: Upload Map with Metadata
+1. Create a map-level metadata definition (e.g., "Project Name" - text)
+2. Open Upload Map modal
+3. Fill map details and metadata field
+4. Save map
+5. Verify:
+   - [ ] Metadata field appears in modal
+   - [ ] Value saves to MetadataValues store
+   - [ ] Map saves successfully
+   - [ ] No console errors
+
+### Test 3.2: View Map Metadata (Future - when map details view exists)
+*Note: SnapSpot may not have a dedicated map details view yet*
+1. If map details view exists, open it
+2. Verify metadata displays
+3. Or check in console:
+   ```javascript
+   const values = await app.storage.getMetadataValuesForEntity('map', 'MAP_ID')
+   console.log(values)
+   ```
+4. Verify:
+   - [ ] Metadata values retrieved correctly
+
+### Test 3.3: Create Marker with Metadata
+1. Create marker-level definition (e.g., "Inscription Text" - text)
+2. Place a marker on map
+3. Open marker details
+4. Fill description and metadata field
+5. Save marker
+6. Verify:
+   - [ ] Metadata form appears in marker details
+   - [ ] Value saves correctly
+   - [ ] Marker saves successfully
+
+### Test 3.4: View Marker Metadata
+1. Open existing marker with metadata
+2. Verify:
+   - [ ] Metadata displays in read-only mode
+   - [ ] Values are correct
+   - [ ] "Edit" button shows
+
+### Test 3.5: Edit Marker Metadata
+1. Click "Edit" on marker metadata
+2. Change value
+3. Save
+4. Reopen marker
+5. Verify:
+   - [ ] Edit mode appears with form
+   - [ ] Value updates in storage
+   - [ ] Updated value displays in view mode
+
+### Test 3.6: Add Photo with Metadata
+1. Create photo-level definition (e.g., "Photo Notes" - text)
+2. Add photo to marker
+3. Fill photo metadata (wherever in UX)
+4. Save
+5. Verify:
+   - [ ] Metadata entry is accessible
+   - [ ] Value saves with photoId
+   - [ ] Photo saves successfully
+
+### Test 3.7: View/Edit Photo Metadata in Gallery
+1. Open photo gallery
+2. View photo with metadata
+3. Verify metadata displays
+4. Click edit and change value
+5. Save
+6. Verify:
+   - [ ] Metadata shows in gallery
+   - [ ] Edit works
+   - [ ] Value updates
+
+### Test 3.8: Required Field Validation
+1. Create required metadata field
+2. Try to save map/marker/photo without filling it
+3. Verify:
+   - [ ] Validation error shows
+   - [ ] Save is prevented
+   - [ ] Error message is clear
+
+### Test 3.9: Number Field Validation
+1. Create number field
+2. Try to enter text
+3. Verify:
+   - [ ] Input rejects non-numeric characters (or shows error)
+   - [ ] Only valid numbers accepted
+
+### Test 3.10: Date Field
+1. Create date field
+2. Open date picker
+3. Select date
+4. Save
+5. Verify:
+   - [ ] Date picker works (native HTML5 or custom)
+   - [ ] Date saves in ISO format
+   - [ ] Date displays correctly
+
+### Test 3.11: Boolean Field
+1. Create boolean field
+2. Check/uncheck checkbox
+3. Save
+4. Verify:
+   - [ ] Checkbox state saves correctly (true/false)
+   - [ ] Displays correctly in view mode ("Yes"/"No" or similar)
+
+### Test 3.12: Select Field
+1. Create select field with options
+2. Choose option from dropdown
+3. Save
+4. Verify:
+   - [ ] Dropdown shows all options
+   - [ ] Selected value saves
+   - [ ] Displays correctly in view mode
+
+### Test 3.13: Multiple Fields
+1. Create 3-4 different field types
+2. Fill all in marker details
+3. Save
+4. View
+5. Verify:
+   - [ ] All fields render
+   - [ ] All values save
+   - [ ] All values display correctly
+
+### Test 3.14: Global + Map-Specific Fields
+1. Create global field and map-specific field (both for markers)
+2. Create marker
+3. Verify:
+   - [ ] Both fields show in form
+   - [ ] Both values save
+   - [ ] Clear which is global vs map-specific (if shown)
+
+### Test 3.15: No Metadata Defined
+1. Clear all metadata definitions
+2. Open map upload modal
+3. Verify:
+   - [ ] No metadata section shows (or shows helpful message)
+   - [ ] Can still save map without metadata
+
+### Test 3.16: Metadata with No Values
+1. Create definitions but don't fill values
+2. View entity details
+3. Verify:
+   - [ ] No error occurs
+   - [ ] Metadata section gracefully handles empty values
+   - [ ] Or doesn't show if no values
+
+### Test 3.17: Mobile - Upload Map with Metadata
+1. Switch to mobile viewport (375px)
+2. Upload map and fill metadata
+3. Verify:
+   - [ ] Form is usable
+   - [ ] Inputs are touch-friendly
+   - [ ] Can scroll to all fields
+   - [ ] Save button accessible
+
+### Test 3.18: Mobile - Marker Metadata Entry
+1. On mobile viewport
+2. Create marker with metadata
+3. Verify:
+   - [ ] Form fits on screen
+   - [ ] Can switch between view and edit mode
+   - [ ] All field types work on mobile
+
+### Test 3.19: Mobile - Photo Metadata
+1. On mobile viewport
+2. Add photo with metadata
+3. Verify:
+   - [ ] Metadata entry is accessible
+   - [ ] Forms work properly
+   - [ ] Touch-friendly
+
+### Test 3.20: Error Recovery
+1. Fill metadata form
+2. Cause a save error (disconnect network, or mock error)
+3. Verify:
+   - [ ] Error message shows
+   - [ ] Data not lost
+   - [ ] User can retry
+
+---
+
+## Acceptance Criteria (Phase Complete)
+
+- [ ] All tasks marked complete (including Task 3.11: Edit Map)
+- [ ] All manual tests passed (Tasks 3.1-3.10 + Task 3.11)
+- [ ] Zero linting errors (`npm run lint`)
+- [ ] Metadata forms work for maps, markers, and photos
+- [ ] Map metadata can be created AND edited (not just at upload time)
+- [ ] Upload modal works for both new maps and editing existing maps
+- [ ] All field types render and validate correctly
+- [ ] Responsive design works on mobile
+- [ ] Empty states are user-friendly
+- [ ] Validation prevents invalid data
+- [ ] Documentation comments added
+
+---
+
+## Commit Messages
+
+**Phase 3 original:**
+```
+feat: add metadata entry forms to map/marker/photo modals
+
+- Create MetadataFormGenerator for dynamic form generation
+- Integrate metadata into Upload Map modal
+- Add metadata view/edit in Marker Details modal
+- Add metadata to photo upload and gallery
+- Implement validation for all field types
+- Add responsive design for mobile
+- Handle empty states gracefully
+
+Phase 3 of 6 for metadata system implementation.
+```
+
+**Task 3.11 (Edit Map):**
+```
+feat: add edit map modal for updating map metadata and details
+
+- Refactor upload modal to support both create and edit modes
+- Add edit button to map cards in Settings → Maps Management
+- Implement handleMapEdit() using storage.updateMap()
+- Pre-fill existing metadata values when editing
+- Support metadata value upsert on edit
+- Add showEditMapModal() to app.js
+
+Task 3.11 of Phase 3 metadata system.
+```
+
+---
+
+## Notes
+
+- Keep UX simple and unobtrusive - metadata should enhance, not complicate
+- Consider showing metadata section collapsed by default if there are many fields
+- Ensure metadata doesn't slow down primary workflows (map upload, marker creation)
+- Test performance with 10+ metadata fields
+- Consider adding "batch edit" for changing metadata on multiple markers (future enhancement)
+
+---
+
+**Next Phase:** [METADATA_PHASE_4_EXPORT_IMPORT.md](METADATA_PHASE_4_EXPORT_IMPORT.md) - Export/import metadata

@@ -234,12 +234,6 @@
   background-color: var(--bg-secondary);
 }
 
-.step-actions {
-  display: flex;
-  gap: var(--spacing-sm);
-  justify-content: flex-end;
-}
-
 .modal-footer .add-new-map-btn {
   width: 100%;
   max-width: 400px;

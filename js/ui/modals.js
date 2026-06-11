@@ -65,10 +65,13 @@ export class ModalManager {
      * Create upload modal for map file selection (delegates to upload-modal.js)
      * @param {Function} onUpload - Callback when file is uploaded
      * @param {Function} onCancel - Callback when upload is cancelled
+     * @param {Object} storage - MapStorage instance for metadata
+     * @param {Function} onEdit - Callback when existing map is edited (edit mode only)
+     * @param {Object} existingMap - Map object to edit (null for new map creation)
      * @returns {HTMLElement} - Modal element
      */
-  createUploadModal (onUpload, onCancel) {
-    return createUploadModal(this, onUpload, onCancel)
+  createUploadModal (onUpload, onCancel, storage = null, onEdit = null, existingMap = null) {
+    return createUploadModal(this, onUpload, onCancel, storage, onEdit, existingMap)
   }
 
   /**
@@ -196,7 +199,8 @@ export class ModalManager {
      * @param {Function} onDeletePhoto - Callback when a 'Delete Photo' button is clicked.
      * @param {Function} onViewPhoto - NEW: Callback when a photo thumbnail is clicked (receives photo.id).
      * @param {Function} onClose - Callback when the modal is closed.
-     * @returns {HTMLElement} - The created modal element.
+     * @param {Object} storage - MapStorage instance for metadata (optional).
+     * @returns {Promise<HTMLElement>} - The created modal element.
      */
   createMarkerDetailsModal (
     markerDetails,
@@ -206,9 +210,10 @@ export class ModalManager {
     onDeleteMarker,
     onDeletePhoto,
     onViewPhoto, // <-- NEW PARAMETER
-    onClose
+    onClose,
+    storage = null
   ) {
-    return createMarkerDetailsModal(this, markerDetails, onAddPhotos, onEditMarker, onSaveDescription, onDeleteMarker, onDeletePhoto, onViewPhoto, onClose)
+    return createMarkerDetailsModal(this, markerDetails, onAddPhotos, onEditMarker, onSaveDescription, onDeleteMarker, onDeletePhoto, onViewPhoto, onClose, storage)
   }
 
   createLineMarkerDetailsModal (markerData, callbacks) {
@@ -694,6 +699,15 @@ export class ModalManager {
               <h4>Full Map Export</h4>
               <button class="btn btn-primary" id="btn-export-complete" type="button">📊 Export Complete Map</button>
               <p class="text-secondary text-xs mt-sm">Exports the entire map, including all markers and photos.</p>
+              
+              <div class="form-group mt-md">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="include-metadata-checkbox" checked />
+                  <span class="checkmark"></span>
+                  Include custom metadata fields
+                </label>
+                <p class="text-secondary text-xs">Exports your custom metadata definitions and values. Uncheck to exclude metadata from the export.</p>
+              </div>
             </div>
 
             <hr class="my-md">
@@ -787,7 +801,8 @@ export class ModalManager {
 
     if (completeExportBtn) {
       completeExportBtn.addEventListener('click', () => {
-        closeAndResolve({ action: 'exportComplete' })
+        const includeMetadata = modal.querySelector('#include-metadata-checkbox')?.checked ?? true
+        closeAndResolve({ action: 'exportComplete', includeMetadata })
       })
     }
 

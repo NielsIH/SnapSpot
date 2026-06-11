@@ -98,6 +98,17 @@
   margin-bottom: 0;
 }
 
+/* Metadata view - style paragraphs like other info section paragraphs */
+#marker-metadata-view p {
+  line-height: 1.4;
+  margin-bottom: var(--spacing-xs);
+}
+
+/* Marker Metadata - Inline with marker info */
+.marker-metadata-edit {
+  margin-top: var(--spacing-sm);
+}
+
 .marker-description-display {
   display: inline-block;
   vertical-align: middle;

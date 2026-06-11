@@ -6,19 +6,24 @@
  */
 
 import { FileManager } from '../fileManager.js'
+import { MetadataFormGenerator } from './metadata-form-generator.js'
 
 // Export all upload modal functions
-export function createUploadModal (modalManager, onUpload, onCancel) {
+export function createUploadModal (modalManager, onUpload, onCancel, storage = null, onEdit = null, existingMap = null) {
+  const isEditMode = !!existingMap
+  const modalTitle = isEditMode ? 'Edit Map' : 'Upload New Map'
+  const primaryButtonText = isEditMode ? 'Save Changes' : 'Create Map'
+
   const modalHtml = `
     <div class="modal" id="upload-modal">
       <div class="modal-backdrop"></div>
       <div class="modal-content">
         <div class="modal-header">
-          <h3>Upload New Map</h3>
+          <h3>${modalTitle}</h3>
           <button class="modal-close" type="button" aria-label="Close">&times;</button>
         </div>
         <div class="modal-body">
-          <div class="upload-step" id="file-selection-step">
+          <div class="upload-step${isEditMode ? ' hidden' : ''}" id="file-selection-step">
             <div class="file-drop-zone" id="file-drop-zone">
               <div class="file-drop-content">
                 <div class="file-drop-icon">📁</div>
@@ -32,7 +37,7 @@ export function createUploadModal (modalManager, onUpload, onCancel) {
               </div>
             </div>
           </div>
-          <div class="upload-step hidden" id="file-details-step">
+          <div class="upload-step${isEditMode ? '' : ' hidden'}" id="file-details-step">
             <div class="file-preview">
               <div class="preview-image-container">
                 <img id="preview-image" alt="Map preview" />
@@ -65,6 +70,9 @@ export function createUploadModal (modalManager, onUpload, onCancel) {
                   Set as active map
                 </label>
               </div>
+              <div id="map-metadata-section" class="metadata-form-section">
+                <!-- Metadata form will be injected here -->
+              </div>
             </form>
           </div>
           <div class="upload-error hidden" id="upload-error">
@@ -76,13 +84,9 @@ export function createUploadModal (modalManager, onUpload, onCancel) {
         </div>
         <div class="modal-footer">
           <div class="modal-actions">
-            <div class="step-actions" id="file-selection-actions">
-              <button class="btn btn-secondary" id="cancel-upload-btn" type="button">Cancel</button>
-            </div>
-            <div class="step-actions hidden" id="file-details-actions">
-              <button class="btn btn-secondary" id="back-to-selection-btn" type="button">Back</button>
-              <button class="btn btn-primary" id="create-map-btn" type="button">Create Map</button>
-            </div>
+            <button class="btn btn-secondary${isEditMode ? ' hidden' : ''}" id="cancel-upload-btn" type="button">Cancel</button>
+            <button class="btn btn-secondary hidden" id="back-to-selection-btn" type="button">↩️ Back</button>
+            <button class="btn btn-primary" id="create-map-btn" type="button">💾 ${primaryButtonText}</button>
           </div>
         </div>
       </div>
@@ -94,14 +98,16 @@ export function createUploadModal (modalManager, onUpload, onCancel) {
   const modal = modalDoc.querySelector('.modal')
   document.body.appendChild(modal)
   modalManager.activeModals.add(modal)
-  setupUploadModal(modal, onUpload, onCancel, modalManager)
+  setupUploadModal(modal, onUpload, onCancel, modalManager, storage, onEdit, existingMap)
   requestAnimationFrame(() => modal.classList.add('show'))
   return modal
 }
 
-export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
+export function setupUploadModal (modal, onUpload, onCancel, modalManager, storage = null, onEdit = null, existingMap = null) {
+  const isEditMode = !!existingMap
   let selectedFile = null
   let processedData = null
+  let metadataDefinitions = []
 
   const closeBtn = modal.querySelector('.modal-close')
   const backdrop = modal.querySelector('.modal-backdrop')
@@ -218,6 +224,60 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
   backBtn.addEventListener('click', () => showSelectionStep(modal))
 
   const handleSubmit = async () => {
+    // Edit mode: validate and call onEdit
+    if (isEditMode) {
+      if (!nameInput.value.trim()) {
+        showError(modal, 'Map name is required')
+        nameInput.focus()
+        return
+      }
+
+      let metadataValues = []
+      if (storage && metadataDefinitions.length > 0) {
+        const metadataSection = modal.querySelector('#map-metadata-section')
+        if (metadataSection) {
+          const validation = MetadataFormGenerator.validateForm(metadataSection, metadataDefinitions)
+          if (!validation.valid) {
+            showError(modal, 'Please fix metadata errors before saving.')
+            return
+          }
+        }
+      }
+
+      try {
+        showLoading(modal, 'Saving changes...')
+        const updatedData = {
+          name: nameInput.value.trim(),
+          description: descInput.value.trim(),
+          isActive: activeCheckbox.checked
+        }
+
+        if (storage && metadataDefinitions.length > 0) {
+          const metadataSection = modal.querySelector('#map-metadata-section')
+          if (metadataSection) {
+            metadataValues = MetadataFormGenerator.extractValues(
+              metadataSection,
+              metadataDefinitions,
+              'map',
+              existingMap.id
+            )
+            updatedData.metadata = metadataValues
+          }
+        }
+
+        if (onEdit) await onEdit(existingMap.id, updatedData)
+        closeModal()
+      } catch (error) {
+        console.error('Map edit error:', error)
+        showDebugMessage(`❌ Edit failed: ${error.message}`)
+        showError(modal, error.message)
+      } finally {
+        hideLoading(modal)
+      }
+      return
+    }
+
+    // Create mode: original behavior
     if (!processedData || !selectedFile) {
       showError(modal, 'No file selected')
       return
@@ -227,6 +287,20 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
       nameInput.focus()
       return
     }
+
+    // Validate metadata if storage is available
+    let metadataValues = []
+    if (storage && metadataDefinitions.length > 0) {
+      const metadataSection = modal.querySelector('#map-metadata-section')
+      if (metadataSection) {
+        const validation = MetadataFormGenerator.validateForm(metadataSection, metadataDefinitions)
+        if (!validation.valid) {
+          showError(modal, 'Please fix metadata errors before saving.')
+          return
+        }
+      }
+    }
+
     try {
       showLoading(modal, 'Creating map...')
       const finalData = {
@@ -235,6 +309,22 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
         description: descInput.value.trim(),
         isActive: activeCheckbox.checked
       }
+
+      // Extract metadata values (but don't save yet - onUpload will get the map ID first)
+      if (storage && metadataDefinitions.length > 0) {
+        const metadataSection = modal.querySelector('#map-metadata-section')
+        if (metadataSection) {
+          // Create a temporary ID that will be replaced by the actual map ID
+          metadataValues = MetadataFormGenerator.extractValues(
+            metadataSection,
+            metadataDefinitions,
+            'map',
+            'TEMP_ID' // Will be replaced with actual mapId in onUpload
+          )
+          finalData.metadata = metadataValues
+        }
+      }
+
       if (onUpload) await onUpload(finalData, selectedFile)
       closeModal()
     } catch (error) {
@@ -252,6 +342,69 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
     handleSubmit()
   })
   nameInput.addEventListener('focus', () => showError(modal, ''))
+
+  // Initialize edit mode: pre-fill form with existing map data
+  if (isEditMode) {
+    initEditMode(modal)
+  }
+
+  async function initEditMode (modal) {
+    // Pre-fill name and description
+    if (nameInput) nameInput.value = existingMap.name || ''
+    if (descInput) descInput.value = existingMap.description || ''
+    if (activeCheckbox) activeCheckbox.checked = !!existingMap.isActive
+
+    // Populate file preview from existing map data
+    const previewImg = modal.querySelector('#preview-image')
+    const fileNameEl = modal.querySelector('#file-name')
+    const fileSizeEl = modal.querySelector('#file-size')
+    const fileDimensionsEl = modal.querySelector('#file-dimensions')
+
+    if (previewImg) {
+      // Use existing map's imageData for preview
+      // imageData may be a Base64 string (from storage directly) or a Blob (from getMap)
+      if (existingMap.imageData) {
+        if (typeof existingMap.imageData === 'string') {
+          previewImg.src = existingMap.imageData
+        } else if (existingMap.imageData instanceof Blob) {
+          previewImg.src = URL.createObjectURL(existingMap.imageData)
+        }
+      } else if (existingMap.thumbnailDataUrl) {
+        previewImg.src = existingMap.thumbnailDataUrl
+      }
+    }
+    if (fileNameEl) fileNameEl.textContent = existingMap.fileName || 'Existing map'
+    if (fileSizeEl) fileSizeEl.textContent = fileManager.formatFileSize(existingMap.fileSize || 0)
+    if (fileDimensionsEl) fileDimensionsEl.textContent = `${existingMap.width || '?'} x ${existingMap.height || '?'} pixels`
+
+    // Load metadata definitions and existing values
+    if (storage) {
+      try {
+        metadataDefinitions = await storage.getMetadataDefinitionsForEntity('map', 'global')
+        console.log('UploadModal (edit): Map-level global definitions:', metadataDefinitions)
+
+        const existingValues = await storage.getMetadataValuesForEntity('map', existingMap.id)
+        console.log('UploadModal (edit): Existing metadata values:', existingValues)
+
+        const metadataSection = modal.querySelector('#map-metadata-section')
+        if (metadataSection) {
+          if (metadataDefinitions.length > 0) {
+            const formHtml = MetadataFormGenerator.generateForm(metadataDefinitions, existingValues, 'map')
+            metadataSection.innerHTML = `
+              <h4>Additional Information</h4>
+              ${formHtml}
+            `
+          } else {
+            metadataSection.innerHTML = ''
+          }
+        }
+      } catch (error) {
+        console.error('Error loading metadata for edit mode:', error)
+      }
+    }
+
+    setTimeout(() => modal.querySelector('#map-name').focus(), 100)
+  }
 
   function addManualStrategyButtons (modal, fileManager, handleFileSelect, showDebugMessage) {
     const dropZone = modal.querySelector('#file-drop-zone')
@@ -297,27 +450,62 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
     nameInput.value = processedData.name
   }
 
-  function showDetailsStep (modal) {
+  async function showDetailsStep (modal) {
     const selectionStep = modal.querySelector('#file-selection-step')
     const detailsStep = modal.querySelector('#file-details-step')
-    const selectionActions = modal.querySelector('#file-selection-actions')
-    const detailsActions = modal.querySelector('#file-details-actions')
+    const cancelBtn = modal.querySelector('#cancel-upload-btn')
+    const backBtn = modal.querySelector('#back-to-selection-btn')
+    const createBtn = modal.querySelector('#create-map-btn')
     selectionStep.classList.add('hidden')
     detailsStep.classList.remove('hidden')
-    selectionActions.classList.add('hidden')
-    detailsActions.classList.remove('hidden')
+    if (cancelBtn) cancelBtn.classList.add('hidden')
+    if (backBtn) backBtn.classList.remove('hidden')
+    if (createBtn) createBtn.classList.remove('hidden')
+
+    // Load and generate metadata form
+    if (storage) {
+      try {
+        metadataDefinitions = await storage.getMetadataDefinitionsForEntity('map', 'global')
+        console.log('UploadModal: Map-level global definitions:', metadataDefinitions)
+
+        const metadataSection = modal.querySelector('#map-metadata-section')
+        if (metadataSection) {
+          if (metadataDefinitions.length > 0) {
+            // For new maps, pass empty existing values
+            const formHtml = MetadataFormGenerator.generateForm(metadataDefinitions, [], 'map')
+            console.log('UploadModal: Generated form HTML:', formHtml.substring(0, 200))
+            metadataSection.innerHTML = `
+              <h4>Additional Information</h4>
+              ${formHtml}
+            `
+          } else {
+            console.log('UploadModal: No map-level metadata definitions found')
+            metadataSection.innerHTML = '' // No definitions, hide section
+          }
+        } else {
+          console.warn('UploadModal: #map-metadata-section not found in DOM')
+        }
+      } catch (error) {
+        console.error('Error loading metadata definitions:', error)
+      }
+    } else {
+      console.warn('UploadModal: Storage not provided to modal')
+    }
+
     setTimeout(() => modal.querySelector('#map-name').focus(), 100)
   }
 
   function showSelectionStep (modal) {
     const selectionStep = modal.querySelector('#file-selection-step')
     const detailsStep = modal.querySelector('#file-details-step')
-    const selectionActions = modal.querySelector('#file-selection-actions')
-    const detailsActions = modal.querySelector('#file-details-actions')
+    const cancelBtn = modal.querySelector('#cancel-upload-btn')
+    const backBtn = modal.querySelector('#back-to-selection-btn')
+    const createBtn = modal.querySelector('#create-map-btn')
     selectionStep.classList.remove('hidden')
     detailsStep.classList.add('hidden')
-    selectionActions.classList.remove('hidden')
-    detailsActions.classList.add('hidden')
+    if (cancelBtn) cancelBtn.classList.remove('hidden')
+    if (backBtn) backBtn.classList.add('hidden')
+    if (createBtn) createBtn.classList.add('hidden')
   }
 
   function showError (modal, message) {
@@ -350,6 +538,6 @@ export function setupUploadModal (modal, onUpload, onCancel, modalManager) {
       inputs.forEach((input) => { input.disabled = false })
     }
     const createBtn = modal.querySelector('#create-map-btn')
-    if (createBtn) createBtn.textContent = 'Create Map'
+    if (createBtn) createBtn.textContent = isEditMode ? '💾 Save Changes' : '💾 Create Map'
   }
 }

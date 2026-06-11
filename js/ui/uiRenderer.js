@@ -50,6 +50,10 @@ export class UIRenderer {
 
         const exportJsonButton = `<button class="btn map-action-btn export-json-btn" data-id="${itemData.id}" title="Export JSON Map">💾 <span class="btn-text">Export</span></button>` // Always available
 
+        const editButton = callbacks.onEditMap
+          ? `<button class="btn map-action-btn edit-map-btn" data-id="${itemData.id}" title="Edit Map">✏️ <span class="btn-text">Edit</span></button>`
+          : ''
+
         const deleteButton = !isActive // Conditional display for Delete (not active map)
           ? `<button class="btn map-action-btn delete-map-btn" data-id="${itemData.id}" title="Delete Map">🗑️ <span class="btn-text">Delete</span></button>`
           : ''
@@ -57,6 +61,7 @@ export class UIRenderer {
         actionsHtml = `
             <div class="map-item-actions-wrapper">
                 ${viewImageButton}
+                ${editButton}
                 ${exportHtmlButton}
                 ${exportJsonButton}
                 ${deleteButton}
@@ -149,6 +154,10 @@ export class UIRenderer {
         e.stopPropagation() // Prevent li click from firing
         if (callbacks.onMapDelete) await callbacks.onMapDelete(itemData.id)
         if (callbacks.onSettingsModalRefresh) await callbacks.onSettingsModalRefresh('maps-management-settings')
+      })
+      li.querySelector('.edit-map-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation() // Prevent li click from firing
+        if (callbacks.onEditMap) callbacks.onEditMap(itemData.id)
       })
     }
 
