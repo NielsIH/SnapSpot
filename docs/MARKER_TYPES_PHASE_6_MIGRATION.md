@@ -61,14 +61,15 @@ Finalize the custom marker types feature with migration, polish, and documentati
    - Built-in types use fixed IDs (`builtin-photo-marker`, `builtin-line-marker`)
 
 2. In `js/storage.js`, `updateMarkerTypeDefinition()`:
-   - If `definition.isBuiltIn === true`: only allow updating `color` and `size` fields
-   - Block changes to `name`, `shape`, `hasDirection`, `scope`, `isBuiltIn`
+   - If `definition.isBuiltIn === true`: only allow updating `color` field
+   - Block changes to `name`, `shape`, `size`, `behavior`, `supportsPhotos`, `scope`, `isBuiltIn`, `isPreset`
    - If attempt to change blocked fields: throw error with descriptive message
+   - If `definition.isPreset === true` (but not isBuiltIn): only allow toggling enabled state. Block all field edits (presets are immutable — duplicate to customize).
 
-3. In `js/ui/marker-type-definition-modal.js`:
-   - When editing a built-in type: shape picker disabled, direction toggle disabled, name field read-only, scope hidden
-   - Only color swatches and size selector are interactive
-   - Title shows "Edit Photo Marker Color" instead of "Edit Photo Marker"
+3. In the settings UI (Phase 2):
+   - When editing a built-in type: only color is editable
+   - Preset types: no edit button (immutable). User duplicates to create a custom variant.
+   - Title for built-in edit: "Edit Photo Marker Color"
 
 4. In the settings list:
    - Built-in types show "(default)" badge
@@ -83,7 +84,7 @@ Finalize the custom marker types feature with migration, polish, and documentati
 **Acceptance Criteria:**
 - [ ] Cannot delete built-in "Photo Marker" or "Line Marker"
 - [ ] Can edit color and size of built-in types
-- [ ] Cannot change shape, name, or hasDirection of built-in types
+- [ ] Cannot change shape, name, or behavior of built-in types
 - [ ] UI reflects restrictions (disabled inputs, hidden buttons)
 - [ ] Console shows descriptive error if programmatic attempt is made
 
@@ -132,17 +133,17 @@ async getMarkerCountByType(typeId) {
 
 **Actions:**
 1. Verify that `renderLineConnectors()` in `mapRenderer.js` still works:
-   - It keys off `marker.type === 'line'` and `marker.lineGroupId`
-   - This is independent of the marker type definition system
+   - It keys off `behavior === 'line-pair'` and `marker.lineGroupId`
+   - This is independent of the visual type definition system
    - No changes needed
 
 2. Verify that the line marker details modal (`js/ui/line-marker-details-modal.js`) still works:
-   - It keys off `marker.type === 'line'`
+   - It keys off `marker.type === 'line'` (legacy) or `behavior === 'line-pair'` (new)
    - No changes needed for Phase 6
 
 3. Document this in code comments:
-   - Note that line connectors and line marker editing are still based on `marker.type === 'line'`
-   - A future phase could generalize line/polygon support into the type definition system
+   - Note that line connectors and line marker editing use behavior dispatch
+   - A future `behavior: 'area'` would add polygon rendering here
 
 **Files to verify:**
 - `js/mapRenderer.js` — `renderLineConnectors()`

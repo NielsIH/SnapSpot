@@ -36,11 +36,18 @@ function getEffectiveTypeDef(marker, typeDefs) {
   
   // 2. Otherwise, infer from legacy marker.type
   if (marker.type === 'line') {
-    return typeDefs.get('builtin-line-marker')  // Line Marker built-in
+    return typeDefs.get('builtin-line-marker')  // Line Marker built-in (behavior: line-pair)
   }
   
-  // 3. Default: Photo Marker built-in
-  return typeDefs.get('builtin-photo-marker')   // Photo Marker built-in
+  // 3. Default: Photo Marker built-in (behavior: point)
+  return typeDefs.get('builtin-photo-marker')
+}
+
+// Behavior dispatch — replaces all `marker.type === 'line'` checks:
+function getBehavior(marker, typeDef) {
+  if (marker.markerTypeId && typeDef) return typeDef.behavior
+  if (marker.type === 'line') return 'line-pair'
+  return 'point'
 }
 ```
 
@@ -202,30 +209,26 @@ This ensures the arrow always points to the same geographic direction regardless
 **Actions:**
 1. Refactor `drawMarker(x, y, number, marker)`:
 
-2. **Remove the binary `marker.type === 'line'` check** at the start.
-
-3. **Add type definition lookup:**
+2. **Replace the binary `marker.type === 'line'` check** with behavior dispatch:
 ```javascript
 const typeDef = this.getEffectiveTypeDef(marker)
+const behavior = getBehavior(marker, typeDef)
 ```
 
-4. **Replace the existing line marker branch** with shape-based dispatch:
+3. **Use behavior to determine rendering path:**
 ```javascript
-switch (typeDef.shape) {
-  case 'circle':
-    this._drawCircleMarker(x, y, radius, color, borderColor, number, ...)
-    break
-  case 'square':
-    this._drawSquareMarker(x, y, radius, color, borderColor, number, ...)
-    break
-  case 'diamond':
-    this._drawDiamondMarker(x, y, radius, color, borderColor, number, ...)
-    break
-  case 'arrow':
-    this._drawArrowMarker(x, y, radius, color, marker, ...)
-    break
+if (behavior === 'line-pair') {
+  // Existing diamond + line connector rendering
+  this._drawDiamondMarker(...)
+} else {
+  // Shape-based dispatch for point behavior
+  switch (typeDef.shape) {
+    case 'circle':  this._drawCircleMarker(...); break
+    case 'square':  this._drawSquareMarker(...); break
+    case 'diamond': this._drawDiamondMarker(...); break
+    case 'arrow':   this._drawArrowMarker(...); break
+  }
 }
-```
 
 5. **Extract helper methods** for each shape (keep `drawMarker` clean):
    - `_drawCircleMarker(x, y, radius, fillColor, borderColor, number, ...)`
@@ -284,9 +287,10 @@ _darkenColor(hex, factor) {
    - Arrowhead width: `radius * 0.8` on each side
    - Arrowhead height: `radius * 0.8` (from tip back toward center)
 
-3. Rotation:
+3. Rotation (direction derived from behavior + shape, not a stored field):
 ```javascript
-const direction = marker.direction || 0
+const hasDirection = typeDef.behavior === 'point' && typeDef.shape === 'arrow'
+const direction = hasDirection ? (marker.direction || 0) : 0
 const effectiveDirection = (direction + this.currentMapRotation) % 360
 
 ctx.save()

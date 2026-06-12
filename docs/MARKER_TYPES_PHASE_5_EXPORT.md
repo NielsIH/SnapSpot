@@ -57,11 +57,13 @@ Implement full export and import support for marker type definitions:
       color: '#3b82f6',
       size: 'normal',
       label: 'Dir',
-      hasDirection: true,
+      behavior: 'point',
+      supportsPhotos: true,
       scope: 'global',
       isBuiltIn: false,
-      createdDate: '2026-06-11T...',
-      lastModified: '2026-06-11T...'
+      isPreset: false,
+      createdDate: '2026-06-12T...',
+      lastModified: '2026-06-12T...'
     }
   ]
 }
@@ -97,9 +99,11 @@ From Settings → Marker Types → "Export Types":
       color: '#3b82f6',
       size: 'normal',
       label: 'Dir',
-      hasDirection: true,
+      behavior: 'point',
+      supportsPhotos: true,
       scope: 'global',
       isBuiltIn: false,
+      isPreset: false,
       createdDate: '2026-06-11T...',
       lastModified: '2026-06-11T...'
     }
@@ -163,9 +167,11 @@ if (customMarkerTypes && customMarkerTypes.length > 0) {
     color: typeDef.color,
     size: typeDef.size || 'normal',
     label: typeDef.label || '',
-    hasDirection: typeDef.hasDirection || false,
+    behavior: typeDef.behavior,
+    supportsPhotos: typeDef.supportsPhotos,
     scope: typeDef.scope,
     isBuiltIn: typeDef.isBuiltIn || false,
+    isPreset: typeDef.isPreset || false,
     createdDate: typeDef.createdDate,
     lastModified: typeDef.lastModified
   }))

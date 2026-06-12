@@ -19,27 +19,65 @@ Design and implement the storage layer for custom marker types:
 
 ---
 
+## Design Decisions
+
+### Separation of Visual and Behavioral Properties
+
+A marker type has two independent dimensions:
+- **Visual (paint):** shape, color, label — how it looks on the map
+- **Behavior:** what the marker *does* — how it's placed, whether it supports photos, whether it has direction
+
+This separation is captured by the `behavior` field, which acts as a dispatch key throughout the codebase. Adding a new behavior (e.g., `area` for polygon markers) in the future only requires adding new branches at dispatch points — no schema migration needed.
+
+### Preset Library
+
+The app ships with a curated set of 6 pre-defined marker types covering common use cases. Users toggle them on/off — no configuration needed for most. A stripped-down custom type form (name, shape, color, label) is available as an escape hatch.
+
+---
+
 ## Data Model Specification
 
 ### MarkerTypeDefinition Object
 
-**Purpose:** Describes a marker type that controls how a marker looks and behaves on the map.
+**Purpose:** Describes a marker type that controls how a marker looks (visual) and behaves (behavioral) on the map.
 
 ```javascript
 {
-  id: 'uuid',                       // crypto.randomUUID()
-  name: 'Direction Arrow',          // User-facing type name (required)
-  shape: 'arrow',                   // 'circle' | 'square' | 'diamond' | 'arrow' (required)
-  color: '#3b82f6',                 // Hex color string (required, default '#e53e3e')
-  size: 'normal',                   // 'small' | 'normal' | 'large' (default: 'normal')
-  label: 'Dir',                     // Short label displayed on map (optional, max 4 chars)
-  hasDirection: true,               // Whether this type supports rotation (auto-true for arrow)
-  scope: 'global',                  // 'global' or mapId string (required)
+  // Identity
+  id: 'uuid',                       // crypto.randomUUID() (or fixed ID for built-ins)
+  name: 'Hazard Zone',              // User-facing type name (required)
   isBuiltIn: false,                 // True for built-in defaults (Photo Marker, Line Marker)
-  createdDate: '2026-06-11T...',    // ISO timestamp
-  lastModified: '2026-06-11T...'    // ISO timestamp
+  isPreset: true,                   // True for pre-defined library types, false for user-created
+
+  // Visual (paint)
+  shape: 'square',                  // 'circle' | 'square' | 'diamond' | 'arrow' (required)
+  color: '#f59e0b',                 // Hex color string (required)
+  size: 'normal',                   // 'small' | 'normal' | 'large' (default: 'normal')
+  label: 'HZ',                      // Short label displayed on map (optional, max 4 chars)
+
+  // Behavioral
+  behavior: 'point',                // 'point' | 'line-pair' (extensible enum)
+  supportsPhotos: true,             // Whether markers of this type can have photo attachments
+
+  // Metadata
+  scope: 'global',                  // 'global' or mapId string (required)
+  createdDate: '2026-06-12T...',    // ISO timestamp
+  lastModified: '2026-06-12T...'    // ISO timestamp
 }
 ```
+
+**Behavior Types:**
+
+| `behavior` | Placement | Rendering | Photos | Direction |
+|------------|-----------|-----------|--------|-----------|
+| `point` | Single tap at crosshair | Shape at coordinate | ✅ Yes | If shape=arrow |
+| `line-pair` | Two markers at offset from center | Shape + connecting line | ❌ No | ❌ No |
+
+The `behavior` enum is extensible. Future additions (e.g., `area` for polygon markers) follow the same pattern: add a new value, implement placement/rendering dispatch, no schema migration.
+
+**Derived Properties (not stored):**
+- `hasDirection` → `behavior === 'point' && shape === 'arrow'`
+- `supportsPhotos` is stored explicitly (not derived) for future-proofing — a future behavior might not want photos even if it's not `line-pair`
 
 **Shape Types:**
 - `'circle'` — Rounded marker (rendered via ctx.arc())
@@ -58,9 +96,30 @@ Design and implement the storage layer for custom marker types:
 - `color`: Required, must be valid hex color (#RRGGBB or #RGB)
 - `size`: Optional, defaults to 'normal', must be: small, normal, large
 - `label`: Optional, max 4 characters (displayed on map next to marker)
-- `hasDirection`: Boolean, auto-set to true for arrow shape, false for others. User cannot change — it's derived from shape.
+- `behavior`: Required, must be one of: point, line-pair
+- `supportsPhotos`: Boolean, defaults to true. Only false for line-pair.
 - `scope`: Required, either 'global' or valid mapId
-- `isBuiltIn`: Boolean, defaults to false. Only true for auto-created defaults.
+- `isBuiltIn`: Boolean, defaults to false. Only true for auto-created defaults (Photo Marker, Line Marker).
+- `isPreset`: Boolean, defaults to false. True for pre-defined library types. Presets can be toggled on/off, duplicated, but not deleted.
+
+### Pre-defined Preset Library
+
+Six types ship with the app. Users toggle them on/off in Settings:
+
+```javascript
+const PRESET_MARKER_TYPES = [
+  { id: 'builtin-photo-marker',   name: 'Photo Marker',      shape: 'circle',  color: '#ef4444', behavior: 'point',     isBuiltIn: true, isPreset: true },
+  { id: 'builtin-line-marker',    name: 'Line Marker',       shape: 'diamond', color: '#e53e3e', behavior: 'line-pair', isBuiltIn: true, isPreset: true, supportsPhotos: false },
+  { id: 'preset-point-interest',  name: 'Point of Interest', shape: 'circle',  color: '#22c55e', behavior: 'point',     isPreset: true },
+  { id: 'preset-hazard-zone',     name: 'Hazard Zone',       shape: 'square',  color: '#f59e0b', behavior: 'point',     isPreset: true },
+  { id: 'preset-direction-arrow', name: 'Direction Arrow',   shape: 'arrow',   color: '#3b82f6', behavior: 'point',     isPreset: true }
+]
+```
+
+- Built-in types (Photo Marker, Line Marker): always present, cannot be deleted, shape locked, color editable
+- Preset types: can be toggled on/off, cannot be deleted (but can be duplicated to create a custom variant)
+- User-created types: full edit/delete, `isPreset: false`
+- Only enabled types appear in the "Place Custom" popup and as options for default type
 
 ### Marker Schema Extensions
 
@@ -76,10 +135,22 @@ Design and implement the storage layer for custom marker types:
 
 **Interpretation:**
 - `markerTypeId === null` → marker uses implicit built-in type based on `marker.type`:
-  - `type === 'line'` → "Line Marker" built-in (diamond)
-  - otherwise → "Photo Marker" built-in (circle)
-- `markerTypeId` set → marker uses the specified type definition for rendering
-- `direction` is only meaningful for arrow types; ignored for other shapes
+  - `type === 'line'` → "Line Marker" built-in (diamond, `behavior: line-pair`)
+  - otherwise → "Photo Marker" built-in (circle, `behavior: point`)
+- `markerTypeId` set → marker uses the specified type definition for rendering and behavior
+- `direction` is only meaningful when the effective type has `behavior === 'point' && shape === 'arrow'`; ignored for other combinations
+
+**Behavior dispatch (used throughout the codebase):**
+```javascript
+function getBehavior(marker, typeDef) {
+  if (marker.markerTypeId && typeDef) return typeDef.behavior
+  if (marker.type === 'line') return 'line-pair'
+  return 'point'
+}
+```
+All code that currently checks `marker.type === 'line'` should instead check `behavior === 'line-pair'`. This is the single dispatch point that future behaviors (e.g., `area`) extend.
+
+**Photos:** All marker types support photo attachments EXCEPT those with `supportsPhotos: false` (currently only line-pair behavior). `supportsPhotos` is stored explicitly on the type definition rather than derived from behavior, ensuring future behaviors can independently control photo support without code changes.
 
 ---
 
@@ -116,16 +187,16 @@ Design and implement the storage layer for custom marker types:
    - `addMarkerTypeDefinition(definition)` — Create new type definition
    - `getMarkerTypeDefinition(id)` — Get by ID
    - `getAllMarkerTypeDefinitions()` — Get all definitions
+   - `getEnabledMarkerTypeDefinitions()` — Get only enabled (toggled-on) types for the Place Custom popup
    - `getMarkerTypeDefinitionsByScope(scope)` — Get global or map-specific
    - `getMarkerTypeDefinitionsForMap(mapId)` — Get global + map-specific (used for marker placement picker)
    - `updateMarkerTypeDefinition(definition)` — Update existing
    - `deleteMarkerTypeDefinition(id)` — Delete (with reference check)
 
 2. Implement validation in each method:
-   - Check required fields: name, shape, color, scope
-   - Validate shape enum values
+   - Check required fields: name, shape, color, behavior, scope
+   - Validate shape and behavior enum values
    - Validate color hex format
-   - Auto-set hasDirection based on shape
    - Validate label max length (4 chars)
 
 3. Follow the same async/await + transaction pattern used by existing metadata definition methods.
@@ -136,50 +207,56 @@ Design and implement the storage layer for custom marker types:
 **Acceptance Criteria:**
 - [ ] All CRUD methods implemented with proper IndexedDB transactions
 - [ ] Input validation with descriptive error messages
-- [ ] `hasDirection` auto-derived from shape (arrow=true, others=false)
 - [ ] Async/await pattern consistent with existing storage methods
 - [ ] Console logging for debugging (follow existing patterns)
 
 ---
 
-### ☐ Task 1.3: Auto-Create Built-in Definitions
+### ☐ Task 1.3: Auto-Create Preset Library Definitions
 
 **Actions:**
-1. In `onupgradeneeded`, after creating the `markerTypeDefinitions` store, insert two built-in definitions:
+1. In `onupgradeneeded`, after creating the `markerTypeDefinitions` store, insert all 5 preset types:
 
 ```javascript
-{
-  id: 'builtin-photo-marker',
-  name: 'Photo Marker',
-  shape: 'circle',
-  color: '#ef4444',       // Red-500 (matches current editable+photos color)
-  size: 'normal',
-  label: '',
-  hasDirection: false,
-  scope: 'global',
-  isBuiltIn: true,
-  createdDate: new Date().toISOString(),
-  lastModified: new Date().toISOString()
-}
-
-{
-  id: 'builtin-line-marker',
-  name: 'Line Marker',
-  shape: 'diamond',
-  color: '#e53e3e',       // Red-600 (matches current line marker default)
-  size: 'normal',
-  label: '',
-  hasDirection: false,
-  scope: 'global',
-  isBuiltIn: true,
-  createdDate: new Date().toISOString(),
-  lastModified: new Date().toISOString()
-}
+const PRESETS = [
+  {
+    id: 'builtin-photo-marker', name: 'Photo Marker',
+    shape: 'circle', color: '#ef4444', size: 'normal', label: '',
+    behavior: 'point', supportsPhotos: true,
+    scope: 'global', isBuiltIn: true, isPreset: true
+  },
+  {
+    id: 'builtin-line-marker', name: 'Line Marker',
+    shape: 'diamond', color: '#e53e3e', size: 'normal', label: '',
+    behavior: 'line-pair', supportsPhotos: false,
+    scope: 'global', isBuiltIn: true, isPreset: true
+  },
+  {
+    id: 'preset-point-interest', name: 'Point of Interest',
+    shape: 'circle', color: '#22c55e', size: 'normal', label: '',
+    behavior: 'point', supportsPhotos: true,
+    scope: 'global', isPreset: true
+  },
+  {
+    id: 'preset-hazard-zone', name: 'Hazard Zone',
+    shape: 'square', color: '#f59e0b', size: 'normal', label: '',
+    behavior: 'point', supportsPhotos: true,
+    scope: 'global', isPreset: true
+  },
+  {
+    id: 'preset-direction-arrow', name: 'Direction Arrow',
+    shape: 'arrow', color: '#3b82f6', size: 'normal', label: '',
+    behavior: 'point', supportsPhotos: true,
+    scope: 'global', isPreset: true
+  }
+]
 ```
 
-2. Use fixed IDs (`builtin-photo-marker`, `builtin-line-marker`) so the code can reference them without lookups.
+2. Use fixed IDs for lookups (`builtin-photo-marker`, `builtin-line-marker`, `preset-*`).
 
-3. Only create if they don't already exist (idempotent migration — check store count first, or use `put` which overwrites).
+3. Only create if they don't already exist (idempotent — use `put` or check count first).
+
+4. Add a `localStorage` key for each preset's enabled state (e.g., `markerType_enabled_preset-hazard-zone`). Built-in types are always enabled; presets default to enabled but can be toggled.
 
 **Files to modify:**
 - `js/storage.js`
@@ -207,12 +284,13 @@ markerTypeDefinition: ['id', 'name', 'shape', 'color', 'scope', 'createdDate']
 
 4. Add validation for MarkerTypeDefinition objects:
    - `validateMarkerTypeDefinition(definition, index)` function
+   - Validate `behavior` is one of: point, line-pair
+   - Validate `supportsPhotos` (if present) is boolean
    - Validate shape is one of: circle, square, diamond, arrow
    - Validate color is a valid hex string
    - Validate scope is 'global' or a non-empty string (mapId)
    - Validate size (if present) is: small, normal, large
-   - Validate hasDirection (if present) is boolean
-   - Validate isBuiltIn (if present) is boolean
+   - Validate isBuiltIn / isPreset (if present) are booleans
    - Validate label (if present) is string, max 4 chars
 
 5. Add optional marker fields validation:
@@ -280,8 +358,8 @@ markerTypeDefinition: ['id', 'name', 'shape', 'color', 'scope', 'createdDate']
 - [ ] Try creating a definition with invalid shape — should error
 - [ ] Try creating a definition with invalid hex color — should error
 - [ ] Try creating a definition missing required fields — should error
-- [ ] Verify arrow shape auto-sets hasDirection: true
-- [ ] Verify non-arrow shapes auto-set hasDirection: false
+- [ ] Verify arrow shape auto-derives direction support (behavior=point + shape=arrow)
+- [ ] Verify non-arrow shapes do not get direction support
 
 ### Test 4: Validator v1.3
 - [ ] Create a valid v1.3 export JSON manually with markerTypeDefinitions

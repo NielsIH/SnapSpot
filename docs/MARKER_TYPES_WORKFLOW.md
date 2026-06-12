@@ -71,13 +71,13 @@
 **Estimated Duration:** 1-2 days
 
 **Deliverables:**
-- ☐ Add "Marker Types" tab/section to Settings modal
-- ☐ Create marker type definition modal (name, shape, color, size, label, direction toggle)
-- ☐ Shape picker with visual icons (circle, square, diamond, arrow)
-- ☐ Color picker (preset swatches + custom hex)
-- ☐ Live preview canvas in definition modal
-- ☐ Global vs map-specific scope management
-- ☐ Built-in type protection (lock shape, disable delete)
+- ☐ "Marker Types" tab in Settings with preset toggle grid
+- ☐ Preset library: Photo Marker, Line Marker (built-in) + Point of Interest, Hazard Zone, Direction Arrow
+- ☐ Toggle presets on/off (state persisted to localStorage)
+- ☐ Edit built-in colors (Photo Marker, Line Marker)
+- ☐ Stripped-down custom type form (name, shape, color, label — 4 fields)
+- ☐ Default marker type selector in Settings
+- ☐ Export/Import type definition buttons (placeholders until Phase 5)
 - ☐ Manual UI tests
 
 ---
@@ -105,12 +105,13 @@
 **Estimated Duration:** 1-2 days
 
 **Deliverables:**
-- ☐ Type picker UI when placing a marker (quick-select from available types)
-- ☐ Update placeMarker() to accept markerTypeId
-- ☐ Default selection: "Photo Marker" built-in type
-- ☐ Direction rotation control for arrow markers in marker details modal
-- ☐ 4-way cardinal direction quick-select buttons (N/S/E/W)
-- ☐ Numeric direction input (0-360°) with live preview
+- ☐ Replace "Place Line" button with "Place Custom" button in toolbar
+- ☐ Type picker popup on "Place Custom" (all non-default types + line pair + create new)
+- ☐ "Place Marker" button always places default type (Photo Marker, configurable)
+- ☐ Default marker type setting in Settings → Marker Types tab
+- ☐ Update placeMarker() to accept markerTypeId parameter
+- ☐ Direction rotation slider (0-360°) with live preview canvas in marker details modal
+- ☐ Subtle cardinal snap detents (0/90/180/270) on slider
 - ☐ Display marker type info (name + shape icon) in marker details modal
 - ☐ Allow type change for existing markers (with compatibility constraints)
 - ☐ Manual creation and direction tests
@@ -160,26 +161,31 @@
 **MarkerTypeDefinition:**
 ```javascript
 {
-  id: 'uuid',                       // crypto.randomUUID()
-  name: 'Direction Arrow',          // User-facing type name
-  shape: 'arrow',                   // 'circle' | 'square' | 'diamond' | 'arrow'
-  color: '#3b82f6',                 // Hex color string
+  id: 'uuid',                       // crypto.randomUUID() (fixed IDs for built-ins/presets)
+  name: 'Hazard Zone',              // User-facing type name
+  shape: 'square',                  // 'circle' | 'square' | 'diamond' | 'arrow'
+  color: '#f59e0b',                 // Hex color string
   size: 'normal',                   // 'small' | 'normal' | 'large'
-  label: 'Dir',                     // Short label displayed on map (optional, max 4 chars)
-  hasDirection: true,               // Whether this type supports rotation (auto-true for arrow)
-  scope: 'global',                  // 'global' or mapId string
-  isBuiltIn: false,                 // True for "Photo Marker" and "Line Marker" defaults
-  createdDate: '2026-06-11T...',
-  lastModified: '2026-06-11T...'
+  label: 'HZ',                      // Short label displayed on map (optional, max 4 chars)
+  behavior: 'point',                // 'point' | 'line-pair' (extensible enum)
+  supportsPhotos: true,             // Whether markers of this type can have photo attachments
+  scope: 'global',                  // 'global' (map-specific dropped for simplicity)
+  isBuiltIn: false,                 // True for Photo Marker and Line Marker defaults
+  isPreset: true,                   // True for pre-defined library types
+  createdDate: '2026-06-12T...',
+  lastModified: '2026-06-12T...'
 }
 ```
+
+**Derived properties (not stored):**
+- `hasDirection` → `behavior === 'point' && shape === 'arrow'`
 
 **Marker (extended):**
 ```javascript
 {
   // ... existing fields ...
   markerTypeId: 'uuid' | null,      // FK → MarkerTypeDefinition.id (null = use built-in default)
-  direction: 45 | null              // Rotation in degrees 0-360 (only for hasDirection types)
+  direction: 45 | null              // Rotation in degrees 0-360 (only when behavior=point & shape=arrow)
 }
 ```
 
@@ -218,7 +224,8 @@
       color: '#3b82f6',
       size: 'normal',
       label: 'Dir',
-      hasDirection: true,
+      behavior: 'point',
+      supportsPhotos: true,
       scope: 'global',
       isBuiltIn: false,
       createdDate: '2026-06-11T...',
@@ -282,7 +289,7 @@ Marker type definitions control **how a marker looks and behaves** on the map. M
 Custom marker types CAN have photos attached, just like the default "Photo Marker" type. The `markerTypeId` field on a marker is orthogonal to whether it has photos — a marker of any type can have `photoIds[]`.
 
 ### 4. Direction/Rotation
-Only arrow-shaped types support direction (`hasDirection: true`). Direction is stored in degrees (0-360) with 0° pointing up/north. Rotation is applied via `ctx.rotate()` at render time and accounts for map rotation transformations.
+Only arrow-shaped point markers support direction (`behavior: 'point'` + `shape: 'arrow'`). Direction is stored in degrees (0-360) with 0° pointing up/north. Rotation is applied via `ctx.rotate()` at render time and accounts for map rotation transformations.
 
 ### 5. Scope Model
 - **Global** marker types appear for all maps (e.g., "Direction Arrow")

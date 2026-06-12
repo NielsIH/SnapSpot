@@ -8,58 +8,92 @@
 
 ---
 
+## Design Rationale
+
+Custom marker placement is **sporadic** — the vast majority of markers will use the default "Photo Marker" type. Showing a type picker on every placement would be constant friction for the 90% case.
+
+**Design decision:** Two separate toolbar buttons with clear intent:
+
+- **📌 Place Marker** — Always places the **default marker type** (Photo Marker, configurable in Settings). Single tap, zero friction.
+- **✦ Place Custom** — Opens a type picker popup. For the occasional custom marker or line pair.
+
+The old dedicated "Place Line" button is removed; line placement is now accessed through the Custom picker.
+
+---
+
 ## Goals
 
-Integrate custom marker types into the marker creation and editing workflow:
-1. Show a type picker when the user places a new marker
-2. Update `placeMarker()` to accept a `markerTypeId`
-3. Update `placeLinePair()` to optionally use a custom diamond type
-4. Add direction rotation control to marker details modal for arrow markers
-5. Display marker type info in the marker details modal
-6. Allow changing a marker's type after creation
+1. Add a **"Place Custom" button** that opens a type picker popup with all non-default marker types
+2. Remove the dedicated **"Place Line" button**; fold line placement into the Custom picker as "Line Marker (pair)"
+3. **"Place Marker" button** always places the default type (Photo Marker, configurable via `app.defaultMarkerTypeId`)
+4. Add a **default marker type setting** in Settings → Marker Types tab
+5. Update `placeMarker()` to accept a `markerTypeId` parameter
+6. Add direction rotation control to marker details modal for arrow markers
+7. Display marker type info in the marker details modal
+8. Allow changing a marker's type after creation
 
 ---
 
 ## UI Design Specification
 
-### Type Picker on Marker Placement
-
-When the user clicks the "Place Marker" button (crosshair mode), instead of immediately placing a marker, show a type selection panel:
+### Toolbar Layout
 
 ```
-┌──────────────────────────────────┐
-│ Select Marker Type          [X]  │
-├──────────────────────────────────┤
-│                                  │
-│  ● Photo Marker (default)        │
-│  ■ Hazard Zone                   │
-│  ◆ Line Marker                   │
-│  ▲ Direction Arrow               │
-│                                  │
-│  [+ Create New Type...]          │
-│                                  │
-└──────────────────────────────────┘
+Desktop:
+[🔍 Maps] [+][−] [📌 Place Marker] [✦ Place Custom] [🔒 Locked] [📏 Size] [🔄 Rotate]
+
+Mobile (<480px, zoom already hidden):
+[🔍] [📌] [✦] [🔒] [📏] [🔄]
 ```
 
-- This could be a floating panel anchored near the place button, or a quick modal
-- Each type shows its shape icon, name, and color swatch
-- Clicking a type immediately places a marker of that type at the crosshair center
-- "Create New Type" opens the marker type definition modal (Phase 2), then returns to picker
-- Default selection: "Photo Marker" (built-in)
+### "Place Custom" Type Picker Popup
 
-**Alternative simpler approach (recommended for Phase 4):**
-Instead of a type picker panel, add a dropdown/selector next to the "Place Marker" button in the toolbar. The user pre-selects a type, then each tap places a marker of that type. This is simpler and supports rapid placement of same-type markers.
+Tapping **✦ Place Custom** opens a popup anchored near the button:
 
 ```
-Toolbar:
-[🗺️ Maps] [📌 Place Marker] [▼ Photo Marker] [📏 Place Line] [🔒 Lock]
+┌──────────────────────────────┐
+│ ● Hazard Zone                │
+│ ▲ Direction Arrow            │
+│ ───────────────────────────  │
+│ ♦ Line Marker  (pair)        │
+│ ───────────────────────────  │
+│ + Create New Type...         │
+└──────────────────────────────┘
 ```
 
-Clicking the dropdown shows available types with icons and colors.
+Key behaviors:
+- Each entry shows: **shape icon + name + color swatch**
+- The default Photo Marker is **not listed** (use the main "Place Marker" button for that)
+- **"Line Marker (pair)"** is listed with a `(pair)` suffix to indicate it places two connected markers
+- Selecting a point type (Hazard Zone, Direction Arrow, etc.) → **places one marker** of that type at the crosshair and dismisses the popup
+- Selecting "Line Marker (pair)" → triggers the existing **line pair placement flow** (two markers with offset) and dismisses the popup
+- **"+ Create New Type"** → opens the marker type definition modal (Phase 2), returns to map after save
+- Popup dismisses on: selection made, tapping outside, or pressing Escape
+
+### Default Marker Type Setting (Settings → Marker Types)
+
+In the Marker Types tab of Settings, add a "Default Marker Type" selector:
+
+```
+┌──────────────────────────────────────────┐
+│ Default Marker Type                      │
+│                                          │
+│  [● Photo Marker           ▼]           │
+│                                          │
+│  This type is used when tapping          │
+│  "Place Marker" in the toolbar.          │
+└──────────────────────────────────────────┘
+```
+
+- Lists all available marker types (global + map-specific)
+- Default: "Photo Marker" (built-in)
+- The built-in "Line Marker" is excluded from the dropdown (line markers use the pair placement flow)
+- Stored as `app.defaultMarkerTypeId` in localStorage
+- When changed, the "Place Marker" button's tooltip updates to reflect the current default
 
 ### Direction Control in Marker Details Modal
 
-For markers with `hasDirection: true` (arrow types), the marker details modal shows a rotation control:
+For markers whose type supports direction (`behavior === 'point' && shape === 'arrow'`), the marker details modal shows a rotation slider in edit mode:
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -72,20 +106,16 @@ For markers with `hasDirection: true` (arrow types), the marker details modal sh
 │                                              │
 │  ── Direction ──────────────────────────────│
 │                                              │
-│  Rotation:                                   │
-│  [▲ 0°] [▶ 90°] [▼ 180°] [◀ 270°]         │
-│  (cardinal direction quick-select buttons)   │
+│       ┌──────────┐                           │
+│       │    ▲     │   Live preview            │
+│       │   ╱ ╲    │   rotates in real-time    │
+│       │   ▏▕     │   as slider moves         │
+│       └──────────┘                           │
 │                                              │
-│  Custom: [ 45]° (numeric input)              │
+│  0°  ├────────●───────────┤  360°            │
+│             45°                               │
 │                                              │
-│  ┌────────────────┐                          │
-│  │   ▲            │  Live preview canvas     │
-│  │   │            │  showing arrow at        │
-│  │   │            │  current direction       │
-│  └────────────────┘                          │
-│                                              │
-│  Description:                                │
-│  [North wall inscription____________]        │
+│  (drag the slider to rotate)                 │
 │                                              │
 │  ── Photos ─────────────────────────────────│
 │  ...                                         │
@@ -95,61 +125,103 @@ For markers with `hasDirection: true` (arrow types), the marker details modal sh
 └──────────────────────────────────────────────┘
 ```
 
+Key behaviors:
+- **Linear range slider** (0–360), styled touch-friendly: thick track, large thumb
+- **Live preview canvas** (~72×72px) above the slider, updating in real-time as the slider moves
+- **Current value** displayed below the thumb as degrees
+- **Snap behavior** (optional): subtle detents at 0°/90°/180°/270° — the slider lightly "catches" at cardinals but doesn't lock
+- **Touch:** natural thumb drag on the slider
+- **Desktop:** drag thumb, click track to jump, or use keyboard arrows (1°) / Shift+arrow (15°)
+- **View mode:** direction shown as static text: "Direction: 45°" (no slider)
+- **Edit mode only:** slider + preview appear only when editing
+- Direction changes mark the form as dirty but do NOT auto-save
+
 ---
 
 ## Tasks
 
-### ☐ Task 4.1: Add Type Selector to Toolbar
+### ☐ Task 4.1: Replace "Place Line" Button with "Place Custom" Button
 
 **Actions:**
-1. In the toolbar (likely in `index.html` or generated by `app.js`), add a type selector dropdown next to the "Place Marker" button.
+1. In `index.html`, replace the existing "Place Line" button (`id="btn-place-line"`) with a new "Place Custom" button:
 
-2. The dropdown lists all marker types available for the current map (global + map-specific):
-   - Each option shows: shape icon (Unicode) + name + small color swatch
-   - Built-in "Photo Marker" is always first and selected by default
-   - Built-in "Line Marker" could be shown but grayed out (line markers use their own placement flow)
+```html
+<button class="btn btn-primary control-btn" id="btn-place-custom">
+    ✦ <span class="btn-text">Place Custom</span>
+</button>
+```
 
-3. The selected type is stored as `app.selectedMarkerTypeId` (default: `'builtin-photo-marker'`).
+2. In `js/app.js`, replace the `placeLineBtn` event listener with a new `placeCustomBtn` listener that opens the type picker popup:
 
-4. When a marker type is created, edited, or deleted in settings, refresh the dropdown.
+```javascript
+const placeCustomBtn = document.getElementById('btn-place-custom')
+if (placeCustomBtn) {
+  placeCustomBtn.addEventListener('click', () => openCustomTypePicker(this))
+}
+```
 
-5. When switching maps, refresh for map-specific types.
+3. Create the `openCustomTypePicker(app)` function in `js/app-marker-photo-manager.js`:
+   - Queries all marker types via `app.storage.getAllMarkerTypeDefinitions()`
+   - Filters out the current default type (avoids redundancy with the main "Place Marker" button)
+   - Renders a popup anchored near the "Place Custom" button
+   - Each entry: shape icon (Unicode) + name + small color swatch
+   - "Line Marker (pair)" entry triggers `placeLinePair(app)` on selection
+   - Other point types trigger `placeMarker(app, { markerTypeId })` on selection
+   - "+ Create New Type" opens the Phase 2 definition modal
+   - Popup dismisses on: selection made, outside click, or Escape
+
+4. Style the popup in `css/components.css`:
+   - Compact dropdown list anchored below the button
+   - Touch-friendly row height (min 44px per row)
+   - Color swatch as a small circle (12×12px) next to each entry
+   - Subtle divider before "Line Marker (pair)" and "+ Create New Type"
+   - Backdrop overlay to catch outside clicks
+
+5. Mobile considerations:
+   - On narrow screens, the popup should be full-width below the toolbar
+   - Popup rows large enough for finger taps
+   - The popup must work reliably on iOS Safari
 
 **Files to modify:**
-- `index.html` (toolbar structure)
-- `js/app.js` (toolbar initialization, type loading)
-- `css/components.css` (dropdown styling)
+- `index.html` (replace `btn-place-line` with `btn-place-custom`)
+- `js/app.js` (replace line button listener with custom button listener)
+- `js/app-marker-photo-manager.js` (add `openCustomTypePicker()`)
+- `css/components.css` (type picker popup styling)
 
 **Acceptance Criteria:**
-- [ ] Type dropdown visible next to "Place Marker" button
-- [ ] Lists all available types with shape icon + name + color
-- [ ] Default selection is "Photo Marker"
-- [ ] Selection persists across marker placements (user doesn't re-select each time)
-- [ ] Refreshes when types change or map changes
-- [ ] Works on mobile (touch-friendly dropdown)
+- [ ] "Place Line" button removed, "Place Custom" button present
+- [ ] Tapping "Place Custom" opens popup with all non-default marker types
+- [ ] Selecting a point type places one marker of that type at crosshair
+- [ ] Selecting "Line Marker (pair)" triggers the line pair placement flow
+- [ ] "+ Create New Type" opens the definition modal
+- [ ] Popup dismisses on outside click and Escape
+- [ ] Popup works on mobile (touch-friendly, iOS Safari)
+- [ ] Popup refreshes when types are added/deleted in Settings
 
 ---
 
-### ☐ Task 4.2: Update `placeMarker()` and `placeLinePair()`
+### ☐ Task 4.2: Update `placeMarker()` and Add Default Type Support
 
 **Actions:**
-1. In `js/app-marker-photo-manager.js`, update `placeMarker(app)`:
+1. In `js/app-marker-photo-manager.js`, update `placeMarker(app)` to accept an optional options parameter:
 
 ```javascript
-export async function placeMarker(app) {
+export async function placeMarker(app, options = {}) {
   // ... existing validation ...
+
+  const markerTypeId = options.markerTypeId || app.defaultMarkerTypeId || null
 
   const newMarker = {
     mapId: app.currentMap.id,
     x: mapCoords.x,
     y: mapCoords.y,
     description: `Marker at ${mapCoords.x.toFixed(0)}, ${mapCoords.y.toFixed(0)}`,
-    markerTypeId: app.selectedMarkerTypeId || null  // NEW
+    markerTypeId  // null = legacy/default Photo Marker behavior
   }
 
-  // If the selected type has hasDirection, initialize direction to 0
-  if (app.selectedMarkerTypeId) {
-    const typeDef = await app.storage.getMarkerTypeDefinition(app.selectedMarkerTypeId)
+  // If the type has hasDirection, initialize direction to 0
+  if (markerTypeId) {
+    const typeDef = await app.storage.getMarkerTypeDefinition(markerTypeId)
     if (typeDef && typeDef.hasDirection) {
       newMarker.direction = 0
     }
@@ -159,66 +231,103 @@ export async function placeMarker(app) {
 }
 ```
 
-2. For `placeLinePair()`, the line markers should always use the built-in "Line Marker" type:
-```javascript
-markerTypeId: 'builtin-line-marker'
-```
-(This is implicit via `type: 'line'` — no code change needed unless we want to be explicit.)
+2. Add `app.defaultMarkerTypeId` property in `js/app.js`:
+   - Initialize from `localStorage.getItem('defaultMarkerTypeId')` (default: `null` = Photo Marker)
+   - When `null`, the "Place Marker" button places a legacy Photo Marker (no `markerTypeId`)
+   - The button tooltip/label reflects the current default type name
 
-3. Ensure `addMarker()` in `js/storage.js` accepts `markerTypeId` and `direction` as optional fields (IndexedDB is schema-flexible, so no DB change needed — just pass them through).
+3. Add a "Default Marker Type" selector in the Marker Types tab of Settings:
+   - Modify `js/ui/settings-modal.js` (or the Phase 2 marker type settings section)
+   - Dropdown lists all available types excluding "Line Marker" built-in
+   - Changing the selection updates `app.defaultMarkerTypeId` and persists to localStorage
+   - Updating the default refreshes the "Place Marker" button tooltip
+
+4. In `js/app.js`, update the "Place Marker" button click handler to pass the default type:
+
+```javascript
+placeMarkerBtn.addEventListener('click', () => placeMarker(this, {
+  markerTypeId: this.defaultMarkerTypeId
+}))
+```
+
+5. Ensure `addMarker()` in `js/storage.js` accepts `markerTypeId` and `direction` as optional fields (IndexedDB is schema-flexible — no DB change needed, just pass them through).
+
+6. For `placeLinePair()`: when triggered from the Custom picker, explicitly set `markerTypeId: 'builtin-line-marker'` on the line markers.
 
 **Files to modify:**
-- `js/app-marker-photo-manager.js`
+- `js/app-marker-photo-manager.js` (update `placeMarker` signature, add `openCustomTypePicker`)
+- `js/app.js` (add `defaultMarkerTypeId`, update button handler)
+- `js/ui/settings-modal.js` (add default type selector)
 
 **Acceptance Criteria:**
-- [ ] Placing a marker with a custom type sets markerTypeId correctly
-- [ ] Placing a marker with "Photo Marker" selected sets markerTypeId to null (legacy behavior)
-- [ ] Arrow types auto-initialize direction to 0
-- [ ] Non-arrow types do not get a direction property
+- [ ] `placeMarker()` with no options uses `app.defaultMarkerTypeId`
+- [ ] `placeMarker()` with `{ markerTypeId: 'custom-id' }` uses that type
+- [ ] `defaultMarkerTypeId = null` places legacy Photo Markers (backward compatible)
+- [ ] Arrow types auto-initialize `direction` to 0
+- [ ] Non-arrow types do not get a `direction` property
+- [ ] Default type selector works in Settings and persists to localStorage
+- [ ] Changing default type updates "Place Marker" button tooltip
 - [ ] Existing marker placement still works (no regression)
+- [ ] `placeLinePair()` sets `markerTypeId: 'builtin-line-marker'`
 
 ---
 
-### ☐ Task 4.3: Add Direction Control to Marker Details Modal
+### ☐ Task 4.3: Add Direction Slider to Marker Details Modal
 
 **Actions:**
-1. In `js/ui/marker-details-renderer.js`, detect if the marker's type has `hasDirection: true`:
+1. In `js/ui/marker-details-renderer.js`, detect if the marker's type supports direction:
+   ```javascript
+   const hasDirection = typeDef && typeDef.behavior === 'point' && typeDef.shape === 'arrow'
+   ```
 
-2. When `hasDirection` is true, add a "Direction" section to the marker details HTML:
-   - 4 cardinal direction quick-select buttons:
-     ```
-     [▲ 0°] [▶ 90°] [▼ 180°] [◀ 270°]
-     ```
-     Each is a styled button. Clicking one updates the direction and triggers a live update.
+2. When direction is supported and the modal is in **edit mode**, add a Direction section:
+
+   a. **Live preview canvas** (~72×72px):
+      - Renders a small arrow at the current direction using the same arrow-drawing logic as `mapRenderer.js`
+      - Updates in real-time as the slider moves (no debounce needed — canvas redraw is cheap)
+      - Neutral background (e.g., `#f9fafb`) with subtle border to separate from the form
    
-   - Custom numeric input:
-     ```
-     Custom: [___]°
-     ```
-     Accepts 0-360. Updates on blur and on Enter key.
+   b. **Range slider** (0–360):
+      - `<input type="range" min="0" max="360" value="0" step="1">`
+      - Styled with custom CSS: thick track (~8px), large thumb (~28px for touch)
+      - Thumb shows current value via a data attribute or adjacent label
+      - Optional: subtle tick marks or snap detents at cardinal angles (0/90/180/270)
+      - Keyboard accessible: left/right arrows change by 1°, Shift+arrow by 15°
    
-   - Small live preview canvas (~80×80px) showing the arrow at the current direction.
+   c. **Current value display:**
+      - A label below or beside the slider showing `{value}°`
+      - Updates on `input` event (live) not just `change` (on release)
 
-3. The direction controls are only visible in **edit mode** (not in view mode). In view mode, show direction as static text: "Direction: 45°".
+3. In **view mode**: show direction as static text — "Direction: 45°". No slider, no preview.
 
-4. Add event handlers for the direction controls:
-   - Cardinal button click → set direction, update preview, mark form as dirty
-   - Numeric input change → validate (0-360), set direction, update preview, mark dirty
-   - Direction changes should NOT auto-save — they're part of the edit/save flow
+4. Event handling in `js/ui/marker-details-actions.js`:
+   - Slider `input` event → update preview canvas + value label
+   - Slider `change` event → mark form as dirty (direction changed)
+   - Direction changes do NOT auto-save — they're saved when the user clicks "Save"
+
+5. CSS styling in `css/modals/marker-details.css`:
+   - Custom slider track and thumb (vendor-prefixed: `-webkit-slider-thumb`, `-moz-range-thumb`)
+   - Slider track color matches the marker's color for visual connection
+   - Touch-friendly: thumb at least 28×28px, track at least 8px tall
+   - Preview canvas: subtle rounded border, light background
 
 **Files to modify:**
-- `js/ui/marker-details-renderer.js` (HTML generation)
-- `js/ui/marker-details-actions.js` (event handlers for direction controls)
-- `css/modals/marker-details.css` (styling for direction controls)
+- `js/ui/marker-details-renderer.js` (HTML generation for direction section)
+- `js/ui/marker-details-actions.js` (event handlers for slider + preview)
+- `css/modals/marker-details.css` (slider styling, preview canvas)
 
 **Acceptance Criteria:**
 - [ ] Direction section appears for arrow-type markers in edit mode
 - [ ] Direction section does NOT appear for non-arrow markers
-- [ ] Cardinal buttons set direction to 0/90/180/270
-- [ ] Numeric input accepts 0-360 with validation
-- [ ] Live preview canvas updates in real-time
-- [ ] Direction is saved when user clicks "Save"
-- [ ] In view mode, direction shown as static text
+- [ ] Slider range is 0–360 with 1° increments
+- [ ] Live preview canvas updates in real-time as slider moves
+- [ ] Current value label shows degrees and updates live
+- [ ] Slider is touch-friendly (large thumb, smooth drag)
+- [ ] Slider is keyboard accessible (arrow keys, Shift+arrow)
+- [ ] Subtle snap/catch at cardinal angles (0/90/180/270) — optional enhancement
+- [ ] Direction is saved when user clicks "Save" (not on slider release)
+- [ ] In view mode, direction shown as static text only
+- [ ] Works on iOS Safari (range input + canvas compatibility)
 
 ---
 
@@ -281,54 +390,78 @@ markerTypeId: 'builtin-line-marker'
 
 ## Manual Testing Checklist
 
-### Test 1: Type Selector Dropdown
-- [ ] Open the type dropdown in the toolbar
-- [ ] Verify built-in "Photo Marker" and "Line Marker" appear
-- [ ] Verify any custom types appear
-- [ ] Select "Direction Arrow" type
-- [ ] Place a marker → verify it renders as an arrow
-- [ ] Select "Photo Marker" type
-- [ ] Place a marker → verify it renders as a circle
-
-### Test 2: Default Type Placement
-- [ ] With "Photo Marker" selected, place several markers
-- [ ] Verify they all show as circles with numbers
+### Test 1: Default Placement (Zero Friction)
+- [ ] Tap "Place Marker" → verify a Photo Marker (circle) is placed at crosshair
+- [ ] Tap "Place Marker" 5 times rapidly → verify all 5 are circles with sequential numbers
+- [ ] Verify no popup, picker, or extra step appears (single tap = marker placed)
 - [ ] Verify markerTypeId is null on each (check via console)
 
-### Test 3: Arrow Marker with Direction
-- [ ] Place an arrow marker
-- [ ] Open its details modal
-- [ ] Click Edit
-- [ ] Verify direction section appears
-- [ ] Click "▶ 90°" button → verify preview updates
-- [ ] Enter "45" in custom input → verify preview updates
-- [ ] Click Save
-- [ ] Close and reopen modal → verify direction shows "45°"
+### Test 2: Custom Type Placement
+- [ ] Tap "✦ Place Custom" → verify popup appears with all non-default types
+- [ ] Verify Photo Marker is NOT in the popup (it's the default button)
+- [ ] Verify each entry shows: shape icon + name + color swatch
+- [ ] Verify "Line Marker (pair)" entry has the (pair) suffix
+- [ ] Tap "Hazard Zone" → verify one square marker placed at crosshair, popup dismissed
+- [ ] Tap "✦ Place Custom" → tap "Direction Arrow" → verify one arrow marker placed, popup dismissed
+- [ ] Tap "✦ Place Custom" → tap "Line Marker (pair)" → verify line pair placement flow runs
+
+### Test 3: Popup Dismissal
+- [ ] Open "✦ Place Custom" popup → tap outside → verify popup dismisses
+- [ ] Open "✦ Place Custom" popup → press Escape → verify popup dismisses
+- [ ] Open "✦ Place Custom" popup → tap a type → verify marker placed AND popup dismissed
+
+### Test 4: Default Type Setting
+- [ ] Open Settings → Marker Types tab
+- [ ] Verify "Default Marker Type" selector exists
+- [ ] Verify it defaults to "Photo Marker"
+- [ ] Change default to "Hazard Zone"
+- [ ] Close Settings → tap "Place Marker" → verify Hazard Zone (square) marker placed
+- [ ] Change default back to "Photo Marker" → tap "Place Marker" → verify Photo Marker placed
+- [ ] Verify Line Marker is NOT in the default type dropdown
+- [ ] Verify setting persists after page reload
+
+### Test 5: Arrow Marker with Direction Slider
+- [ ] Place an arrow marker via "Place Custom"
+- [ ] Open its details modal → click Edit
+- [ ] Verify direction section appears with slider and live preview
+- [ ] Verify slider starts at 0° and preview shows arrow pointing up
+- [ ] Drag slider to 90° → verify preview rotates to point right in real-time
+- [ ] Drag slider to 180° → verify preview points down
+- [ ] Drag slider to 270° → verify preview points left
+- [ ] Verify slider "catches" or snaps lightly at cardinals (if implemented)
+- [ ] Drag to 45° → verify value label shows "45°"
+- [ ] Click Save → close and reopen → verify direction shows "45°" in view mode
 - [ ] Verify arrow on map points at 45°
 
-### Test 4: Type Change
-- [ ] Open details for a Photo Marker
-- [ ] Click Edit
+### Test 6: Type Change in Modal
+- [ ] Open details for a Photo Marker → click Edit
 - [ ] Change type to "Direction Arrow"
 - [ ] Verify direction section appears with default 0°
-- [ ] Click Save
-- [ ] Verify marker now renders as arrow on map
+- [ ] Click Save → verify marker now renders as arrow on map
 
-### Test 5: Line Marker Type Protection
-- [ ] Open details for a line marker
-- [ ] Click Edit
+### Test 7: Line Marker Type Protection
+- [ ] Open details for a line marker → click Edit
 - [ ] Verify type dropdown is disabled or shows warning
 - [ ] Verify "Line marker type cannot be changed" message
 
-### Test 6: Map-Specific Types
-- [ ] Create a map-specific type for Map A
-- [ ] On Map A, verify the type appears in the dropdown
-- [ ] Switch to Map B
-- [ ] Verify the map-specific type does NOT appear in the dropdown
-- [ ] Verify global types still appear on both maps
+### Test 8: Direction Slider Keyboard Accessibility
+- [ ] Open an arrow marker in edit mode
+- [ ] Focus the slider with Tab
+- [ ] Press Right arrow → verify value increments by 1° and preview updates
+- [ ] Press Shift+Right arrow → verify value increments by 15°
+- [ ] Press Left arrow → verify value decrements by 1°
+- [ ] Press Home → verify jumps to 0°
+- [ ] Press End → verify jumps to 360°
 
-### Test 7: Rapid Placement
-- [ ] Select "Hazard Zone" (square) type
-- [ ] Rapidly place 5 markers
-- [ ] Verify all 5 are square with the correct color
-- [ ] Verify numbers are sequential (1, 2, 3, 4, 5 if only these markers exist)
+### Test 9: Create New Type from Popup
+- [ ] Tap "✦ Place Custom" → tap "+ Create New Type..."
+- [ ] Verify the marker type definition modal opens
+- [ ] Create a new type and save → verify popup refreshes with new type
+- [ ] Select the new type → verify marker placed with new type
+
+### Test 10: Mobile (Touch) Testing
+- [ ] On mobile or emulated touch: tap "✦ Place Custom" → verify popup is touch-friendly
+- [ ] Verify popup rows are at least 44px tall
+- [ ] Verify color swatches are tappable (not too small)
+- [ ] Verify popup works on iOS Safari
+- [ ] Verify "Place Marker" single-tap works reliably on touch (no double-tap issues)
