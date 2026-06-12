@@ -28,7 +28,7 @@
 - Define custom marker types with shape, color, size, and label
 - Support directional markers (arrows) with rotation
 - Custom markers can optionally have photos (like photo markers today)
-- Marker types scoped globally or per-map (same pattern as metadata definitions)
+- Marker types are scoped globally (map-specific scoping dropped for simplicity, can be added later)
 - Existing photo and line marker types become built-in, non-deletable definitions
 - Export/import marker type definitions alongside map data
 - Compatible with the existing custom metadata system
@@ -292,9 +292,10 @@ Custom marker types CAN have photos attached, just like the default "Photo Marke
 Only arrow-shaped point markers support direction (`behavior: 'point'` + `shape: 'arrow'`). Direction is stored in degrees (0-360) with 0° pointing up/north. Rotation is applied via `ctx.rotate()` at render time and accounts for map rotation transformations.
 
 ### 5. Scope Model
-- **Global** marker types appear for all maps (e.g., "Direction Arrow")
-- **Map-specific** types only appear for one map (e.g., a specialized "Dig Zone" for a quarry map)
-- Same pattern as metadata definitions: when fetching for a map, get both global + map-specific
+- All marker types are **global** (appear for all maps).
+- Map-specific scoping was considered but dropped to keep the feature simple.
+- Can be added in a future release if demanded by users.
+- The `scope` field is always `'global'`; a `scope` index exists in IndexedDB reserved for future use.
 
 ### 6. Line Marker Backward Compatibility
 Line connectors (`renderLineConnectors()`) continue to key off `marker.type === 'line'` rather than the type definition. This avoids breaking the line pair system during the initial rollout. A future phase could generalize line/polygon support into the type definition system.

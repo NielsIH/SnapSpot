@@ -83,7 +83,7 @@ Finalize the custom marker types feature with migration, polish, and documentati
 
 **Acceptance Criteria:**
 - [ ] Cannot delete built-in "Photo Marker" or "Line Marker"
-- [ ] Can edit color and size of built-in types
+- [ ] Can edit color of built-in types (shape, size, behavior, and name are locked for built-ins)
 - [ ] Cannot change shape, name, or behavior of built-in types
 - [ ] UI reflects restrictions (disabled inputs, hidden buttons)
 - [ ] Console shows descriptive error if programmatic attempt is made
@@ -154,7 +154,7 @@ async getMarkerCountByType(typeId) {
 - [ ] Line connectors draw correctly between line marker pairs
 - [ ] Line marker details modal opens and edits correctly
 - [ ] Line marker color and caption editing still works
-- [ ] Placing line markers still works via the existing "Place Line" button
+- [ ] Placing line markers still works via "Place Custom" → "Line Marker (pair)"
 - [ ] Code comments document the split between legacy line handling and new type system
 
 ---

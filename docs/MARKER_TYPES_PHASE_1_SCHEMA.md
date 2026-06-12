@@ -60,7 +60,7 @@ The app ships with a curated set of 6 pre-defined marker types covering common u
   supportsPhotos: true,             // Whether markers of this type can have photo attachments
 
   // Metadata
-  scope: 'global',                  // 'global' or mapId string (required)
+  scope: 'global',                  // Always 'global' (map-specific dropped for simplicity)
   createdDate: '2026-06-12T...',    // ISO timestamp
   lastModified: '2026-06-12T...'    // ISO timestamp
 }
@@ -98,7 +98,7 @@ The `behavior` enum is extensible. Future additions (e.g., `area` for polygon ma
 - `label`: Optional, max 4 characters (displayed on map next to marker)
 - `behavior`: Required, must be one of: point, line-pair
 - `supportsPhotos`: Boolean, defaults to true. Only false for line-pair.
-- `scope`: Required, either 'global' or valid mapId
+- `scope`: Always `'global'`. Reserved for future map-specific scoping.
 - `isBuiltIn`: Boolean, defaults to false. Only true for auto-created defaults (Photo Marker, Line Marker).
 - `isPreset`: Boolean, defaults to false. True for pre-defined library types. Presets can be toggled on/off, duplicated, but not deleted.
 
@@ -129,7 +129,7 @@ const PRESET_MARKER_TYPES = [
 {
   // ... all existing marker fields ...
   markerTypeId: 'uuid' | null,      // FK → MarkerTypeDefinition.id
-  direction: 45 | null              // Degrees 0-360, only meaningful when type has hasDirection
+  direction: 45 | null              // Degrees 0-360, only meaningful when behavior=point & shape=arrow
 }
 ```
 
@@ -162,7 +162,7 @@ All code that currently checks `marker.type === 'line'` should instead check `be
 1. Plan new object store: `markerTypeDefinitions`
 2. Define indexes for efficient queries:
    - Primary key: `id`
-   - Index: `scope` (for filtering global vs map-specific)
+   - Index: `scope` (reserved for future map-specific scoping; currently always 'global')
    - Index: `name` (for searching by type name)
    - Index: `isBuiltIn` (for filtering built-in types)
 3. Plan database version increment from current version to `version = 6`
@@ -188,8 +188,7 @@ All code that currently checks `marker.type === 'line'` should instead check `be
    - `getMarkerTypeDefinition(id)` — Get by ID
    - `getAllMarkerTypeDefinitions()` — Get all definitions
    - `getEnabledMarkerTypeDefinitions()` — Get only enabled (toggled-on) types for the Place Custom popup
-   - `getMarkerTypeDefinitionsByScope(scope)` — Get global or map-specific
-   - `getMarkerTypeDefinitionsForMap(mapId)` — Get global + map-specific (used for marker placement picker)
+   - `getMarkerTypeDefinitionsForMap(mapId)` — Get all global definitions (mapId param reserved for future map-specific scoping)
    - `updateMarkerTypeDefinition(definition)` — Update existing
    - `deleteMarkerTypeDefinition(id)` — Delete (with reference check)
 
@@ -288,7 +287,7 @@ markerTypeDefinition: ['id', 'name', 'shape', 'color', 'scope', 'createdDate']
    - Validate `supportsPhotos` (if present) is boolean
    - Validate shape is one of: circle, square, diamond, arrow
    - Validate color is a valid hex string
-   - Validate scope is 'global' or a non-empty string (mapId)
+   - Validate scope is `'global'` (only supported value currently)
    - Validate size (if present) is: small, normal, large
    - Validate isBuiltIn / isPreset (if present) are booleans
    - Validate label (if present) is string, max 4 chars

@@ -155,7 +155,7 @@ This is the same pattern as `snapspot-metadata-definitions` exports.
 **Actions:**
 1. In `lib/snapspot-data/writer.js`, update `buildExport()`:
 
-2. Accept new parameter: `customMarkerTypes` (array of MarkerTypeDefinition objects).
+2. Accept new parameter: `markerTypeDefinitions` (array of MarkerTypeDefinition objects, serialized as `markerTypeDefinitions` key in the export JSON).
 
 3. In the export output, conditionally add `markerTypeDefinitions`:
 ```javascript
@@ -267,7 +267,7 @@ return {
 1. In `lib/snapspot-storage/exporter-importer.js`, update methods:
 
 2. **Export:** Pass marker type definitions to the writer:
-   - Get all marker type definitions scoped to the current map (global + map-specific)
+   - Get all global marker type definitions (mapId param reserved for future)
    - Pass them to `buildExport()` as `customMarkerTypes`
 
 3. **Import:** Handle marker type definitions during import:

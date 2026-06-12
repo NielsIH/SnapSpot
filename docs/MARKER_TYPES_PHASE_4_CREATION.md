@@ -85,7 +85,7 @@ In the Marker Types tab of Settings, add a "Default Marker Type" selector:
 └──────────────────────────────────────────┘
 ```
 
-- Lists all available marker types (global + map-specific)
+- Lists all available (enabled) marker types
 - Default: "Photo Marker" (built-in)
 - The built-in "Line Marker" is excluded from the dropdown (line markers use the pair placement flow)
 - Stored as `app.defaultMarkerTypeId` in localStorage
@@ -219,10 +219,11 @@ export async function placeMarker(app, options = {}) {
     markerTypeId  // null = legacy/default Photo Marker behavior
   }
 
-  // If the type has hasDirection, initialize direction to 0
+  // If the type supports direction (point behavior + arrow shape), initialize to 0
   if (markerTypeId) {
     const typeDef = await app.storage.getMarkerTypeDefinition(markerTypeId)
-    if (typeDef && typeDef.hasDirection) {
+    const hasDirection = typeDef && typeDef.behavior === 'point' && typeDef.shape === 'arrow'
+    if (hasDirection) {
       newMarker.direction = 0
     }
   }
