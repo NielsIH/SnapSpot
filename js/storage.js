@@ -15,7 +15,7 @@ import { ImageProcessor } from './imageProcessor.js'
 export class MapStorage {
   constructor (imageProcessor = null) {
     this.dbName = 'SnapSpotDB'
-    this.version = 6 // Increment the database version for schema changes!
+    this.version = 7 // Increment the database version for schema changes!
     this.db = null
     this.mapStoreName = 'maps'
     this.markerStoreName = 'markers'
@@ -142,11 +142,12 @@ export class MapStorage {
               id: 'builtin-photo-marker',
               name: 'Photo Marker',
               shape: 'circle',
-              color: '#ef4444',
+              color: '#6b7280',
               size: 'normal',
               label: '',
               behavior: 'point',
               supportsPhotos: true,
+              showNumber: true,
               scope: 'global',
               isBuiltIn: true,
               isPreset: true,
@@ -162,6 +163,7 @@ export class MapStorage {
               label: '',
               behavior: 'line-pair',
               supportsPhotos: false,
+              showNumber: false,
               scope: 'global',
               isBuiltIn: true,
               isPreset: true,
@@ -177,6 +179,7 @@ export class MapStorage {
               label: '',
               behavior: 'point',
               supportsPhotos: true,
+              showNumber: true,
               scope: 'global',
               isPreset: true,
               createdDate: now,
@@ -191,6 +194,7 @@ export class MapStorage {
               label: '',
               behavior: 'point',
               supportsPhotos: true,
+              showNumber: true,
               scope: 'global',
               isPreset: true,
               createdDate: now,
@@ -205,6 +209,7 @@ export class MapStorage {
               label: '',
               behavior: 'point',
               supportsPhotos: true,
+              showNumber: true,
               scope: 'global',
               isPreset: true,
               createdDate: now,
@@ -216,6 +221,97 @@ export class MapStorage {
             markerTypeStore.put(preset)
           }
           console.log(`MapStorage: ${presets.length} preset marker type definitions created`)
+        }
+
+        // v7 migration: refresh all preset definitions with current defaults
+        // Ensures showNumber, colors, and other fields are up-to-date
+        if (event.oldVersion < 7 && db.objectStoreNames.contains(this.markerTypeDefinitionsStoreName)) {
+          const now = new Date().toISOString()
+          const presets = [
+            {
+              id: 'builtin-photo-marker',
+              name: 'Photo Marker',
+              shape: 'circle',
+              color: '#6b7280',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isBuiltIn: true,
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'builtin-line-marker',
+              name: 'Line Marker',
+              shape: 'diamond',
+              color: '#e53e3e',
+              size: 'normal',
+              label: '',
+              behavior: 'line-pair',
+              supportsPhotos: false,
+              showNumber: false,
+              scope: 'global',
+              isBuiltIn: true,
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'preset-point-interest',
+              name: 'Point of Interest',
+              shape: 'circle',
+              color: '#22c55e',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'preset-hazard-zone',
+              name: 'Hazard Zone',
+              shape: 'square',
+              color: '#f59e0b',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'preset-direction-arrow',
+              name: 'Direction Arrow',
+              shape: 'arrow',
+              color: '#3b82f6',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            }
+          ]
+
+          const markerTypeStore = transaction.objectStore(this.markerTypeDefinitionsStoreName)
+          for (const preset of presets) {
+            markerTypeStore.put(preset)
+          }
+          console.log(`MapStorage: v7 migration — refreshed ${presets.length} preset marker type definitions`)
         }
       }
     })
@@ -2283,6 +2379,10 @@ export class MapStorage {
     if (definition.supportsPhotos !== undefined && typeof definition.supportsPhotos !== 'boolean') {
       throw new Error('supportsPhotos must be a boolean')
     }
+
+    if (definition.showNumber !== undefined && typeof definition.showNumber !== 'boolean') {
+      throw new Error('showNumber must be a boolean')
+    }
   }
 
   /**
@@ -2306,6 +2406,7 @@ export class MapStorage {
       label: definition.label || '',
       behavior: definition.behavior,
       supportsPhotos: definition.supportsPhotos !== undefined ? definition.supportsPhotos : true,
+      showNumber: definition.showNumber !== undefined ? definition.showNumber : (definition.supportsPhotos !== false),
       scope: definition.scope || 'global',
       isBuiltIn: definition.isBuiltIn || false,
       isPreset: definition.isPreset || false,
@@ -2453,6 +2554,7 @@ export class MapStorage {
       label: definition.label !== undefined ? definition.label : existing.label,
       behavior: definition.behavior || existing.behavior,
       supportsPhotos: definition.supportsPhotos !== undefined ? definition.supportsPhotos : existing.supportsPhotos,
+      showNumber: definition.showNumber !== undefined ? definition.showNumber : existing.showNumber,
       scope: definition.scope || existing.scope,
       isBuiltIn: existing.isBuiltIn, // Cannot change isBuiltIn
       isPreset: definition.isPreset !== undefined ? definition.isPreset : existing.isPreset,
@@ -2525,6 +2627,11 @@ export class MapStorage {
     // Block deletion of built-in types
     if (existing.isBuiltIn) {
       throw new Error(`Cannot delete built-in marker type "${existing.name}". Built-in types cannot be removed.`)
+    }
+
+    // Block deletion of preset types
+    if (existing.isPreset) {
+      throw new Error(`Cannot delete preset marker type "${existing.name}". Presets can be disabled but not deleted.`)
     }
 
     // Check for existing markers using this type

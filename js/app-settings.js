@@ -159,6 +159,51 @@ export function setAndPersistCustomMarkerRules (app, rules) {
   setCustomMarkerColorRules(app, rules)
 }
 
+// ========================================
+// Marker Type Helpers
+// ========================================
+
+/**
+ * Get the set of disabled marker type IDs from localStorage.
+ * Types without a key (or with key='true') are considered enabled.
+ */
+export function getDisabledMarkerTypeIds () {
+  const disabledIds = new Set()
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && key.startsWith('markerType_enabled_')) {
+      const typeId = key.slice('markerType_enabled_'.length)
+      if (localStorage.getItem(key) === 'false') {
+        disabledIds.add(typeId)
+      }
+    }
+  }
+  return disabledIds
+}
+
+/**
+ * Get the default marker type ID from localStorage.
+ */
+export function getDefaultMarkerTypeId () {
+  return localStorage.getItem('defaultMarkerTypeId') || 'builtin-photo-marker'
+}
+
+/**
+ * Set the default marker type ID and persist.
+ */
+export function setDefaultMarkerTypeId (typeId) {
+  localStorage.setItem('defaultMarkerTypeId', typeId)
+  console.log('Default marker type set to:', typeId)
+}
+
+/**
+ * Toggle a marker type enabled/disabled in localStorage.
+ */
+export function setMarkerTypeEnabled (typeId, enabled) {
+  localStorage.setItem(`markerType_enabled_${typeId}`, enabled ? 'true' : 'false')
+  console.log(`Marker type ${typeId} ${enabled ? 'enabled' : 'disabled'}`)
+}
+
 /**
  * Displays the App Settings modal.
  * @param {Object} app - SnapSpotApp instance.
@@ -392,6 +437,110 @@ export async function showSettings (app, initialTab = 'general-settings') {
           console.error('Error importing metadata definitions:', error)
           app.showNotification('Failed to import metadata definitions.', 'error')
         }
+      },
+      // Marker Types Callbacks
+      getMarkerTypeDefinitions: async () => {
+        return await app.storage.getAllMarkerTypeDefinitions()
+      },
+      getEnabledMarkerTypeIds: () => {
+        return getDisabledMarkerTypeIds()
+      },
+      getDefaultMarkerTypeId: () => getDefaultMarkerTypeId(),
+      onChangeDefaultMarkerType: (typeId) => {
+        setDefaultMarkerTypeId(typeId)
+        if (app.defaultMarkerTypeId !== undefined) {
+          app.defaultMarkerTypeId = typeId
+        }
+        app.showNotification('Default marker type updated.', 'info')
+      },
+      onToggleMarkerType: (typeId, enabled) => {
+        setMarkerTypeEnabled(typeId, enabled)
+      },
+      onUpdateMarkerTypeColor: async (typeId, newColor) => {
+        try {
+          const def = await app.storage.getMarkerTypeDefinition(typeId)
+          if (!def) {
+            app.showNotification('Marker type not found.', 'error')
+            return
+          }
+          def.color = newColor
+          await app.storage.updateMarkerTypeDefinition(def)
+          app.showNotification(`Color updated for "${def.name}".`, 'success')
+        } catch (error) {
+          console.error('Error updating marker type color:', error)
+          app.showNotification('Failed to update marker type color.', 'error')
+        }
+      },
+      onAddMarkerType: async (onComplete) => {
+        const { createMarkerTypeDefinitionModal } = await import('./ui/marker-type-definition-modal.js')
+        createMarkerTypeDefinitionModal(app.modalManager, {
+          definition: null,
+          onSave: async (definitionData) => {
+            try {
+              await app.storage.addMarkerTypeDefinition(definitionData)
+              app.showNotification(`Marker type "${definitionData.name}" created.`, 'success')
+              if (onComplete) onComplete()
+            } catch (error) {
+              console.error('Error saving marker type definition:', error)
+              app.showNotification('Failed to create marker type.', 'error')
+            }
+          }
+        })
+      },
+      onEditMarkerType: async (typeId, onComplete) => {
+        const definition = await app.storage.getMarkerTypeDefinition(typeId)
+        if (!definition) {
+          app.showNotification('Marker type not found.', 'error')
+          return
+        }
+        const { createMarkerTypeDefinitionModal } = await import('./ui/marker-type-definition-modal.js')
+        createMarkerTypeDefinitionModal(app.modalManager, {
+          definition,
+          onSave: async (definitionData) => {
+            try {
+              await app.storage.updateMarkerTypeDefinition(definitionData)
+              app.showNotification(`Marker type "${definitionData.name}" updated.`, 'success')
+              if (onComplete) onComplete()
+            } catch (error) {
+              console.error('Error updating marker type definition:', error)
+              app.showNotification('Failed to update marker type.', 'error')
+            }
+          }
+        })
+      },
+      onDeleteMarkerType: async (typeId) => {
+        try {
+          const definition = await app.storage.getMarkerTypeDefinition(typeId)
+          if (!definition) {
+            app.showNotification('Marker type not found.', 'error')
+            return
+          }
+          // Check reference count
+          const count = await app.storage.getMarkerCountByType(typeId)
+          if (count > 0) {
+            app.showNotification(
+              `Cannot delete "${definition.name}": ${count} marker${count === 1 ? '' : 's'} use${count === 1 ? 's' : ''} this type.`,
+              'error'
+            )
+            return
+          }
+          if (!confirm(`Delete "${definition.name}"?\n\nThis cannot be undone.`)) {
+            return
+          }
+          await app.storage.deleteMarkerTypeDefinition(typeId)
+          app.showNotification(`Marker type "${definition.name}" deleted.`, 'success')
+        } catch (error) {
+          console.error('Error deleting marker type definition:', error)
+          app.showNotification(error.message || 'Failed to delete marker type.', 'error')
+        }
+      },
+      onExportMarkerTypes: async () => {
+        // Placeholder: functional in Phase 5
+        app.showNotification('Marker type export will be available in a future update.', 'info')
+      },
+      onImportMarkerTypes: async (file) => {
+        // Placeholder: functional in Phase 5
+        app.showNotification('Marker type import will be available in a future update.', 'info')
       }
     }
     // Create and display the settings modal

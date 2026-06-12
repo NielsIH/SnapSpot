@@ -1,0 +1,119 @@
+/* Marker Type Definition Modal Styles */
+
+.small-modal {
+  width: 420px;
+  max-width: 95vw;
+  max-height: 95vh;
+}
+
+/* Shape Picker Grid */
+.shape-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-sm);
+}
+
+.shape-picker-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 72px;
+}
+
+.shape-picker-btn:hover:not(.disabled) {
+  border-color: var(--primary-color);
+  background: var(--bg-secondary);
+}
+
+.shape-picker-btn.selected {
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 10%, var(--bg-primary));
+  box-shadow: 0 0 0 1px var(--primary-color);
+}
+
+.shape-picker-btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.shape-picker-icon {
+  font-size: 1.5rem;
+  margin-bottom: var(--spacing-xs);
+  color: var(--text-primary);
+}
+
+.shape-picker-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Color Swatch Row */
+.color-swatch-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.color-swatch-row .color-swatch-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.color-swatch-row .color-swatch-btn:hover {
+  transform: scale(1.15);
+}
+
+.color-swatch-row .color-swatch-btn.selected {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--primary-color);
+}
+
+/* Color Custom Input Row */
+.color-custom-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.color-custom-row .form-control {
+  flex: 1;
+}
+
+.color-preview-swatch {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+/* Responsive for very narrow screens */
+@media (max-width: 400px) {
+  .shape-picker-btn {
+    padding: var(--spacing-sm);
+    min-height: 60px;
+  }
+
+  .shape-picker-icon {
+    font-size: 1.2rem;
+  }
+
+  .color-swatch-row .color-swatch-btn {
+    width: 28px;
+    height: 28px;
+  }
+}

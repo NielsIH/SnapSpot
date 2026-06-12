@@ -121,16 +121,61 @@ ctx.restore()
 
 ### Color Logic
 
-For custom marker types (markers with `markerTypeId`):
-- Use the type definition's `color` directly as fill
-- Border color: slightly darker variant of the color (darken by 15%)
-- Text color: white
+**Goal:** All markers use their type definition's color as the **locked (default) state** color. Unlocking the map brightens and saturates it. This reflects real usage: the map is locked 99% of the time, so the type color should match what users normally see.
 
-For markers without `markerTypeId` (legacy behavior fallback):
-- Keep the existing default coloring logic (editable/hasPhotos state colors)
-- The built-in "Photo Marker" definition's color is used as a hint but the existing logic takes precedence since it's contextual (locked vs unlocked, has photos vs no photos)
+**Precedence chain (highest to lowest):**
 
-**Decision:** Custom marker types with `markerTypeId` set ALWAYS use the type definition color. Legacy markers without `markerTypeId` continue using the existing contextual coloring logic. This gives users explicit control: if you assign a type, you get that type's color consistently.
+1. **Per-marker `lineColor`** — line markers only. Overrides everything. Set in line marker details modal.
+2. **Custom coloring rules** — applied to photo markers. Overrides type color + state.
+3. **Type definition color + state modifiers:**
+
+| State | Fill | Border | Text |
+|---|---|---|---|
+| **Locked + has photos** | Type color (base) | Darken(type color, 15%) | White |
+| **Locked + no photos** | Lighten(type color, 30%) | Darken(type color, 15%) | Dark |
+| **Editable + has photos** | Saturate(type color, 100%) + brighten 20% | Darken(saturated, 15%) | White |
+| **Editable + no photos** | Saturate(type color, 100%) | Darken(saturated, 15%) | Dark |
+
+> **Rationale:** Photo Marker's type color is `#6b7280` (grey). When unlocked, it saturates to red `#ef4444` — providing the critical "you can drag this" visual signal. Custom types work the same way: a green Hazard Zone (`#f59e0b` amber) saturates to vibrant amber when unlocked. The locked→editable transition is always a clear saturation+brightness jump.
+
+**Implementation helpers:**
+```javascript
+function darken(hex, percent) { /* reduce lightness by percent */ }
+function lighten(hex, percent) { /* increase lightness by percent */ }
+function desaturate(hex, percent) { /* reduce saturation by percent */ }
+```
+
+These operate on the type definition color, so editing a built-in type's color (future feature) would cascade correctly.
+
+### Numbering Logic
+
+**Assignment:** All markers whose effective type has `supportsPhotos: true` are assigned a sequential number, ordered globally by `createdDate`. This provides a stable identifier used across the UI (marker list, details modal, search results).
+
+```javascript
+// Build number map once per render call
+const numberedMarkers = allMarkers
+  .filter(m => getEffectiveTypeDef(m)?.supportsPhotos !== false)
+  .sort((a, b) => new Date(a.createdDate) - new Date(b.createdDate))
+
+const numberMap = new Map(numberedMarkers.map((m, i) => [m.id, i + 1]))
+```
+
+**Display:** `showNumber` on the type definition controls whether the number is drawn on the canvas. `false` means the marker still HAS a number (for UI purposes) but it's not painted on the map.
+
+```javascript
+// In drawMarker():
+const typeDef = getEffectiveTypeDef(marker)
+const num = typeDef?.showNumber !== false ? numberMap.get(marker.id) : null
+```
+
+**Example defaults:**
+
+| Type | `supportsPhotos` | `showNumber` | Gets number? | Drawn on map? |
+|---|---|---|---|---|
+| Photo Marker | true | true | ✅ | ✅ |
+| Line Marker | false | false | ❌ | ❌ |
+| Direction Arrow | true | true | ✅ | ✅ |
+| Custom (user unchecked) | true | false | ✅ | ❌ |
 
 ### Size Logic
 

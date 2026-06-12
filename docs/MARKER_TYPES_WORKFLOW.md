@@ -169,6 +169,7 @@
   label: 'HZ',                      // Short label displayed on map (optional, max 4 chars)
   behavior: 'point',                // 'point' | 'line-pair' (extensible enum)
   supportsPhotos: true,             // Whether markers of this type can have photo attachments
+  showNumber: true,                 // Whether to draw the sequential number on the map canvas
   scope: 'global',                  // 'global' (map-specific dropped for simplicity)
   isBuiltIn: false,                 // True for Photo Marker and Line Marker defaults
   isPreset: true,                   // True for pre-defined library types
@@ -226,6 +227,7 @@
       label: 'Dir',
       behavior: 'point',
       supportsPhotos: true,
+      showNumber: true,
       scope: 'global',
       isBuiltIn: false,
       createdDate: '2026-06-11T...',
@@ -299,3 +301,6 @@ Only arrow-shaped point markers support direction (`behavior: 'point'` + `shape:
 
 ### 6. Line Marker Backward Compatibility
 Line connectors (`renderLineConnectors()`) continue to key off `marker.type === 'line'` rather than the type definition. This avoids breaking the line pair system during the initial rollout. A future phase could generalize line/polygon support into the type definition system.
+
+### 7. Marker Numbering
+All markers whose type has `supportsPhotos: true` are assigned a sequential number ordered globally by `createdDate`. This provides a stable identifier across the UI (marker list, details modal, search). The `showNumber` field controls only whether the number is drawn on the canvas — a marker with `showNumber: false` still HAS a number for UI purposes, it's just not painted on the map. Line markers (`supportsPhotos: false`) are excluded from numbering entirely.

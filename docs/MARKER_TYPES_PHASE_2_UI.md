@@ -105,6 +105,8 @@ Opened by "+ Add Custom Type" or "Edit" on a custom type:
 │  Label (optional):           │
 │  [__] max 4 chars            │
 │                              │
+│  ☑ Show number on map        │
+│                              │
 │         [Cancel]  [Save]     │
 └──────────────────────────────┘
 ```
