@@ -37,6 +37,9 @@ export class MapRenderer {
     this.markerCurrentDisplaySizeKey = 'normal' // Default size
     this.customColorRules = []
 
+    // Marker Type Definitions (Phase 3: Custom Marker Types)
+    this.markerTypeDefinitions = new Map()
+
     if (this.canvas.offsetParent !== null) {
       this.setupCanvas()
     }
@@ -51,6 +54,167 @@ export class MapRenderer {
     this.customColorRules = rules || []
     this.render() // Re-render to apply new rules
   }
+
+  /**
+   * Set marker type definitions for rendering.
+   * Phase 3: Custom Marker Types — indexes definitions by ID including built-in fallbacks.
+   * @param {Array<Object>} definitions - Array of MarkerTypeDefinition objects
+   */
+  setMarkerTypeDefinitions (definitions) {
+    this.markerTypeDefinitions = new Map()
+    if (definitions && definitions.length > 0) {
+      for (const def of definitions) {
+        this.markerTypeDefinitions.set(def.id, def)
+      }
+    }
+    // Ensure built-in fallbacks are always available
+    if (!this.markerTypeDefinitions.has('builtin-photo-marker')) {
+      this.markerTypeDefinitions.set('builtin-photo-marker', {
+        id: 'builtin-photo-marker',
+        name: 'Photo Marker',
+        shape: 'circle',
+        color: '#6b7280',
+        size: 'normal',
+        label: '',
+        behavior: 'point',
+        supportsPhotos: true,
+        showNumber: true,
+        isBuiltIn: true
+      })
+    }
+    if (!this.markerTypeDefinitions.has('builtin-line-marker')) {
+      this.markerTypeDefinitions.set('builtin-line-marker', {
+        id: 'builtin-line-marker',
+        name: 'Line Marker',
+        shape: 'diamond',
+        color: '#e53e3e',
+        size: 'normal',
+        label: '',
+        behavior: 'line-pair',
+        supportsPhotos: false,
+        showNumber: false,
+        isBuiltIn: true
+      })
+    }
+    // Re-render if markers exist to apply new type definitions
+    if (this.markers && this.markers.length > 0) {
+      this.render()
+    }
+  }
+
+  /**
+   * Get the effective marker type definition for a given marker.
+   * Phase 3: Implements the lookup chain — explicit markerTypeId → legacy type='line' → default photo marker.
+   * @param {Object} marker - The marker object
+   * @returns {Object} The MarkerTypeDefinition for this marker
+   */
+  getEffectiveTypeDef (marker) {
+    // 1. If marker has explicit markerTypeId, look up the definition
+    if (marker.markerTypeId && this.markerTypeDefinitions.has(marker.markerTypeId)) {
+      return this.markerTypeDefinitions.get(marker.markerTypeId)
+    }
+
+    // 2. Fallback for legacy line markers without markerTypeId
+    if (marker.type === 'line') {
+      return this.markerTypeDefinitions.get('builtin-line-marker')
+    }
+
+    // 3. Default: Photo Marker built-in
+    return this.markerTypeDefinitions.get('builtin-photo-marker')
+  }
+
+  /**
+   * Get the behavior for a marker (dispatches rendering/placement logic).
+   * @param {Object} marker - The marker object
+   * @param {Object} typeDef - The effective type definition (from getEffectiveTypeDef)
+   * @returns {string} 'point' | 'line-pair'
+   */
+  _getBehavior (marker, typeDef) {
+    if (marker.markerTypeId && typeDef) return typeDef.behavior
+    if (marker.type === 'line') return 'line-pair'
+    return 'point'
+  }
+
+  // --- Color Utility Methods (Phase 3) ---
+
+  /**
+   * Darken a hex color by a given factor.
+   * @param {string} hex - Hex color string (e.g., '#6b7280')
+   * @param {number} factor - Darkening factor (0-1, e.g., 0.15 = 15% darker)
+   * @returns {string} Darkened hex color
+   */
+  _darkenColor (hex, factor) {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    const dr = Math.max(0, Math.round(r * (1 - factor)))
+    const dg = Math.max(0, Math.round(g * (1 - factor)))
+    const db = Math.max(0, Math.round(b * (1 - factor)))
+    return '#' + [dr, dg, db].map(c => c.toString(16).padStart(2, '0')).join('')
+  }
+
+  /**
+   * Lighten a hex color by a given factor.
+   * @param {string} hex - Hex color string
+   * @param {number} factor - Lightening factor (0-1, e.g., 0.30 = 30% lighter)
+   * @returns {string} Lightened hex color
+   */
+  _lightenColor (hex, factor) {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    const lr = Math.min(255, Math.round(r + (255 - r) * factor))
+    const lg = Math.min(255, Math.round(g + (255 - g) * factor))
+    const lb = Math.min(255, Math.round(b + (255 - b) * factor))
+    return '#' + [lr, lg, lb].map(c => c.toString(16).padStart(2, '0')).join('')
+  }
+
+  /**
+   * Saturate a hex color. For grey tones (all channels equal), maps to a warm red.
+   * For already colored tones, increases saturation by shifting channels away from grey.
+   * @param {string} hex - Hex color string
+   * @param {number} amount - Saturation amount (0-1)
+   * @returns {string} Saturated hex color
+   */
+  _saturateColor (hex, amount) {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+
+    const maxChannel = Math.max(r, g, b)
+    const minChannel = Math.min(r, g, b)
+    const spread = maxChannel - minChannel
+
+    // Treat near-grey colors (channel spread ≤ 30) as grey — map to vibrant
+    // This handles #6b7280 and similar muted tones that should saturate to red
+    if (spread <= 30) {
+      const luminance = (r + g + b) / 3
+      if (luminance < 128) {
+        // Dark/mid grey → warm red (#ef4444)
+        const sr = Math.min(255, Math.round(luminance + (239 - luminance) * amount))
+        const sg = Math.max(0, Math.round(luminance * (1 - amount * 0.9)))
+        const sb = Math.max(0, Math.round(luminance * (1 - amount * 0.9)))
+        return '#' + [sr, sg, sb].map(c => c.toString(16).padStart(2, '0')).join('')
+      } else {
+        // Light grey → amber (#fbbf24)
+        const sr = Math.min(255, Math.round(luminance + (251 - luminance) * amount))
+        const sg = Math.min(255, Math.round(luminance + (191 - luminance) * amount))
+        const sb = Math.max(0, Math.round(luminance * (1 - amount * 0.8)))
+        return '#' + [sr, sg, sb].map(c => c.toString(16).padStart(2, '0')).join('')
+      }
+    }
+
+    // Already colored: boost the dominant channel, reduce others
+    const mid = (maxChannel + minChannel) / 2
+
+    const sr = Math.min(255, Math.round(r + (r - mid) * amount))
+    const sg = Math.min(255, Math.round(g + (g - mid) * amount))
+    const sb = Math.min(255, Math.round(b + (b - mid) * amount))
+
+    return '#' + [sr, sg, sb].map(c => Math.max(0, Math.min(255, c)).toString(16).padStart(2, '0')).join('')
+  }
+
+  // --- End Color Utilities ---
 
   /**
    * Initialize canvas setup
@@ -930,34 +1094,48 @@ export class MapRenderer {
 
   /**
    * Render all current markers on the canvas.
+   * Phase 3: Unified loop with type-definition-based shape dispatch and chronological numbering.
    */
   renderMarkers () {
     if (!this.markers || this.markers.length === 0) return
 
-    const photoMarkers = this.markers.filter(marker => marker.type !== 'line')
-    const lineMarkers = this.markers.filter(marker => marker.type === 'line')
-
-    this.renderLineConnectors(lineMarkers)
-
-    photoMarkers.forEach((marker, index) => {
-      const screenCoords = this.mapToScreen(marker.x, marker.y)
-      if (
-        screenCoords &&
-        screenCoords.x > -20 && screenCoords.x < this.canvas.width + 20 &&
-        screenCoords.y > -20 && screenCoords.y < this.canvas.height + 20
-      ) {
-        this.drawMarker(screenCoords.x, screenCoords.y, index + 1, marker)
-      }
+    // Separate line-pair markers for connector rendering (drawn first, behind everything)
+    const linePairMarkers = this.markers.filter(marker => {
+      const typeDef = this.getEffectiveTypeDef(marker)
+      const behavior = this._getBehavior(marker, typeDef)
+      return behavior === 'line-pair'
     })
 
-    lineMarkers.forEach((marker) => {
+    // Draw line connectors behind markers
+    this.renderLineConnectors(linePairMarkers)
+
+    // Build chronological number map for all markers whose type supports photos/numbers
+    const numberedMarkers = this.markers
+      .filter(marker => {
+        const typeDef = this.getEffectiveTypeDef(marker)
+        return typeDef && typeDef.supportsPhotos !== false
+      })
+      .sort((a, b) => new Date(a.createdDate) - new Date(b.createdDate))
+
+    const numberMap = new Map(numberedMarkers.map((m, i) => [m.id, i + 1]))
+
+    // Sort all markers chronologically for consistent rendering order
+    const sortedMarkers = [...this.markers].sort((a, b) =>
+      new Date(a.createdDate) - new Date(b.createdDate)
+    )
+
+    // Unified render pass
+    sortedMarkers.forEach((marker) => {
       const screenCoords = this.mapToScreen(marker.x, marker.y)
       if (
         screenCoords &&
         screenCoords.x > -20 && screenCoords.x < this.canvas.width + 20 &&
         screenCoords.y > -20 && screenCoords.y < this.canvas.height + 20
       ) {
-        this.drawMarker(screenCoords.x, screenCoords.y, null, marker)
+        const typeDef = this.getEffectiveTypeDef(marker)
+        const showNumber = typeDef && typeDef.showNumber !== false && numberMap.has(marker.id)
+        const number = showNumber ? numberMap.get(marker.id) : null
+        this.drawMarker(screenCoords.x, screenCoords.y, number, marker)
       }
     })
   }
@@ -1126,60 +1304,147 @@ export class MapRenderer {
 
   /**
    * Draw a single marker on the canvas.
-   * MODIFIED: Added highlight logic and custom coloring logic.
+   * Phase 3: Type-definition-driven shape dispatch. Replaces the binary type==='line' check
+   * with a lookup-based approach supporting circle, square, diamond, and arrow shapes.
    * @param {number} x - Screen X coordinate of the marker center.
    * @param {number} y - Screen Y coordinate of the marker center.
-   * @param {number} number - Optional number to display on the marker.
-   * @param {Object} marker - The full marker object, including description, isEditable, and hasPhotos.
+   * @param {number|null} number - Optional number to display on the marker (null for line/arrow/diamond).
+   * @param {Object} marker - The full marker object.
    */
   drawMarker (x, y, number, marker) {
-    const currentSize = this.markerSizeSettings[this.markerCurrentDisplaySizeKey]
-    const radius = currentSize.radius
-    const fontSize = radius * currentSize.fontSizeFactor
-    const borderWidth = 2
+    const typeDef = this.getEffectiveTypeDef(marker)
+    const behavior = this._getBehavior(marker, typeDef)
 
-    if (marker.type === 'line') {
-      const lineColor = marker.lineColor || '#e53e3e'
+    // --- Size calculation ---
+    // Map type definition size to base size, then scale by global display size setting
+    const TYPE_SIZE_MAP = {
+      small: { radius: 8, fontSizeFactor: 0.85 },
+      normal: { radius: 12, fontSizeFactor: 1.0 },
+      large: { radius: 18, fontSizeFactor: 1.2 }
+    }
+    const baseSizeConfig = TYPE_SIZE_MAP[typeDef.size] || TYPE_SIZE_MAP.normal
+    const globalSize = this.markerSizeSettings[this.markerCurrentDisplaySizeKey]
+    const globalScale = globalSize.radius / 12 // 12 is normal baseline
+    const radius = baseSizeConfig.radius * globalScale
+    const fontSize = radius * baseSizeConfig.fontSizeFactor
 
-      this.ctx.save()
+    // --- Color determination ---
+    const { fillColor, borderColor, textColor } = this._determineMarkerColors(marker, typeDef)
 
-      if (this.markersAreEditable) {
-        this.ctx.shadowColor = lineColor
-        this.ctx.shadowBlur = 10
-      }
+    // --- Highlight ring (drawn first, behind the marker) ---
+    this._drawHighlightRing(x, y, radius, marker)
 
-      this.ctx.translate(x, y)
-      this.ctx.rotate(Math.PI / 4)
-      this.ctx.fillStyle = lineColor
-      this.ctx.strokeStyle = this.markersAreEditable ? '#ffffff' : lineColor
-      this.ctx.lineWidth = this.markersAreEditable ? 2 : borderWidth
-      this.ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
-      this.ctx.strokeRect(-radius, -radius, radius * 2, radius * 2)
-
-      this.ctx.restore()
+    // --- Behavior dispatch ---
+    if (behavior === 'line-pair') {
+      // Line markers: always diamond shape with line connector
+      this._drawDiamondShape(x, y, radius, fillColor, borderColor, marker)
       return
     }
 
-    let borderColor
-    let fillColor
-    let textColor
+    // Point behavior: shape dispatch
+    switch (typeDef.shape) {
+      case 'circle':
+        this._drawCircleShape(x, y, radius, fillColor, borderColor, number, fontSize, textColor)
+        break
+      case 'square':
+        this._drawSquareShape(x, y, radius, fillColor, borderColor, number, fontSize, textColor)
+        break
+      case 'diamond':
+        this._drawDiamondShape(x, y, radius, fillColor, borderColor, marker)
+        break
+      case 'arrow':
+        this._drawArrowShape(x, y, radius, fillColor, marker)
+        break
+    }
 
-    // Determine base colors
-    // Default coloring based on isEditable and hasPhotos
-    const isEditable = this.markersAreEditable // Use the global editable state
-    const hasPhotos = marker.hasPhotos // Use the hasPhotos property from the marker object
+    // --- Label rendering (for types with a label) ---
+    if (typeDef.label && typeDef.label.trim()) {
+      this._drawTypeLabel(x, y, radius, typeDef.label.trim(), typeDef.color)
+    }
+  }
 
-    // --- Apply Custom Coloring Rules ---
-    let customColorApplied = false
-    // Iterate through rules in reverse order for precedence (last rule wins)
+  /**
+   * Determine fill, border, and text colors for a marker based on its type definition,
+   * editable/locked state, photo status, and custom coloring rules.
+   * Phase 3: Uses type definition color as the locked-state base color.
+   * @returns {{ fillColor: string, borderColor: string, textColor: string }}
+   */
+  _determineMarkerColors (marker, typeDef) {
+    const isEditable = this.markersAreEditable
+    const hasPhotos = marker.hasPhotos
+    const behavior = this._getBehavior(marker, typeDef)
+
+    // 1. Per-marker lineColor override (line-pair markers only) — highest precedence
+    if (behavior === 'line-pair' && marker.lineColor) {
+      if (isEditable) {
+        return {
+          fillColor: marker.lineColor,
+          borderColor: '#ffffff',
+          textColor: '#ffffff'
+        }
+      }
+      return {
+        fillColor: marker.lineColor,
+        borderColor: this._darkenColor(marker.lineColor, 0.15),
+        textColor: '#ffffff'
+      }
+    }
+
+    // 2. Determine base color: custom rule wins over type definition
+    let baseColor = typeDef.color || '#6b7280'
+    if (!marker.markerTypeId) {
+      const customColor = this._applyCustomColorRules(marker)
+      if (customColor) {
+        baseColor = customColor
+      }
+    }
+
+    // 3. Apply state modifiers on top of the base color
+    if (isEditable) {
+      // Editable (unlocked) state: saturate + brighten the base color
+      const saturated = this._saturateColor(baseColor, 1.0)
+      if (hasPhotos) {
+        const brightened = this._lightenColor(saturated, 0.2)
+        return {
+          fillColor: brightened,
+          borderColor: this._darkenColor(brightened, 0.15),
+          textColor: '#ffffff'
+        }
+      } else {
+        return {
+          fillColor: saturated,
+          borderColor: this._darkenColor(saturated, 0.15),
+          textColor: '#1f2937'
+        }
+      }
+    } else {
+      // Locked state: base color is used directly
+      if (hasPhotos) {
+        return {
+          fillColor: baseColor,
+          borderColor: this._darkenColor(baseColor, 0.15),
+          textColor: '#ffffff'
+        }
+      } else {
+        return {
+          fillColor: this._lightenColor(baseColor, 0.30),
+          borderColor: this._darkenColor(baseColor, 0.15),
+          textColor: '#374151'
+        }
+      }
+    }
+  }
+
+  /**
+   * Apply legacy custom coloring rules to a marker.
+   * @returns {string|null} The custom color hex if a rule matched, null otherwise
+   */
+  _applyCustomColorRules (marker) {
     for (let i = this.customColorRules.length - 1; i >= 0; i--) {
       const rule = this.customColorRules[i]
-      if (!rule) { // Skip if rule is null (due to padding in UI)
-        continue
-      }
-      const markerDescription = marker.description || '' // Ensure description is a string
+      if (!rule) continue
 
-      // Treat default descriptions as empty for isEmpty/isNotEmpty checks
+      const markerDescription = marker.description || ''
       const processedDescription = this._isDefaultMarkerDescription(markerDescription) ? '' : markerDescription
 
       let ruleMatches = false
@@ -1196,68 +1461,171 @@ export class MapRenderer {
       }
 
       if (ruleMatches) {
-        borderColor = rule.color
-        fillColor = rule.color
-        textColor = '#ffffff' // Custom colored markers always have white text for visibility
-        customColorApplied = true
-        break // Stop at the first matching rule (due to reverse iteration, this is the last rule in UI order)
+        return rule.color
       }
     }
+    return null
+  }
 
-    if (!customColorApplied) {
-      // If no custom rule matched, apply default coloring logic
-      if (isEditable) { // Unlocked/Editable State
-        if (hasPhotos) {
-          borderColor = '#dc2626' // Red-600
-          fillColor = '#ef4444' // Red-500
-          textColor = '#ffffff' // White
-        } else {
-          borderColor = '#f59e0b' // Amber-500
-          fillColor = '#fbbf24' // Amber-400
-          textColor = '#1f2937' // Dark Gray text for contrast
-        }
-      } else { // Locked State
-        if (hasPhotos) {
-          borderColor = '#4b5563' // Gray-600
-          fillColor = '#6b7280' // Gray-500
-          textColor = '#ffffff' // White
-        } else {
-          borderColor = '#9ca3af' // Gray-400
-          fillColor = '#d1d5db' // Gray-300
-          textColor = '#374151' // Darker Gray text for contrast
-        }
-      }
-    }
+  /**
+   * Draw the highlight ring around a marker when it's the highlighted marker.
+   */
+  _drawHighlightRing (x, y, radius, marker) {
+    if (this._highlightedMarkerId !== marker.id) return
 
+    const highlightRadius = radius * 1.5
+    this.ctx.save()
+    this.ctx.beginPath()
+    this.ctx.arc(x, y, highlightRadius, 0, Math.PI * 2, false)
+    this.ctx.strokeStyle = '#3b82f6'
+    this.ctx.lineWidth = 4
+    this.ctx.stroke()
+    this.ctx.restore()
+  }
+
+  // --- Shape Drawing Methods ---
+
+  /**
+   * Draw a circle-shaped marker.
+   */
+  _drawCircleShape (x, y, radius, fillColor, borderColor, number, fontSize, textColor) {
     this.ctx.save()
 
-    if (this._highlightedMarkerId === marker.id) {
-      const highlightRadius = radius * 1.5 // Larger radius for highlight
-      this.ctx.beginPath()
-      this.ctx.arc(x, y, highlightRadius, 0, Math.PI * 2, false)
-      this.ctx.strokeStyle = '#3b82f6' // Blue-500
-      this.ctx.lineWidth = 4 // Thicker highlight
-      this.ctx.stroke()
-
-      // Add a subtle pulsating effect (optional, might need CSS animation for canvas or separate overlay)
-      // For now, a static bold blue ring will suffice.
-    }
-
-    // Draw the marker circle body
     this.ctx.beginPath()
-    this.ctx.arc(x, y, radius, 0, Math.PI * 2, false)
+    this.ctx.arc(x, y, radius, 0, Math.PI * 2)
     this.ctx.fillStyle = fillColor
     this.ctx.fill()
-    this.ctx.lineWidth = borderWidth
     this.ctx.strokeStyle = borderColor
+    this.ctx.lineWidth = 1.5
     this.ctx.stroke()
 
-    // Draw the number inside the marker
-    this.ctx.font = `${fontSize}px Arial, sans-serif` // Use dynamic font size
-    this.ctx.textAlign = 'center'
-    this.ctx.textBaseline = 'middle'
-    this.ctx.fillStyle = textColor
-    this.ctx.fillText(String(number), x, y + 1) // +1 to visually center text better
+    // Draw number
+    if (number !== null) {
+      this.ctx.font = `${fontSize}px Arial, sans-serif`
+      this.ctx.textAlign = 'center'
+      this.ctx.textBaseline = 'middle'
+      this.ctx.fillStyle = textColor
+      this.ctx.fillText(String(number), x, y + 1)
+    }
+
+    this.ctx.restore()
+  }
+
+  /**
+   * Draw a square-shaped marker.
+   */
+  _drawSquareShape (x, y, radius, fillColor, borderColor, number, fontSize, textColor) {
+    this.ctx.save()
+
+    this.ctx.fillStyle = fillColor
+    this.ctx.strokeStyle = borderColor
+    this.ctx.lineWidth = 1.5
+    this.ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2)
+    this.ctx.strokeRect(x - radius, y - radius, radius * 2, radius * 2)
+
+    // Draw number
+    if (number !== null) {
+      this.ctx.font = `${fontSize}px Arial, sans-serif`
+      this.ctx.textAlign = 'center'
+      this.ctx.textBaseline = 'middle'
+      this.ctx.fillStyle = textColor
+      this.ctx.fillText(String(number), x, y + 1)
+    }
+
+    this.ctx.restore()
+  }
+
+  /**
+   * Draw a diamond-shaped marker (45° rotated square).
+   */
+  _drawDiamondShape (x, y, radius, fillColor, borderColor, marker) {
+    this.ctx.save()
+
+    if (this.markersAreEditable) {
+      this.ctx.shadowColor = fillColor
+      this.ctx.shadowBlur = 10
+    }
+
+    this.ctx.translate(x, y)
+    this.ctx.rotate(Math.PI / 4)
+    this.ctx.fillStyle = fillColor
+    this.ctx.strokeStyle = this.markersAreEditable ? '#ffffff' : borderColor
+    this.ctx.lineWidth = this.markersAreEditable ? 2 : 1.5
+    this.ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
+    this.ctx.strokeRect(-radius, -radius, radius * 2, radius * 2)
+
+    this.ctx.restore()
+  }
+
+  /**
+   * Draw an arrow-shaped marker with stem and arrowhead.
+   * Direction comes from marker.direction (0-360°, 0° = up).
+   * Map rotation is composed with the arrow direction so the arrow points
+   * to the same geographic direction regardless of map rotation.
+   */
+  _drawArrowShape (x, y, radius, color, marker) {
+    this.ctx.save()
+
+    // Compose arrow direction with map rotation
+    // marker.direction is stored in original map coordinate space (0° = up on unrotated map)
+    // Add currentMapRotation so the arrow points to the same geographic direction
+    const direction = marker.direction || 0
+    const effectiveDirection = (direction + this.currentMapRotation) % 360
+
+    this.ctx.translate(x, y)
+    this.ctx.rotate(effectiveDirection * Math.PI / 180)
+
+    // Draw stem (line from center upward)
+    this.ctx.beginPath()
+    this.ctx.moveTo(0, 0)
+    this.ctx.lineTo(0, -radius * 2)
+    this.ctx.strokeStyle = color
+    this.ctx.lineWidth = 2
+    this.ctx.stroke()
+
+    // Draw arrowhead (triangle at tip)
+    this.ctx.beginPath()
+    this.ctx.moveTo(0, -radius * 2) // Tip
+    this.ctx.lineTo(-radius * 0.8, -radius * 1.2) // Left wing
+    this.ctx.lineTo(radius * 0.8, -radius * 1.2) // Right wing
+    this.ctx.closePath()
+    this.ctx.fillStyle = color
+    this.ctx.fill()
+
+    this.ctx.restore()
+  }
+
+  /**
+   * Draw a type label near the marker with a semi-transparent white pill background.
+   */
+  _drawTypeLabel (x, y, radius, label, color) {
+    this.ctx.save()
+
+    this.ctx.font = 'bold 10px sans-serif'
+    this.ctx.textAlign = 'left'
+    this.ctx.textBaseline = 'top'
+
+    const textMetrics = this.ctx.measureText(label)
+    const labelWidth = textMetrics.width + 6
+    const labelHeight = 14
+    const labelX = x + radius + 2
+    const labelY = y + radius + 2
+
+    // Semi-transparent white pill background
+    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
+    const pillRadius = 7
+    this.ctx.beginPath()
+    this.ctx.moveTo(labelX + pillRadius, labelY)
+    this.ctx.lineTo(labelX + labelWidth - pillRadius, labelY)
+    this.ctx.arc(labelX + labelWidth - pillRadius, labelY + pillRadius, pillRadius, -Math.PI / 2, Math.PI / 2)
+    this.ctx.lineTo(labelX + pillRadius, labelY + labelHeight)
+    this.ctx.arc(labelX + pillRadius, labelY + pillRadius, pillRadius, Math.PI / 2, -Math.PI / 2)
+    this.ctx.closePath()
+    this.ctx.fill()
+
+    // Label text
+    this.ctx.fillStyle = color
+    this.ctx.fillText(label, labelX + 3, labelY + 1)
 
     this.ctx.restore()
   }
@@ -1297,6 +1665,7 @@ export class MapRenderer {
     this.originalImageData = null // The original Image object
     this.currentMap = null
     this.markers = [] // Clear markers on dispose
+    this.markerTypeDefinitions = new Map() // Clear type definitions
 
     console.log('MapRenderer: Resources cleaned up')
   }

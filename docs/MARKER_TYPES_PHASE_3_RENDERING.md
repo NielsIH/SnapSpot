@@ -1,9 +1,9 @@
 # Phase 3: Custom Marker Types — Rendering Engine
 
-**Status:** Not Started  
+**Status:** Completed  
 **Estimated Duration:** 1-2 days  
-**Started:** TBD  
-**Completed:** TBD  
+**Started:** 2026-06-15  
+**Completed:** 2026-06-15  
 **Prerequisites:** Phase 1 complete (Phase 2 recommended but not required for testing)
 
 ---
@@ -222,7 +222,7 @@ This ensures the arrow always points to the same geographic direction regardless
 
 ## Tasks
 
-### ☐ Task 3.1: Add Type Definition Storage to MapRenderer
+### ☑ Task 3.1: Add Type Definition Storage to MapRenderer
 
 **Actions:**
 1. Add `this.markerTypeDefinitions = new Map()` to MapRenderer constructor
@@ -241,15 +241,15 @@ This ensures the arrow always points to the same geographic direction regardless
 - `js/mapRenderer.js`
 
 **Acceptance Criteria:**
-- [ ] `setMarkerTypeDefinitions()` correctly indexes definitions by ID
-- [ ] `getEffectiveTypeDef()` returns built-in Photo Marker for markers without markerTypeId
-- [ ] `getEffectiveTypeDef()` returns built-in Line Marker for markers with type='line'
-- [ ] `getEffectiveTypeDef()` returns custom type for markers with markerTypeId
-- [ ] Falls back gracefully if definition ID not found (treat as Photo Marker)
+- [x] `setMarkerTypeDefinitions()` correctly indexes definitions by ID
+- [x] `getEffectiveTypeDef()` returns built-in Photo Marker for markers without markerTypeId
+- [x] `getEffectiveTypeDef()` returns built-in Line Marker for markers with type='line'
+- [x] `getEffectiveTypeDef()` returns custom type for markers with markerTypeId
+- [x] Falls back gracefully if definition ID not found (treat as Photo Marker)
 
 ---
 
-### ☐ Task 3.2: Refactor `drawMarker()` for Shape Dispatch
+### ☑ Task 3.2: Refactor `drawMarker()` for Shape Dispatch
 
 **Actions:**
 1. Refactor `drawMarker(x, y, number, marker)`:
@@ -311,17 +311,17 @@ _darkenColor(hex, factor) {
 - `js/mapRenderer.js`
 
 **Acceptance Criteria:**
-- [ ] Circle markers render as before (photo markers unchanged)
-- [ ] Diamond markers render like current line markers (45° rotated square)
-- [ ] Square markers render as filled rectangles
-- [ ] Arrow markers render with stem + arrowhead, pointing in direction
-- [ ] Legacy markers without markerTypeId render exactly as they do today (no visual regression)
-- [ ] Highlight ring still works for all shapes
-- [ ] Custom color rules still apply when markerTypeId is null
+- [x] Circle markers render as before (photo markers unchanged)
+- [x] Diamond markers render like current line markers (45° rotated square)
+- [x] Square markers render as filled rectangles
+- [x] Arrow markers render with stem + arrowhead, pointing in direction
+- [x] Legacy markers without markerTypeId render exactly as they do today (no visual regression)
+- [x] Highlight ring still works for all shapes
+- [x] Custom color rules still apply when markerTypeId is null
 
 ---
 
-### ☐ Task 3.3: Implement Arrow Rendering
+### ☑ Task 3.3: Implement Arrow Rendering
 
 **Actions:**
 1. Implement `_drawArrowMarker(x, y, radius, color, marker)`:
@@ -359,15 +359,15 @@ ctx.restore()
 - `js/mapRenderer.js`
 
 **Acceptance Criteria:**
-- [ ] Arrow points in the direction specified by marker.direction
-- [ ] Arrow direction composes with map rotation (0/90/180/270)
-- [ ] Arrowhead is visible and proportional at all size settings
-- [ ] Label appears near arrow if type has label
-- [ ] No number drawn on arrow markers
+- [x] Arrow points in the direction specified by marker.direction
+- [x] Arrow direction composes with map rotation (0/90/180/270)
+- [x] Arrowhead is visible and proportional at all size settings
+- [x] Label appears near arrow if type has label
+- [x] No number drawn on arrow markers
 
 ---
 
-### ☐ Task 3.4: Update `renderMarkers()` for Unified Loop
+### ☑ Task 3.4: Update `renderMarkers()` for Unified Loop
 
 **Actions:**
 1. In `renderMarkers()`, the current split into `photoMarkers`/`lineMarkers` is replaced:
@@ -403,15 +403,15 @@ sortedMarkers.forEach((marker, index) => {
 - `js/mapRenderer.js`
 
 **Acceptance Criteria:**
-- [ ] All markers render in a single pass
-- [ ] Line connectors still draw before markers (behind them visually)
-- [ ] Numbers only appear on circle and square markers
-- [ ] Chronological numbering is consistent across all marker types
-- [ ] No visual regression for existing maps
+- [x] All markers render in a single pass
+- [x] Line connectors still draw before markers (behind them visually)
+- [x] Numbers only appear on circle and square markers
+- [x] Chronological numbering is consistent across all marker types
+- [x] No visual regression for existing maps
 
 ---
 
-### ☐ Task 3.5: Wire Up Type Definitions from App
+### ☑ Task 3.5: Wire Up Type Definitions from App
 
 **Actions:**
 1. In `js/app.js`, after loading markers for a map, also load marker type definitions:
@@ -432,10 +432,10 @@ this.mapRenderer.setMarkerTypeDefinitions(typeDefs)
 - `js/app-settings.js` (refresh types after CRUD)
 
 **Acceptance Criteria:**
-- [ ] Type definitions loaded when map loads
-- [ ] MapRenderer has type definitions before rendering markers
-- [ ] Type definition changes in settings cause re-render with new colors/shapes
-- [ ] No errors if no custom types exist (fallback to built-in defaults works)
+- [x] Type definitions loaded when map loads
+- [x] MapRenderer has type definitions before rendering markers
+- [x] Type definition changes in settings cause re-render with new colors/shapes
+- [x] No errors if no custom types exist (fallback to built-in defaults works)
 
 ---
 

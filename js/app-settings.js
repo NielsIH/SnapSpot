@@ -455,6 +455,10 @@ export async function showSettings (app, initialTab = 'general-settings') {
       },
       onToggleMarkerType: (typeId, enabled) => {
         setMarkerTypeEnabled(typeId, enabled)
+        // Refresh renderer with updated type definitions
+        if (app.refreshMarkerTypeDefinitions) {
+          app.refreshMarkerTypeDefinitions()
+        }
       },
       onUpdateMarkerTypeColor: async (typeId, newColor) => {
         try {
@@ -466,6 +470,10 @@ export async function showSettings (app, initialTab = 'general-settings') {
           def.color = newColor
           await app.storage.updateMarkerTypeDefinition(def)
           app.showNotification(`Color updated for "${def.name}".`, 'success')
+          // Refresh renderer with updated type definitions
+          if (app.refreshMarkerTypeDefinitions) {
+            app.refreshMarkerTypeDefinitions()
+          }
         } catch (error) {
           console.error('Error updating marker type color:', error)
           app.showNotification('Failed to update marker type color.', 'error')
@@ -479,6 +487,10 @@ export async function showSettings (app, initialTab = 'general-settings') {
             try {
               await app.storage.addMarkerTypeDefinition(definitionData)
               app.showNotification(`Marker type "${definitionData.name}" created.`, 'success')
+              // Refresh renderer with updated type definitions
+              if (app.refreshMarkerTypeDefinitions) {
+                app.refreshMarkerTypeDefinitions()
+              }
               if (onComplete) onComplete()
             } catch (error) {
               console.error('Error saving marker type definition:', error)
@@ -500,6 +512,10 @@ export async function showSettings (app, initialTab = 'general-settings') {
             try {
               await app.storage.updateMarkerTypeDefinition(definitionData)
               app.showNotification(`Marker type "${definitionData.name}" updated.`, 'success')
+              // Refresh renderer with updated type definitions
+              if (app.refreshMarkerTypeDefinitions) {
+                app.refreshMarkerTypeDefinitions()
+              }
               if (onComplete) onComplete()
             } catch (error) {
               console.error('Error updating marker type definition:', error)
@@ -529,6 +545,10 @@ export async function showSettings (app, initialTab = 'general-settings') {
           }
           await app.storage.deleteMarkerTypeDefinition(typeId)
           app.showNotification(`Marker type "${definition.name}" deleted.`, 'success')
+          // Refresh renderer with updated type definitions
+          if (app.refreshMarkerTypeDefinitions) {
+            app.refreshMarkerTypeDefinitions()
+          }
         } catch (error) {
           console.error('Error deleting marker type definition:', error)
           app.showNotification(error.message || 'Failed to delete marker type.', 'error')

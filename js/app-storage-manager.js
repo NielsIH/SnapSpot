@@ -137,6 +137,15 @@ export const StorageManager = {
       app.mapRenderer.setMarkers(app.markers)
       console.log('--- app.js: setMarkers() called with', app.markers.length, 'markers ---')
 
+      // Phase 3: Load and set marker type definitions for rendering
+      try {
+        const typeDefs = await app.storage.getMarkerTypeDefinitionsForMap(app.currentMap.id)
+        app.mapRenderer.setMarkerTypeDefinitions(typeDefs)
+        console.log('--- app.js: setMarkerTypeDefinitions() called with', typeDefs.length, 'type definitions ---')
+      } catch (typeError) {
+        console.warn('Could not load marker type definitions:', typeError)
+      }
+
       // CRITICAL: Call render once more AFTER markers are set, to ensure they are drawn.
       app.mapRenderer.render()
 
