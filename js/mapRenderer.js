@@ -1336,8 +1336,8 @@ export class MapRenderer {
 
     // --- Behavior dispatch ---
     if (behavior === 'line-pair') {
-      // Line markers: always diamond shape with line connector
-      this._drawDiamondShape(x, y, radius, fillColor, borderColor, marker)
+      // Line markers: always diamond shape with line connector (no numbering)
+      this._drawDiamondShape(x, y, radius, fillColor, borderColor, null, null, null, marker)
       return
     }
 
@@ -1350,10 +1350,10 @@ export class MapRenderer {
         this._drawSquareShape(x, y, radius, fillColor, borderColor, number, fontSize, textColor)
         break
       case 'diamond':
-        this._drawDiamondShape(x, y, radius, fillColor, borderColor, marker)
+        this._drawDiamondShape(x, y, radius, fillColor, borderColor, number, fontSize, textColor, marker)
         break
       case 'arrow':
-        this._drawArrowShape(x, y, radius, fillColor, marker)
+        this._drawArrowShape(x, y, radius, fillColor, number, fontSize, textColor, marker)
         break
     }
 
@@ -1491,6 +1491,11 @@ export class MapRenderer {
   _drawCircleShape (x, y, radius, fillColor, borderColor, number, fontSize, textColor) {
     this.ctx.save()
 
+    if (this.markersAreEditable) {
+      this.ctx.shadowColor = fillColor
+      this.ctx.shadowBlur = 10
+    }
+
     this.ctx.beginPath()
     this.ctx.arc(x, y, radius, 0, Math.PI * 2)
     this.ctx.fillStyle = fillColor
@@ -1517,6 +1522,11 @@ export class MapRenderer {
   _drawSquareShape (x, y, radius, fillColor, borderColor, number, fontSize, textColor) {
     this.ctx.save()
 
+    if (this.markersAreEditable) {
+      this.ctx.shadowColor = fillColor
+      this.ctx.shadowBlur = 10
+    }
+
     this.ctx.fillStyle = fillColor
     this.ctx.strokeStyle = borderColor
     this.ctx.lineWidth = 1.5
@@ -1538,7 +1548,7 @@ export class MapRenderer {
   /**
    * Draw a diamond-shaped marker (45° rotated square).
    */
-  _drawDiamondShape (x, y, radius, fillColor, borderColor, marker) {
+  _drawDiamondShape (x, y, radius, fillColor, borderColor, number, fontSize, textColor, marker) {
     this.ctx.save()
 
     if (this.markersAreEditable) {
@@ -1555,6 +1565,17 @@ export class MapRenderer {
     this.ctx.strokeRect(-radius, -radius, radius * 2, radius * 2)
 
     this.ctx.restore()
+
+    // Draw number (unrotated, centered on marker)
+    if (number !== null && fontSize && textColor) {
+      this.ctx.save()
+      this.ctx.font = `${fontSize}px Arial, sans-serif`
+      this.ctx.textAlign = 'center'
+      this.ctx.textBaseline = 'middle'
+      this.ctx.fillStyle = textColor
+      this.ctx.fillText(String(number), x, y + 1)
+      this.ctx.restore()
+    }
   }
 
   /**
@@ -1563,8 +1584,13 @@ export class MapRenderer {
    * Map rotation is composed with the arrow direction so the arrow points
    * to the same geographic direction regardless of map rotation.
    */
-  _drawArrowShape (x, y, radius, color, marker) {
+  _drawArrowShape (x, y, radius, color, number, fontSize, textColor, marker) {
     this.ctx.save()
+
+    if (this.markersAreEditable) {
+      this.ctx.shadowColor = color
+      this.ctx.shadowBlur = 10
+    }
 
     // Compose arrow direction with map rotation
     // marker.direction is stored in original map coordinate space (0° = up on unrotated map)
@@ -1593,6 +1619,21 @@ export class MapRenderer {
     this.ctx.fill()
 
     this.ctx.restore()
+
+    // Draw number at center (unrotated, always upright and readable)
+    if (number !== null && fontSize && textColor) {
+      this.ctx.save()
+      this.ctx.font = `bold ${fontSize}px Arial, sans-serif`
+      this.ctx.textAlign = 'center'
+      this.ctx.textBaseline = 'middle'
+      // White text with dark outline for readability over arrow stem
+      this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'
+      this.ctx.lineWidth = 3
+      this.ctx.strokeText(String(number), x, y + 1)
+      this.ctx.fillStyle = '#ffffff'
+      this.ctx.fillText(String(number), x, y + 1)
+      this.ctx.restore()
+    }
   }
 
   /**

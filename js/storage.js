@@ -842,6 +842,8 @@ export class MapStorage {
       description: markerData.description || '',
       photoIds: markerData.photoIds || [], // Array of photo IDs linked to this marker
       ...(markerData.type ? { type: markerData.type } : {}),
+      ...(markerData.markerTypeId ? { markerTypeId: markerData.markerTypeId } : {}),
+      ...(markerData.direction !== undefined ? { direction: markerData.direction } : {}),
       ...(markerData.lineGroupId ? { lineGroupId: markerData.lineGroupId } : {}),
       ...(markerData.lineColor ? { lineColor: markerData.lineColor } : {}),
       ...(markerData.lineCaption !== undefined ? { lineCaption: markerData.lineCaption } : {})

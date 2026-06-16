@@ -1,8 +1,8 @@
 # Phase 4: Custom Marker Types — Marker Creation and Type Selection
 
-**Status:** Not Started  
+**Status:** In Progress (implementation done, testing pending)  
 **Estimated Duration:** 1-2 days  
-**Started:** TBD  
+**Started:** 2026-06-15  
 **Completed:** TBD  
 **Prerequisites:** Phase 1, 2, and 3 complete
 

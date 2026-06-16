@@ -68,6 +68,18 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
         }
       }
 
+      // Phase 4: Direction section toggle
+      const directionView = modal.querySelector('#direction-view')
+      const directionEdit = modal.querySelector('#direction-edit')
+      if (directionView) directionView.classList.add('hidden')
+      if (directionEdit) directionEdit.classList.remove('hidden')
+
+      // Phase 4: Type info toggle
+      const typeDisplay = modal.querySelector('.marker-type-display')
+      const typeEdit = modal.querySelector('.marker-type-edit')
+      if (typeDisplay) typeDisplay.classList.add('hidden')
+      if (typeEdit) typeEdit.classList.remove('hidden')
+
       editButton.classList.add('hidden')
       saveButton.classList.remove('hidden')
       cancelButton.classList.remove('hidden')
@@ -75,6 +87,13 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
       deleteMarkerButton.disabled = true
       descriptionEdit.focus()
       descriptionEdit.setSelectionRange(descriptionEdit.value.length, descriptionEdit.value.length)
+
+      // Phase 4: Draw initial direction preview
+      const directionPreview = modal.querySelector('#direction-preview-canvas')
+      const directionSlider = modal.querySelector('#direction-slider')
+      if (directionPreview && directionSlider) {
+        drawDirectionPreview(directionPreview, parseInt(directionSlider.value))
+      }
     } else {
       descriptionDisplay.classList.remove('hidden')
       descriptionEdit.classList.add('hidden')
@@ -89,6 +108,18 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
         metadataEditContainer.classList.add('hidden')
         metadataEditContainer.innerHTML = ''
       }
+
+      // Phase 4: Hide direction edit, show view
+      const directionView = modal.querySelector('#direction-view')
+      const directionEdit = modal.querySelector('#direction-edit')
+      if (directionView) directionView.classList.remove('hidden')
+      if (directionEdit) directionEdit.classList.add('hidden')
+
+      // Phase 4: Hide type edit, show display
+      const typeDisplay = modal.querySelector('.marker-type-display')
+      const typeEdit = modal.querySelector('.marker-type-edit')
+      if (typeDisplay) typeDisplay.classList.remove('hidden')
+      if (typeEdit) typeEdit.classList.add('hidden')
 
       editButton.classList.remove('hidden')
       saveButton.classList.add('hidden')
@@ -113,7 +144,7 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
     if (onEditMarker) onEditMarker(markerDetails.id)
   })
 
-  // Save button - save description and metadata, then exit edit mode
+  // Save button - save description, metadata, direction, and type
   saveButton?.addEventListener('click', async () => {
     const newDescription = descriptionEdit.value.trim()
 
@@ -136,9 +167,48 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
       }
     }
 
-    // Then save description
+    // Phase 4: Collect direction and marker type changes
+    const extraUpdates = {}
+
+    // Collect direction if slider exists
+    const directionSlider = modal.querySelector('#direction-slider')
+    if (directionSlider) {
+      extraUpdates.direction = parseInt(directionSlider.value)
+    }
+
+    // Collect marker type change if select exists
+    const typeSelect = modal.querySelector('#marker-type-select')
+    if (typeSelect) {
+      const newTypeId = typeSelect.value || null
+      if (newTypeId !== markerDetails.markerTypeId) {
+        extraUpdates.markerTypeId = newTypeId
+
+        // If changing to an arrow type, initialize direction to 0 if not set
+        if (newTypeId && markerDetails.allTypeDefs) {
+          const newTypeDef = markerDetails.allTypeDefs.find(d => d.id === newTypeId)
+          if (newTypeDef && newTypeDef.shape === 'arrow' && newTypeDef.behavior === 'point') {
+            if (!extraUpdates.direction && !markerDetails.direction) {
+              extraUpdates.direction = 0
+            }
+          }
+        }
+
+        // If changing FROM arrow to non-arrow, warn about direction loss
+        if (markerDetails.markerTypeDef && markerDetails.markerTypeDef.shape === 'arrow') {
+          const newTypeDef = newTypeId ? markerDetails.allTypeDefs.find(d => d.id === newTypeId) : null
+          if (!newTypeId) {
+            // Changing to default Photo Marker (no direction)
+            delete extraUpdates.direction
+          } else if (newTypeDef && newTypeDef.shape !== 'arrow') {
+            delete extraUpdates.direction
+          }
+        }
+      }
+    }
+
+    // Then save description with extra updates
     if (onSaveDescription) {
-      await onSaveDescription(markerDetails.id, newDescription)
+      await onSaveDescription(markerDetails.id, newDescription, extraUpdates)
     }
     toggleEditMode(false)
   })
@@ -146,10 +216,98 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
   // Cancel button - revert and exit edit mode
   cancelButton?.addEventListener('click', () => {
     descriptionEdit.value = markerDetails.description || ''
+
+    // Phase 4: Revert direction slider to original value
+    const directionSlider = modal.querySelector('#direction-slider')
+    if (directionSlider && markerDetails.direction !== undefined) {
+      directionSlider.value = markerDetails.direction
+    }
+
     toggleEditMode(false)
   })
 
+  // Phase 4: Direction slider event handler
+  const directionSlider = modal.querySelector('#direction-slider')
+  const directionPreview = modal.querySelector('#direction-preview-canvas')
+  const directionCurrentValue = modal.querySelector('#direction-current-value')
+  const directionValueDisplay = modal.querySelector('#direction-value-display')
+
+  if (directionSlider && directionPreview) {
+    directionSlider.addEventListener('input', () => {
+      const value = parseInt(directionSlider.value)
+      // Update preview canvas
+      drawDirectionPreview(directionPreview, value)
+      // Update current value label
+      if (directionCurrentValue) {
+        directionCurrentValue.textContent = value + '°'
+      }
+      // Update view-mode display (in case save happens later)
+      if (directionValueDisplay) {
+        directionValueDisplay.textContent = value + '°'
+      }
+    })
+  }
+
   return toggleEditMode
+}
+
+/**
+ * Phase 4: Draw an arrow preview on a small canvas
+ * @param {HTMLCanvasElement} canvas - The preview canvas
+ * @param {number} degrees - Direction in degrees (0 = up, 90 = right)
+ */
+function drawDirectionPreview (canvas, degrees) {
+  const ctx = canvas.getContext('2d')
+  const w = canvas.width
+  const h = canvas.height
+  const cx = w / 2
+  const cy = h / 2
+
+  ctx.clearRect(0, 0, w, h)
+
+  // Background
+  ctx.fillStyle = '#f9fafb'
+  ctx.fillRect(0, 0, w, h)
+
+  ctx.save()
+  ctx.translate(cx, cy)
+
+  // Rotate: 0° = up (canvas 0 is right, so we need -90° offset)
+  // Arrow points "up" naturally if drawn pointing to top
+  const rad = (degrees - 90) * Math.PI / 180
+  ctx.rotate(rad)
+
+  // Draw arrow
+  const arrowColor = '#3b82f6'
+  const arrowSize = 22
+
+  ctx.fillStyle = arrowColor
+  ctx.strokeStyle = _darkenColor(arrowColor, 0.2)
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  // Arrow head (pointing right = 0° in canvas coords)
+  ctx.moveTo(arrowSize, 0)
+  ctx.lineTo(-arrowSize * 0.5, -arrowSize * 0.65)
+  ctx.lineTo(-arrowSize * 0.2, 0)
+  ctx.lineTo(-arrowSize * 0.5, arrowSize * 0.65)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+
+  ctx.restore()
+}
+
+/**
+ * Simple darken hex color utility (used by direction preview)
+ * @param {string} hex - Hex color
+ * @param {number} factor - Darken factor
+ * @returns {string} Darkened hex
+ */
+function _darkenColor (hex, factor) {
+  const r = Math.max(0, Math.round(parseInt(hex.slice(1, 3), 16) * (1 - factor)))
+  const g = Math.max(0, Math.round(parseInt(hex.slice(3, 5), 16) * (1 - factor)))
+  const b = Math.max(0, Math.round(parseInt(hex.slice(5, 7), 16) * (1 - factor)))
+  return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('')
 }
 
 /**

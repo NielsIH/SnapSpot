@@ -1,7 +1,7 @@
 # SnapSpot Custom Marker Types - Workflow Tracker
 
-**Last Updated:** June 12, 2026  
-**Current Phase:** Phase 1 - Schema Design and Storage Layer  
+**Last Updated:** June 15, 2026  
+**Current Phase:** Phase 4 - Marker Creation and Type Selection  
 **Current Task:** Manual testing
 
 ---
@@ -100,20 +100,19 @@
 ---
 
 ### ☐ Phase 4: Marker Creation and Type Selection
-**Status:** Not Started  
+**Status:** In Progress (implementation done, testing pending)  
 **Document:** [MARKER_TYPES_PHASE_4_CREATION.md](MARKER_TYPES_PHASE_4_CREATION.md)  
 **Estimated Duration:** 1-2 days
 
 **Deliverables:**
-- ☐ Replace "Place Line" button with "Place Custom" button in toolbar
-- ☐ Type picker popup on "Place Custom" (all non-default types + line pair + create new)
-- ☐ "Place Marker" button always places default type (Photo Marker, configurable)
-- ☐ Default marker type setting in Settings → Marker Types tab
-- ☐ Update placeMarker() to accept markerTypeId parameter
-- ☐ Direction rotation slider (0-360°) with live preview canvas in marker details modal
-- ☐ Subtle cardinal snap detents (0/90/180/270) on slider
-- ☐ Display marker type info (name + shape icon) in marker details modal
-- ☐ Allow type change for existing markers (with compatibility constraints)
+- ☑ Replace "Place Line" button with "Place Custom" button in toolbar
+- ☑ Type picker popup on "Place Custom" (all non-default types + line pair + create new)
+- ☑ "Place Marker" button always places default type (Photo Marker, configurable)
+- ☑ Default marker type setting in Settings → Marker Types tab
+- ☑ Update placeMarker() to accept markerTypeId parameter
+- ☑ Direction rotation slider (0-360°) with live preview canvas in marker details modal
+- ☑ Display marker type info (name + shape icon) in marker details modal
+- ☑ Allow type change for existing markers (with compatibility constraints)
 - ☐ Manual creation and direction tests
 
 ---

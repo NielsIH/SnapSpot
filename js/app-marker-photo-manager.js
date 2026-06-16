@@ -3,12 +3,14 @@
  * Handles marker creation, management, and photo operations
  */
 
+/* global requestAnimationFrame */
+
 import * as MapInteractions from './app-map-interactions.js'
 import { createPhotoGalleryModal } from './ui/photo-gallery-modal.js'
 import { onShowPhotoOnMap } from './app-search.js'
 
 // Export all marker and photo management functions
-export async function placeMarker (app) {
+export async function placeMarker (app, options = {}) {
   if (!app.currentMap || !app.mapRenderer.imageData) {
     console.warn('Cannot place marker: No map loaded or image data unavailable.')
     app.showNotification('Please load a map first before placing a marker.', 'warning')
@@ -28,11 +30,28 @@ export async function placeMarker (app) {
       throw new Error('Failed to convert screen coordinates to map coordinates.')
     }
 
+    const markerTypeId = options.markerTypeId || app.defaultMarkerTypeId || null
+
     const newMarker = {
       mapId: app.currentMap.id,
       x: mapCoords.x,
       y: mapCoords.y,
       description: `Marker at ${mapCoords.x.toFixed(0)}, ${mapCoords.y.toFixed(0)}` // Default description
+    }
+
+    // Attach marker type ID if specified (Phase 4: Custom Marker Types)
+    if (markerTypeId) {
+      newMarker.markerTypeId = markerTypeId
+
+      // If the type supports direction (point behavior + arrow shape), initialize to 0
+      try {
+        const typeDef = await app.storage.getMarkerTypeDefinition(markerTypeId)
+        if (typeDef && typeDef.behavior === 'point' && typeDef.shape === 'arrow') {
+          newMarker.direction = 0
+        }
+      } catch (typeError) {
+        console.warn('Could not check marker type for direction support:', typeError)
+      }
     }
 
     const savedMarker = await app.storage.addMarker(newMarker)
@@ -76,6 +95,7 @@ export async function placeLinePair (app) {
     const baseLineMarker = {
       mapId: app.currentMap.id,
       type: 'line',
+      markerTypeId: 'builtin-line-marker',
       lineGroupId,
       lineColor: '#e53e3e',
       lineCaption: '',
@@ -180,6 +200,27 @@ export async function showMarkerDetails (app, markerId) {
     const displayX = marker.x.toFixed(0)
     const displayY = marker.y.toFixed(0)
 
+    // Phase 4: Look up marker type definition and direction
+    let markerTypeDef = null
+    const markerTypeId = marker.markerTypeId || null
+    if (markerTypeId) {
+      try {
+        markerTypeDef = await app.storage.getMarkerTypeDefinition(markerTypeId)
+      } catch (e) {
+        console.warn('Could not load marker type definition:', e)
+      }
+    }
+    const direction = marker.direction !== undefined ? marker.direction : null
+    const hasDirection = markerTypeDef && markerTypeDef.behavior === 'point' && markerTypeDef.shape === 'arrow'
+
+    // Fetch all marker type definitions for type-change dropdown
+    let allTypeDefs = []
+    try {
+      allTypeDefs = await app.storage.getAllMarkerTypeDefinitions()
+    } catch (e) {
+      console.warn('Could not load marker type definitions:', e)
+    }
+
     app.modalManager.createMarkerDetailsModal(
       {
         id: marker.id,
@@ -187,7 +228,12 @@ export async function showMarkerDetails (app, markerId) {
         description: marker.description,
         coords: `X: ${displayX}, Y: ${displayY}`,
         photoCount: validPhotos.length,
-        photos: validPhotos // Pass photo data to the modal
+        photos: validPhotos, // Pass photo data to the modal
+        markerTypeId,
+        direction,
+        hasDirection,
+        markerTypeDef,
+        allTypeDefs // All type definitions for type-change dropdown
       },
       // Callbacks for modal actions
       // onAddPhotos callback
@@ -213,24 +259,36 @@ export async function showMarkerDetails (app, markerId) {
         // No need to close/re-open modal here, edit happens in-place
       },
       // onSaveDescription callback (NEW)
-      async (markerIdToSave, newDescription) => {
-        app.showLoading('Saving description...')
+      async (markerIdToSave, newDescription, extraUpdates = {}) => {
+        app.showLoading('Saving...')
         try {
-          await app.storage.updateMarker(markerIdToSave, {
+          const updates = {
             description: newDescription,
-            lastModified: new Date()
-          })
+            lastModified: new Date(),
+            ...extraUpdates
+          }
+          await app.storage.updateMarker(markerIdToSave, updates)
           const localMarker = app.markers.find(m => m.id === markerIdToSave)
           if (localMarker) {
             localMarker.description = newDescription
+            if (extraUpdates.direction !== undefined) {
+              localMarker.direction = extraUpdates.direction
+            }
+            if (extraUpdates.markerTypeId !== undefined) {
+              localMarker.markerTypeId = extraUpdates.markerTypeId
+              // If changing to arrow type, ensure direction is set
+              if (extraUpdates.direction !== undefined) {
+                localMarker.direction = extraUpdates.direction
+              }
+            }
           }
           app.modalManager.updateMarkerDetailsDescription(markerIdToSave, newDescription)
-          app.showNotification('Description updated.', 'success')
-          console.log(`Marker ${markerIdToSave} description saved.`)
-          await app.refreshMarkersDisplay() // Re-render map to reflect potential description changes affecting coloring
+          app.showNotification('Changes saved.', 'success')
+          console.log(`Marker ${markerIdToSave} saved with updates:`, updates)
+          await app.refreshMarkersDisplay() // Re-render map to reflect changes
         } catch (error) {
-          console.error('Failed to save description:', error)
-          app.showErrorMessage('Save Error', `Failed to save description: ${error.message}`)
+          console.error('Failed to save:', error)
+          app.showErrorMessage('Save Error', `Failed to save: ${error.message}`)
         } finally {
           app.hideLoading()
         }
@@ -736,4 +794,175 @@ export async function handleViewImageInViewer (app, id, type) {
   } finally {
     app.hideLoading()
   }
+}
+
+// ========================================
+// Phase 4: Custom Type Picker
+// ========================================
+
+const SHAPE_ICONS = {
+  circle: '●',
+  square: '■',
+  diamond: '◆',
+  arrow: '▲'
+}
+
+/**
+ * Open a type picker popup for the "Place Custom" button.
+ * Shows all non-default marker types + line pair option + create new.
+ * @param {Object} app - SnapSpotApp instance
+ */
+export async function openCustomTypePicker (app) {
+  if (!app.currentMap || !app.mapRenderer.imageData) {
+    app.showNotification('Please load a map first before placing a marker.', 'warning')
+    return
+  }
+
+  // Remove any existing picker
+  const existingPicker = document.getElementById('custom-type-picker')
+  if (existingPicker) {
+    existingPicker.remove()
+    return
+  }
+
+  // Fetch marker type definitions
+  let allDefinitions = []
+  try {
+    allDefinitions = await app.storage.getAllMarkerTypeDefinitions()
+  } catch (error) {
+    console.error('Failed to load marker type definitions:', error)
+    app.showNotification('Could not load marker types.', 'error')
+    return
+  }
+
+  // Filter: exclude the current default type (it's on the main Place Marker button)
+  // and exclude line-pair behavior (shown as "Line Marker (pair)" separately)
+  const defaultTypeId = app.defaultMarkerTypeId || 'builtin-photo-marker'
+  const pointTypes = allDefinitions.filter(d =>
+    d.behavior === 'point' && d.id !== defaultTypeId
+  )
+  const lineType = allDefinitions.find(d => d.id === 'builtin-line-marker')
+
+  // Build the popup HTML
+  const popupHtml = `
+    <div class="type-picker-backdrop" id="custom-type-picker-backdrop"></div>
+    <div class="type-picker-popup" id="custom-type-picker-popup">
+      <div class="type-picker-header">Select Marker Type</div>
+      <div class="type-picker-list">
+        ${pointTypes.map(def => `
+          <button class="type-picker-item" data-type-id="${def.id}" data-behavior="point">
+            <span class="type-picker-icon" style="color: ${def.color || '#6b7280'};">${SHAPE_ICONS[def.shape] || '●'}</span>
+            <span class="type-picker-name">${def.name}</span>
+            <span class="type-picker-swatch" style="background-color: ${def.color || '#6b7280'};" title="${def.color}"></span>
+          </button>
+        `).join('')}
+        ${lineType
+? `
+          <div class="type-picker-divider"></div>
+          <button class="type-picker-item type-picker-line-item" data-type-id="${lineType.id}" data-behavior="line-pair">
+            <span class="type-picker-icon" style="color: ${lineType.color || '#e53e3e'};">${SHAPE_ICONS[lineType.shape] || '◆'}</span>
+            <span class="type-picker-name">Line Marker (pair)</span>
+            <span class="type-picker-swatch" style="background-color: ${lineType.color || '#e53e3e'};" title="${lineType.color}"></span>
+          </button>
+        `
+: ''}
+        <div class="type-picker-divider"></div>
+        <button class="type-picker-item type-picker-create-btn" id="type-picker-create-new">
+          <span class="type-picker-icon">➕</span>
+          <span class="type-picker-name">Create New Type...</span>
+        </button>
+      </div>
+    </div>
+  `
+
+  // Create and append popup
+  const wrapper = document.createElement('div')
+  wrapper.id = 'custom-type-picker'
+  wrapper.innerHTML = popupHtml
+  document.body.appendChild(wrapper)
+
+  const backdrop = wrapper.querySelector('#custom-type-picker-backdrop')
+  const popup = wrapper.querySelector('#custom-type-picker-popup')
+
+  // Position the popup near the Place Custom button
+  const placeCustomBtn = document.getElementById('btn-place-custom')
+  if (placeCustomBtn) {
+    const btnRect = placeCustomBtn.getBoundingClientRect()
+    popup.style.position = 'fixed'
+    popup.style.top = (btnRect.bottom + 4) + 'px'
+
+    // Center or align-left based on available space
+    const popupWidth = 280
+    let left = btnRect.left
+    if (left + popupWidth > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - popupWidth - 8)
+    }
+    popup.style.left = left + 'px'
+  }
+
+  // Dismiss function
+  const dismissPicker = () => {
+    if (wrapper.parentNode) {
+      wrapper.remove()
+    }
+  }
+
+  // Dismiss on backdrop click
+  backdrop.addEventListener('click', dismissPicker)
+
+  // Dismiss on Escape
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      dismissPicker()
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }
+  document.addEventListener('keydown', handleKeyDown)
+
+  // Handle item clicks
+  popup.querySelectorAll('.type-picker-item').forEach(item => {
+    item.addEventListener('click', async () => {
+      const behavior = item.dataset.behavior
+      const typeId = item.dataset.typeId
+
+      dismissPicker()
+
+      if (behavior === 'point') {
+        await placeMarker(app, { markerTypeId: typeId })
+      } else if (behavior === 'line-pair') {
+        await placeLinePair(app)
+      }
+    })
+  })
+
+  // Handle "Create New Type" click
+  const createNewBtn = popup.querySelector('#type-picker-create-new')
+  if (createNewBtn) {
+    createNewBtn.addEventListener('click', async () => {
+      dismissPicker()
+
+      const { createMarkerTypeDefinitionModal } = await import('./ui/marker-type-definition-modal.js')
+      createMarkerTypeDefinitionModal(app.modalManager, {
+        definition: null,
+        onSave: async (definitionData) => {
+          try {
+            await app.storage.addMarkerTypeDefinition(definitionData)
+            app.showNotification(`Marker type "${definitionData.name}" created.`, 'success')
+            if (app.refreshMarkerTypeDefinitions) {
+              app.refreshMarkerTypeDefinitions()
+            }
+          } catch (error) {
+            console.error('Error saving marker type definition:', error)
+            app.showNotification('Failed to create marker type.', 'error')
+          }
+        }
+      })
+    })
+  }
+
+  // Animate in
+  requestAnimationFrame(() => {
+    backdrop.classList.add('show')
+    popup.classList.add('show')
+  })
 }
