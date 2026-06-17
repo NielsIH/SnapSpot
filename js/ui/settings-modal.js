@@ -770,6 +770,14 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
   /**
    * Render the default marker type dropdown
    */
+  const defaultTypeChangeHandler = () => {
+    const select = modal.querySelector('#default-marker-type-select')
+    if (select && callbacks.onChangeDefaultMarkerType) {
+      callbacks.onChangeDefaultMarkerType(select.value)
+    }
+  }
+
+  let defaultTypeListenerAttached = false
   const renderDefaultTypeDropdown = (allDefinitions, enabledIds) => {
     const select = modal.querySelector('#default-marker-type-select')
     if (!select) return
@@ -788,11 +796,11 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
       return `<option value="${def.id}" ${selected}>${SHAPE_ICONS[def.shape] || '●'} ${def.name}</option>`
     }).join('')
 
-    select.addEventListener('change', () => {
-      if (callbacks.onChangeDefaultMarkerType) {
-        callbacks.onChangeDefaultMarkerType(select.value)
-      }
-    })
+    // Attach listener once — replacing innerHTML does not remove event listeners
+    if (!defaultTypeListenerAttached) {
+      select.addEventListener('change', defaultTypeChangeHandler)
+      defaultTypeListenerAttached = true
+    }
   }
 
   /**

@@ -442,9 +442,6 @@ export async function showSettings (app, initialTab = 'general-settings') {
       getMarkerTypeDefinitions: async () => {
         return await app.storage.getAllMarkerTypeDefinitions()
       },
-      getEnabledMarkerTypeIds: () => {
-        return getDisabledMarkerTypeIds()
-      },
       getDefaultMarkerTypeId: () => getDefaultMarkerTypeId(),
       onChangeDefaultMarkerType: (typeId) => {
         setDefaultMarkerTypeId(typeId)

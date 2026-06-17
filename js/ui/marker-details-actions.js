@@ -193,14 +193,14 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
           }
         }
 
-        // If changing FROM arrow to non-arrow, warn about direction loss
+        // If changing FROM arrow to non-arrow, clear direction to avoid stale values
         if (markerDetails.markerTypeDef && markerDetails.markerTypeDef.shape === 'arrow') {
           const newTypeDef = newTypeId ? markerDetails.allTypeDefs.find(d => d.id === newTypeId) : null
           if (!newTypeId) {
-            // Changing to default Photo Marker (no direction)
-            delete extraUpdates.direction
+            // Changing to default Photo Marker (no direction) – explicitly clear persisted value
+            extraUpdates.direction = null
           } else if (newTypeDef && newTypeDef.shape !== 'arrow') {
-            delete extraUpdates.direction
+            extraUpdates.direction = null
           }
         }
       }

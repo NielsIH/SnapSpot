@@ -78,7 +78,7 @@ function generateMarkerTypeInfo (markerDetails) {
   let typeColor = '#6b7280'
 
   if (typeDef) {
-    typeName = typeDef.name
+    typeName = escapeHtml(typeDef.name)
     typeIcon = SHAPE_ICONS[typeDef.shape] || '●'
     typeColor = typeDef.color || '#6b7280'
   } else if (isLine) {
@@ -96,7 +96,7 @@ function generateMarkerTypeInfo (markerDetails) {
       <select class="form-control marker-type-select hidden" id="marker-type-select">
         ${pointTypes.map(def => {
           const selected = def.id === markerDetails.markerTypeId ? 'selected' : ''
-          return `<option value="${def.id}" ${selected}>${SHAPE_ICONS[def.shape] || '●'} ${def.name}</option>`
+          return `<option value="${def.id}" ${selected}>${SHAPE_ICONS[def.shape] || '●'} ${escapeHtml(def.name)}</option>`
         }).join('')}
         <option value="" ${!markerDetails.markerTypeId ? 'selected' : ''}>● Photo Marker (default)</option>
       </select>

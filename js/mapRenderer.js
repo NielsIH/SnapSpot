@@ -1407,8 +1407,11 @@ export class MapRenderer {
     }
 
     // 2. Determine base color: custom rule wins over type definition
+    // Custom rules apply to legacy markers (no markerTypeId) AND the built-in photo marker,
+    // since builtin-photo-marker IS the legacy default that rules were designed to override.
+    // Custom types with explicit user-chosen colors are NOT overridden by rules.
     let baseColor = typeDef.color || '#6b7280'
-    if (!marker.markerTypeId) {
+    if (!marker.markerTypeId || marker.markerTypeId === 'builtin-photo-marker') {
       const customColor = this._applyCustomColorRules(marker)
       if (customColor) {
         baseColor = customColor
