@@ -109,6 +109,8 @@ export class MapRenderer {
    * @returns {Object} The MarkerTypeDefinition for this marker
    */
   getEffectiveTypeDef (marker) {
+    // No data migration needed: legacy markers (markerTypeId === null / undefined)
+    // are handled at render time via the fallback chain below.
     // 1. If marker has explicit markerTypeId, look up the definition
     if (marker.markerTypeId) {
       if (this.markerTypeDefinitions.has(marker.markerTypeId)) {
@@ -1202,6 +1204,13 @@ export class MapRenderer {
   }
 
   renderLineConnectors (lineMarkers) {
+    // NOTE: Line connectors key off `behavior === 'line-pair'` and `marker.lineGroupId`.
+    // This is independent of the visual type definition system (color, shape, etc.).
+    // Line marker editing (line-marker-details-modal.js) similarly uses behavior dispatch
+    // and marker-level properties (`lineColor`, `lineCaption`), not type definitions.
+    //
+    // A future `behavior: 'area'` would add polygon/area rendering here,
+    // following the same pattern of behavior-dispatch for non-point rendering.
     if (!lineMarkers || lineMarkers.length === 0) return
 
     const markersByGroup = new Map()

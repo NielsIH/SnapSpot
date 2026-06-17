@@ -499,6 +499,36 @@ export async function showSettings (app, initialTab = 'general-settings') {
           }
         })
       },
+      onEditBuiltinMarkerTypeColor: async (typeId, onComplete) => {
+        const definition = await app.storage.getMarkerTypeDefinition(typeId)
+        if (!definition) {
+          app.showNotification('Marker type not found.', 'error')
+          return
+        }
+        if (!definition.isBuiltIn) {
+          app.showNotification('This type is not a built-in type.', 'error')
+          return
+        }
+        const { createMarkerTypeDefinitionModal } = await import('./ui/marker-type-definition-modal.js')
+        createMarkerTypeDefinitionModal(app.modalManager, {
+          definition,
+          onSave: async (definitionData) => {
+            try {
+              // For built-ins, only color is passed — merge with existing
+              const merged = { ...definition, color: definitionData.color }
+              await app.storage.updateMarkerTypeDefinition(merged)
+              app.showNotification(`Color updated for "${definition.name}".`, 'success')
+              if (app.refreshMarkerTypeDefinitions) {
+                app.refreshMarkerTypeDefinitions()
+              }
+              if (onComplete) onComplete()
+            } catch (error) {
+              console.error('Error updating built-in marker type color:', error)
+              app.showNotification('Failed to update color.', 'error')
+            }
+          }
+        })
+      },
       onEditMarkerType: async (typeId, onComplete) => {
         const definition = await app.storage.getMarkerTypeDefinition(typeId)
         if (!definition) {

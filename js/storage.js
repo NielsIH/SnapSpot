@@ -2537,14 +2537,31 @@ export class MapStorage {
     // Validate the incoming definition fields
     this._validateMarkerTypeDefinition({ ...existing, ...definition }, false)
 
-    // Built-in protection: shape and behavior are locked
+    // Built-in protection: only color can be changed
     if (existing.isBuiltIn) {
-      if (definition.shape && definition.shape !== existing.shape) {
-        throw new Error(`Cannot change shape of built-in marker type "${existing.name}"`)
+      const lockedFields = []
+      if (definition.name && definition.name !== existing.name) lockedFields.push('name')
+      if (definition.shape && definition.shape !== existing.shape) lockedFields.push('shape')
+      if (definition.size && definition.size !== existing.size) lockedFields.push('size')
+      if (definition.label !== undefined && definition.label !== existing.label) lockedFields.push('label')
+      if (definition.behavior && definition.behavior !== existing.behavior) lockedFields.push('behavior')
+      if (definition.supportsPhotos !== undefined && definition.supportsPhotos !== existing.supportsPhotos) lockedFields.push('supportsPhotos')
+      if (definition.showNumber !== undefined && definition.showNumber !== existing.showNumber) lockedFields.push('showNumber')
+
+      if (lockedFields.length > 0) {
+        throw new Error(
+          `Cannot change ${lockedFields.join(', ')} of built-in marker type "${existing.name}". ` +
+          'Only color can be customized for built-in types.'
+        )
       }
-      if (definition.behavior && definition.behavior !== existing.behavior) {
-        throw new Error(`Cannot change behavior of built-in marker type "${existing.name}"`)
-      }
+    }
+
+    // Preset protection: presets are immutable (toggle only — no field edits)
+    if (existing.isPreset && !existing.isBuiltIn) {
+      throw new Error(
+        `Cannot edit preset marker type "${existing.name}". ` +
+        'Presets are immutable — duplicate them to create a customizable copy.'
+      )
     }
 
     const updated = {

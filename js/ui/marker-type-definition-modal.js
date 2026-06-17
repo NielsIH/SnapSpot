@@ -14,7 +14,7 @@ const SHAPE_ICONS = {
 }
 
 const DEFAULT_COLOR_SWATCHES = [
-  '#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'
+  '#ef4444', '#f59e0b', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'
 ]
 
 /**
@@ -48,19 +48,32 @@ export function createMarkerTypeDefinitionModal (modalManager, options) {
 
   const isBuiltIn = definition?.isBuiltIn || false
 
+  // Build modal title based on type
+  let modalTitle = 'Add Custom Marker Type'
+  if (isEditMode && isBuiltIn) {
+    modalTitle = `Edit ${definition.name} Color`
+  } else if (isEditMode) {
+    modalTitle = `Edit ${definition.name}`
+  }
+
+  const nameDisabled = isBuiltIn ? 'disabled' : ''
+  const shapeDisabled = isBuiltIn ? 'disabled' : ''
+  const showNumberDisabled = isBuiltIn ? 'disabled' : ''
+  const labelDisabled = isBuiltIn ? 'disabled' : ''
+
   const modalHtml = `
     <div class="modal" id="marker-type-definition-modal">
       <div class="modal-backdrop"></div>
       <div class="modal-content small-modal">
         <div class="modal-header">
-          <h3 class="modal-title">${isEditMode ? 'Edit' : 'Add'} Custom Marker Type</h3>
+          <h3 class="modal-title">${modalTitle}</h3>
           <button class="modal-close" type="button" aria-label="Close">×</button>
         </div>
         <div class="modal-body">
           <form id="marker-type-definition-form" novalidate>
             <div class="form-group">
               <label for="marker-type-name">Name <span class="required-indicator">*</span></label>
-              <input type="text" id="marker-type-name" class="form-control" maxlength="100" value="${escapeHtmlAttribute(typeName)}" placeholder="e.g., Hazard Zone" required autofocus />
+              <input type="text" id="marker-type-name" class="form-control" maxlength="100" value="${escapeHtmlAttribute(typeName)}" placeholder="e.g., Hazard Zone" required ${nameDisabled} />
               <small class="form-error" id="marker-type-name-error"></small>
             </div>
 
@@ -68,7 +81,7 @@ export function createMarkerTypeDefinitionModal (modalManager, options) {
               <label>Shape <span class="required-indicator">*</span></label>
               <div class="shape-picker-grid">
                 ${Object.entries(SHAPE_ICONS).map(([shape, icon]) => `
-                  <button type="button" class="shape-picker-btn ${shape === typeShape ? 'selected' : ''}${isBuiltIn ? ' disabled' : ''}" data-shape="${shape}" ${isBuiltIn ? 'disabled' : ''}>
+                  <button type="button" class="shape-picker-btn ${shape === typeShape ? 'selected' : ''}${isBuiltIn ? ' disabled' : ''}" data-shape="${shape}" ${shapeDisabled}>
                     <span class="shape-picker-icon">${icon}</span>
                     <span class="shape-picker-label">${capitalizeFirst(shape)}</span>
                   </button>
@@ -94,14 +107,14 @@ export function createMarkerTypeDefinitionModal (modalManager, options) {
 
             <div class="form-group">
               <label for="marker-type-label">Label (optional)</label>
-              <input type="text" id="marker-type-label" class="form-control" maxlength="4" value="${escapeHtmlAttribute(typeLabel)}" placeholder="e.g., HZ" />
+              <input type="text" id="marker-type-label" class="form-control" maxlength="4" value="${escapeHtmlAttribute(typeLabel)}" placeholder="e.g., HZ" ${labelDisabled} />
               <small class="text-secondary">Short label displayed on map. Max 4 characters.</small>
+              ${isBuiltIn ? '<small class="text-secondary">Label is locked for built-in types.</small>' : ''}
             </div>
 
             <div class="form-group">
               <label class="checkbox-label toggle-switch-label">
-                <input type="checkbox" id="marker-type-show-number" ${typeShowNumber ? 'checked' : ''} />
-                <span class="toggle-switch-slider"></span>
+                <input type="checkbox" id="marker-type-show-number" ${typeShowNumber ? 'checked' : ''} ${showNumberDisabled} />${isBuiltIn ? '<span class="toggle-switch-slider disabled-slider"></span>' : '<span class="toggle-switch-slider"></span>'}
                 Show number on map
               </label>
               <small class="text-secondary mt-xs">Display a unique number on this marker type. Useful for correlating markers with photos.</small>
@@ -190,6 +203,29 @@ export function createMarkerTypeDefinitionModal (modalManager, options) {
   form?.addEventListener('submit', (e) => {
     e.preventDefault()
 
+    // For built-in types, only color is editable — skip other validation
+    if (isBuiltIn) {
+      // Validate color
+      if (!/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(selectedColor)) {
+        colorError.textContent = 'Color must be a valid hex color (#RRGGBB or #RGB).'
+        colorInput?.focus()
+        return
+      }
+      colorError.textContent = ''
+
+      // For built-ins, only send id and color
+      const result = {
+        id: definition.id,
+        color: selectedColor,
+        isBuiltIn: true,
+        isPreset: definition.isPreset || false,
+        createdDate: definition.createdDate
+      }
+      closeModal()
+      onSave(result)
+      return
+    }
+
     // Validate name
     const name = nameInput.value.trim()
     if (!name) {
@@ -244,9 +280,13 @@ export function createMarkerTypeDefinitionModal (modalManager, options) {
     modal.classList.add('show')
   })
 
-  // Focus name input
+  // Focus appropriate input: color for built-ins, name for others
   requestAnimationFrame(() => {
-    nameInput?.focus()
+    if (isBuiltIn) {
+      colorInput?.focus()
+    } else {
+      nameInput?.focus()
+    }
   })
 
   return modal

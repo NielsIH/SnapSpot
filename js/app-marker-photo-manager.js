@@ -71,6 +71,10 @@ export async function placeMarker (app, options = {}) {
 }
 
 export async function placeLinePair (app) {
+  // Line markers use `behavior: 'line-pair'` for connector rendering dispatch.
+  // The `type: 'line'` field is maintained for backward compatibility with
+  // legacy code paths (e.g., line-marker-details-modal.js, renderLineConnectors()).
+  // Line connectors and editing are independent of the visual type definition system.
   if (!app.currentMap || !app.mapRenderer.imageData) {
     console.warn('Cannot place line: No map loaded or image data unavailable.')
     app.showNotification('Please load a map first before placing a line.', 'warning')

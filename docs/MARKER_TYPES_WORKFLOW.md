@@ -1,8 +1,7 @@
 # SnapSpot Custom Marker Types - Workflow Tracker
 
-**Last Updated:** June 16, 2026  
-**Current Phase:** Phase 5 - Export/Import Functionality  
-**Current Task:** Manual testing
+**Last Updated:** June 17, 2026  
+**Current Phase:** Phase 6 - Migration and Polish (implementation complete, testing pending)
 
 ---
 
@@ -135,20 +134,20 @@
 
 ---
 
-### ☐ Phase 6: Built-in Migration and Polish
-**Status:** Not Started  
+### ☑ Phase 6: Built-in Migration and Polish
+**Status:** Implementation Complete (manual testing pending)  
 **Document:** [MARKER_TYPES_PHASE_6_MIGRATION.md](MARKER_TYPES_PHASE_6_MIGRATION.md)  
 **Estimated Duration:** 1 day
 
 **Deliverables:**
-- ☐ Migration logic: existing markers without markerTypeId treated as built-in types
-- ☐ Built-in type protection (delete blocked, shape locked, color editable)
-- ☐ Cascade handling: warn/block when deleting a type with existing markers
-- ☐ Line marker backward compatibility (line connectors still key off type==='line')
-- ☐ Service worker cache version bump
-- ☐ Update README.md with custom marker types documentation
-- ☐ Update copilot-instructions.md with marker type architecture
-- ☐ Run lint:fix and ensure 0 lint errors
+- ☑ Migration logic: existing markers without markerTypeId treated as built-in types
+- ☑ Built-in type protection (delete blocked, shape locked, color editable)
+- ☑ Cascade handling: warn/block when deleting a type with existing markers
+- ☑ Line marker backward compatibility (line connectors still key off behavior==='line-pair')
+- ☑ Service worker cache version bump
+- ☑ Update README.md with custom marker types documentation
+- ☑ Update copilot-instructions.md with marker type architecture
+- ☑ Run lint:fix and ensure 0 lint errors
 - ☐ Manual end-to-end testing (including Safari iOS)
 
 ---

@@ -742,7 +742,7 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
       : `<span class="marker-type-color-swatch" style="background-color: ${displayColor};" title="${displayColor}"></span>`
 
     const editBtnHtml = isBuiltIn
-      ? ''
+      ? `<button class="btn btn-sm btn-secondary edit-marker-type-color" data-type-id="${def.id}">🎨 <span class="btn-text">Edit Color</span></button>`
       : (def.isPreset
           ? ''
           : `<button class="btn btn-sm btn-secondary edit-marker-type" data-type-id="${def.id}">✏️ <span class="btn-text">Edit</span></button>
@@ -808,6 +808,16 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
           callbacks.onToggleMarkerType(typeId, enabled)
           // Re-render to update default type dropdown
           renderMarkerTypes()
+        }
+      })
+    })
+
+    // Edit color for built-in types
+    modal.querySelectorAll('.edit-marker-type-color').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const typeId = btn.dataset.typeId
+        if (callbacks.onEditBuiltinMarkerTypeColor) {
+          callbacks.onEditBuiltinMarkerTypeColor(typeId, () => renderMarkerTypes())
         }
       })
     })

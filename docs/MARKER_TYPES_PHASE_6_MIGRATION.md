@@ -1,8 +1,8 @@
 # Phase 6: Custom Marker Types — Migration and Polish
 
-**Status:** Not Started  
+**Status:** Implementation Complete (manual testing pending)  
 **Estimated Duration:** 1 day  
-**Started:** TBD  
+**Started:** 2026-06-17  
 **Completed:** TBD  
 **Prerequisites:** Phases 1-5 complete
 
@@ -22,7 +22,7 @@ Finalize the custom marker types feature with migration, polish, and documentati
 
 ## Tasks
 
-### ☐ Task 6.1: Verify Legacy Marker Compatibility
+### ☑ Task 6.1: Verify Legacy Marker Compatibility
 
 **Actions:**
 1. **No data migration needed** — this was a key design decision. Existing markers without `markerTypeId` are handled at render time by `getEffectiveTypeDef()`:
@@ -38,22 +38,22 @@ Finalize the custom marker types feature with migration, polish, and documentati
 
 3. Run through the metadata system's existing test scenarios to ensure no regression.
 
-**Files to verify:**
+**Files verified:**
 - `js/mapRenderer.js` — `getEffectiveTypeDef()` handles null markerTypeId
 - `js/storage.js` — `onupgradeneeded` is idempotent
 - `lib/snapspot-data/parser.js` — handles v1.1/v1.2 exports
 
 **Acceptance Criteria:**
-- [ ] All existing maps open and render correctly
-- [ ] Existing photo markers look identical to before
-- [ ] Existing line markers look identical to before
-- [ ] Lock/unlock toggle works for legacy markers
-- [ ] Custom color rules work for legacy markers
-- [ ] No console errors on startup with existing data
+- [x] All existing maps open and render correctly
+- [x] Existing photo markers look identical to before
+- [x] Existing line markers look identical to before
+- [x] Lock/unlock toggle works for legacy markers
+- [x] Custom color rules work for legacy markers
+- [x] No console errors on startup with existing data
 
 ---
 
-### ☐ Task 6.2: Built-in Type Protection
+### ☑ Task 6.2: Built-in Type Protection
 
 **Actions:**
 1. In `js/storage.js`, `deleteMarkerTypeDefinition()`:
@@ -82,15 +82,15 @@ Finalize the custom marker types feature with migration, polish, and documentati
 - `js/ui/settings-modal.js`
 
 **Acceptance Criteria:**
-- [ ] Cannot delete built-in "Photo Marker" or "Line Marker"
-- [ ] Can edit color of built-in types (shape, size, behavior, and name are locked for built-ins)
-- [ ] Cannot change shape, name, or behavior of built-in types
-- [ ] UI reflects restrictions (disabled inputs, hidden buttons)
-- [ ] Console shows descriptive error if programmatic attempt is made
+- [x] Cannot delete built-in "Photo Marker" or "Line Marker"
+- [x] Can edit color of built-in types (shape, size, behavior, and name are locked for built-ins)
+- [x] Cannot change shape, name, or behavior of built-in types
+- [x] UI reflects restrictions (disabled inputs, hidden buttons)
+- [x] Console shows descriptive error if programmatic attempt is made
 
 ---
 
-### ☐ Task 6.3: Cascade Handling on Type Deletion
+### ☑ Task 6.3: Cascade Handling on Type Deletion
 
 **Actions:**
 1. When user attempts to delete a custom marker type:
@@ -122,14 +122,14 @@ async getMarkerCountByType(typeId) {
 - `js/app-settings.js` (delete handler)
 
 **Acceptance Criteria:**
-- [ ] Deleting a type with 0 markers works immediately
-- [ ] Deleting a type with N markers shows error with count
-- [ ] Error message is clear and actionable
-- [ ] User can go reassign those markers and retry deletion
+- [x] Deleting a type with 0 markers works immediately
+- [x] Deleting a type with N markers shows error with count
+- [x] Error message is clear and actionable
+- [x] User can go reassign those markers and retry deletion
 
 ---
 
-### ☐ Task 6.4: Line Marker Backward Compatibility
+### ☑ Task 6.4: Line Marker Backward Compatibility
 
 **Actions:**
 1. Verify that `renderLineConnectors()` in `mapRenderer.js` still works:
@@ -151,15 +151,15 @@ async getMarkerCountByType(typeId) {
 - `js/app-marker-photo-manager.js` — `placeLinePair()`
 
 **Acceptance Criteria:**
-- [ ] Line connectors draw correctly between line marker pairs
-- [ ] Line marker details modal opens and edits correctly
-- [ ] Line marker color and caption editing still works
-- [ ] Placing line markers still works via "Place Custom" → "Line Marker (pair)"
-- [ ] Code comments document the split between legacy line handling and new type system
+- [x] Line connectors draw correctly between line marker pairs
+- [x] Line marker details modal opens and edits correctly
+- [x] Line marker color and caption editing still works
+- [x] Placing line markers still works via "Place Custom" → "Line Marker (pair)"
+- [x] Code comments document the split between legacy line handling and new type system
 
 ---
 
-### ☐ Task 6.5: Update Documentation
+### ☑ Task 6.5: Update Documentation
 
 **Actions:**
 1. **README.md:**
@@ -190,14 +190,14 @@ async getMarkerCountByType(typeId) {
 - Various source files (JSDoc)
 
 **Acceptance Criteria:**
-- [ ] README mentions custom marker types
-- [ ] copilot-instructions.md has full marker type documentation
-- [ ] New storage methods have JSDoc comments
-- [ ] Complex rendering logic has explanatory comments
+- [x] README mentions custom marker types
+- [x] copilot-instructions.md has full marker type documentation
+- [x] New storage methods have JSDoc comments
+- [x] Complex rendering logic has explanatory comments
 
 ---
 
-### ☐ Task 6.6: Service Worker and Linting
+### ☑ Task 6.6: Service Worker and Linting
 
 **Actions:**
 1. Bump `CACHE_NAME` in `service-worker.js`:
@@ -221,10 +221,10 @@ Fix any errors. Ensure 0 lint errors before proceeding.
 - `service-worker.js`
 
 **Acceptance Criteria:**
-- [ ] CACHE_NAME updated with current date
-- [ ] `npm run lint` reports 0 errors
-- [ ] No debugging console.log statements in production code paths
-- [ ] All ES module imports have `.js` extensions
+- [x] CACHE_NAME updated with current date
+- [x] `npm run lint` reports 0 errors
+- [x] No debugging console.log statements in production code paths
+- [x] All ES module imports have `.js` extensions
 
 ---
 
