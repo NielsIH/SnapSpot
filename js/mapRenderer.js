@@ -110,8 +110,15 @@ export class MapRenderer {
    */
   getEffectiveTypeDef (marker) {
     // 1. If marker has explicit markerTypeId, look up the definition
-    if (marker.markerTypeId && this.markerTypeDefinitions.has(marker.markerTypeId)) {
-      return this.markerTypeDefinitions.get(marker.markerTypeId)
+    if (marker.markerTypeId) {
+      if (this.markerTypeDefinitions.has(marker.markerTypeId)) {
+        return this.markerTypeDefinitions.get(marker.markerTypeId)
+      }
+      // Debug: markerTypeId not found in loaded definitions
+      console.warn(`MapRenderer: markerTypeId "${marker.markerTypeId}" not found in type definitions (${this.markerTypeDefinitions.size} loaded)`)
+      if (this.markerTypeDefinitions.size > 0) {
+        console.warn('MapRenderer: Available IDs:', [...this.markerTypeDefinitions.keys()].join(', '))
+      }
     }
 
     // 2. Fallback for legacy line markers without markerTypeId

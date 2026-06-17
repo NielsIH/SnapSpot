@@ -2880,7 +2880,9 @@ export class MapStorage {
       ...(markerData.type ? { type: markerData.type } : {}),
       ...(markerData.lineGroupId ? { lineGroupId: markerData.lineGroupId } : {}),
       ...(markerData.lineColor ? { lineColor: markerData.lineColor } : {}),
-      ...(markerData.lineCaption !== undefined ? { lineCaption: markerData.lineCaption } : {})
+      ...(markerData.lineCaption !== undefined ? { lineCaption: markerData.lineCaption } : {}),
+      ...(markerData.markerTypeId ? { markerTypeId: markerData.markerTypeId } : {}),
+      ...(markerData.direction != null ? { direction: markerData.direction } : {})
     }
 
     return new Promise((resolve, reject) => {

@@ -4,7 +4,7 @@
  * All functions take `app` instance as first param.
  */
 
-/* global localStorage confirm crypto Blob URL document */
+/* global localStorage confirm crypto Blob URL document FileReader */
 
 import { handleViewImageInViewer } from './app-marker-photo-manager.js'
 
@@ -555,12 +555,109 @@ export async function showSettings (app, initialTab = 'general-settings') {
         }
       },
       onExportMarkerTypes: async () => {
-        // Placeholder: functional in Phase 5
-        app.showNotification('Marker type export will be available in a future update.', 'info')
+        try {
+          app.updateAppStatus('Exporting marker types...', 'info', true)
+
+          // Get all marker type definitions
+          const typeDefs = await app.storage.getAllMarkerTypeDefinitions()
+          const customDefs = typeDefs.filter(def => !def.isBuiltIn)
+
+          if (customDefs.length === 0) {
+            app.showNotification('No custom marker types to export.', 'info')
+            return
+          }
+
+          // Build definitions-only export
+          const { buildMarkerTypeDefinitionsExport } = await import('../lib/snapspot-data/writer.js')
+          const exportObj = buildMarkerTypeDefinitionsExport(typeDefs, 'SnapSpot PWA')
+          const jsonString = JSON.stringify(exportObj, null, 2)
+
+          // Trigger download
+          const blob = new Blob([jsonString], { type: 'application/json' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          const dateStr = new Date().toISOString().slice(0, 10)
+          a.download = `snapspot-marker-type-definitions-${dateStr}.json`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+
+          app.showNotification(`Exported ${customDefs.length} marker type(s) successfully.`, 'success')
+          app.updateAppStatus('Marker types exported')
+        } catch (error) {
+          console.error('Error exporting marker types:', error)
+          app.showNotification('Failed to export marker types: ' + error.message, 'error')
+        }
       },
       onImportMarkerTypes: async (file) => {
-        // Placeholder: functional in Phase 5
-        app.showNotification('Marker type import will be available in a future update.', 'info')
+        try {
+          app.updateAppStatus(`Importing marker types from "${file.name}"...`, 'info', true)
+
+          // Read file
+          const jsonString = await new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = (e) => resolve(e.target.result)
+            reader.onerror = (e) => reject(new Error('Failed to read file'))
+            reader.readAsText(file)
+          })
+
+          // Parse JSON
+          let exportData
+          try {
+            exportData = JSON.parse(jsonString)
+          } catch (error) {
+            throw new Error(`Invalid JSON: ${error.message}`)
+          }
+
+          // Validate as marker type definitions export
+          const { validateMarkerTypeDefinitionsExport } = await import('../lib/snapspot-data/validator.js')
+          const validation = validateMarkerTypeDefinitionsExport(exportData)
+          if (!validation.isValid) {
+            throw new Error(`Invalid marker type export:\n  - ${validation.errors.join('\n  - ')}`)
+          }
+
+          // Import definitions
+          let importedCount = 0
+          const existingDefs = await app.storage.getAllMarkerTypeDefinitions()
+          const existingByName = new Map()
+          for (const def of existingDefs) {
+            existingByName.set(def.name.toLowerCase(), def)
+          }
+
+          for (const typeDef of exportData.definitions) {
+            // Skip built-in
+            if (typeDef.isBuiltIn) {
+              console.log(`Settings: Skipping built-in marker type "${typeDef.name}"`)
+              continue
+            }
+
+            // Check for duplicate by name
+            if (existingByName.has(typeDef.name.toLowerCase())) {
+              console.log(`Settings: Skipping duplicate marker type "${typeDef.name}"`)
+              continue
+            }
+
+            try {
+              await app.storage.addMarkerTypeDefinition(typeDef)
+              existingByName.set(typeDef.name.toLowerCase(), typeDef)
+              importedCount++
+              console.log(`Settings: Imported marker type "${typeDef.name}"`)
+            } catch (error) {
+              console.warn(`Settings: Failed to import marker type "${typeDef.name}":`, error)
+            }
+          }
+
+          // Refresh renderer
+          await app.refreshMarkerTypeDefinitions()
+
+          app.showNotification(`Imported ${importedCount} marker type(s) successfully.`, 'success')
+          app.updateAppStatus('Marker types imported')
+        } catch (error) {
+          console.error('Error importing marker types:', error)
+          app.showNotification('Failed to import marker types: ' + error.message, 'error')
+        }
       }
     }
     // Create and display the settings modal

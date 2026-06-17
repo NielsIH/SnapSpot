@@ -1,9 +1,9 @@
 # Phase 5: Custom Marker Types — Export/Import Functionality
 
-**Status:** Not Started  
+**Status:** Completed ✅  
 **Estimated Duration:** 1-2 days  
-**Started:** TBD  
-**Completed:** TBD  
+**Started:** 2026-06-16  
+**Completed:** 2026-06-16  
 **Prerequisites:** Phase 1 complete; Phase 3 recommended; Phase 4 recommended
 
 ---
@@ -117,7 +117,7 @@ This is the same pattern as `snapspot-metadata-definitions` exports.
 
 ## Tasks
 
-### ☐ Task 5.1: Update Validator for v1.3
+### ☑ Task 5.1: Update Validator for v1.3
 
 **Actions:**
 1. Already partially done in Phase 1. Verify/complete:
@@ -150,7 +150,7 @@ This is the same pattern as `snapspot-metadata-definitions` exports.
 
 ---
 
-### ☐ Task 5.2: Update Writer for Marker Type Definitions
+### ☑ Task 5.2: Update Writer for Marker Type Definitions
 
 **Actions:**
 1. In `lib/snapspot-data/writer.js`, update `buildExport()`:
@@ -216,7 +216,7 @@ markers: markers.map(marker => ({
 
 ---
 
-### ☐ Task 5.3: Update Parser for Marker Type Definitions
+### ☑ Task 5.3: Update Parser for Marker Type Definitions
 
 **Actions:**
 1. In `lib/snapspot-data/parser.js`, update `parseExport()`:
@@ -261,7 +261,7 @@ return {
 
 ---
 
-### ☐ Task 5.4: Update StorageExporterImporter
+### ☑ Task 5.4: Update StorageExporterImporter
 
 **Actions:**
 1. In `lib/snapspot-storage/exporter-importer.js`, update methods:
@@ -303,7 +303,7 @@ return {
 
 ---
 
-### ☐ Task 5.5: Update Merger for Marker Type Definitions
+### ☑ Task 5.5: Update Merger for Marker Type Definitions
 
 **Actions:**
 1. In `lib/snapspot-data/merger.js`, add marker type definition merging:
