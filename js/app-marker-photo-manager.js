@@ -237,7 +237,8 @@ export async function showMarkerDetails (app, markerId) {
         direction,
         hasDirection,
         markerTypeDef,
-        allTypeDefs // All type definitions for type-change dropdown
+        allTypeDefs, // All type definitions for type-change dropdown
+        mapRotation: app.mapRenderer?.currentMapRotation || 0
       },
       // Callbacks for modal actions
       // onAddPhotos callback

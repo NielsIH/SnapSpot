@@ -92,7 +92,8 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
       const directionPreview = modal.querySelector('#direction-preview-canvas')
       const directionSlider = modal.querySelector('#direction-slider')
       if (directionPreview && directionSlider) {
-        drawDirectionPreview(directionPreview, parseInt(directionSlider.value))
+        const mapRotation = (markerDetails && markerDetails.mapRotation) || 0
+        drawDirectionPreview(directionPreview, parseInt(directionSlider.value), mapRotation)
       }
     } else {
       descriptionDisplay.classList.remove('hidden')
@@ -232,11 +233,13 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
   const directionCurrentValue = modal.querySelector('#direction-current-value')
   const directionValueDisplay = modal.querySelector('#direction-value-display')
 
+  const mapRotation = (markerDetails && markerDetails.mapRotation) || 0
+
   if (directionSlider && directionPreview) {
     directionSlider.addEventListener('input', () => {
       const value = parseInt(directionSlider.value)
-      // Update preview canvas
-      drawDirectionPreview(directionPreview, value)
+      // Update preview canvas (offset by map rotation for accurate preview)
+      drawDirectionPreview(directionPreview, value, mapRotation)
       // Update current value label
       if (directionCurrentValue) {
         directionCurrentValue.textContent = value + '°'
@@ -256,7 +259,7 @@ export function setupDescriptionEditHandlers (modal, markerDetails, onEditMarker
  * @param {HTMLCanvasElement} canvas - The preview canvas
  * @param {number} degrees - Direction in degrees (0 = up, 90 = right)
  */
-function drawDirectionPreview (canvas, degrees) {
+function drawDirectionPreview (canvas, degrees, mapRotation = 0) {
   const ctx = canvas.getContext('2d')
   const w = canvas.width
   const h = canvas.height
@@ -272,9 +275,13 @@ function drawDirectionPreview (canvas, degrees) {
   ctx.save()
   ctx.translate(cx, cy)
 
+  // Compose marker direction with map rotation (same as _drawArrowShape in mapRenderer.js)
+  // 0° = up on the original map; offset by map rotation to preview actual on-screen direction
+  const effectiveDegrees = (degrees + mapRotation) % 360
+
   // Rotate: 0° = up (canvas 0 is right, so we need -90° offset)
   // Arrow points "up" naturally if drawn pointing to top
-  const rad = (degrees - 90) * Math.PI / 180
+  const rad = (effectiveDegrees - 90) * Math.PI / 180
   ctx.rotate(rad)
 
   // Draw arrow
