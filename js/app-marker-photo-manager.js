@@ -893,13 +893,28 @@ export async function openCustomTypePicker (app) {
   if (placeCustomBtn) {
     const btnRect = placeCustomBtn.getBoundingClientRect()
     popup.style.position = 'fixed'
-    popup.style.top = (btnRect.bottom + 4) + 'px'
+
+    // Measure actual popup height to avoid going offscreen below
+    const popupHeight = popup.offsetHeight || 300
+    const margin = 8
+    const gap = 4
+    const spaceBelow = window.innerHeight - btnRect.bottom - gap
+
+    if (spaceBelow >= popupHeight || spaceBelow >= btnRect.top) {
+      // Enough space below — position below the button
+      popup.style.top = Math.min(btnRect.bottom + gap, window.innerHeight - popupHeight - margin) + 'px'
+      popup.style.bottom = 'auto'
+    } else {
+      // Not enough space below — position above the button
+      popup.style.top = 'auto'
+      popup.style.bottom = (window.innerHeight - btnRect.top + gap) + 'px'
+    }
 
     // Center or align-left based on available space
     const popupWidth = 280
     let left = btnRect.left
-    if (left + popupWidth > window.innerWidth - 8) {
-      left = Math.max(8, window.innerWidth - popupWidth - 8)
+    if (left + popupWidth > window.innerWidth - margin) {
+      left = Math.max(margin, window.innerWidth - popupWidth - margin)
     }
     popup.style.left = left + 'px'
   }
