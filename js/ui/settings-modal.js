@@ -299,7 +299,16 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
 
   const mobileTabSelector = modal.querySelector('.settings-tab-selector')
   if (mobileTabSelector) {
-    mobileTabSelector.addEventListener('change', (e) => activateTab(e.target.value))
+    mobileTabSelector.addEventListener('change', (e) => {
+      const tabId = e.target.value
+      activateTab(tabId)
+      // Trigger lazy-load renders for tabs that need them (small-screen parity with .tab-button listeners)
+      if (tabId === 'marker-types-settings') {
+        renderMarkerTypes()
+      } else if (tabId === 'metadata-settings') {
+        renderMetadataDefinitions()
+      }
+    })
     mobileTabSelector.value = initialTab
   }
 
