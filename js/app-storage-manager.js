@@ -137,6 +137,26 @@ export const StorageManager = {
       app.mapRenderer.setMarkers(app.markers)
       console.log('--- app.js: setMarkers() called with', app.markers.length, 'markers ---')
 
+      // Phase 3: Load and set marker type definitions for rendering
+      try {
+        const typeDefs = await app.storage.getMarkerTypeDefinitionsForMap(app.currentMap.id)
+        app.mapRenderer.setMarkerTypeDefinitions(typeDefs)
+        console.log('--- app.js: setMarkerTypeDefinitions() called with', typeDefs.length, 'type definitions ---')
+        // Debug: log which markers have markerTypeId
+        const markersWithType = app.markers.filter(m => m.markerTypeId)
+        console.log(`displayMap: ${markersWithType.length}/${app.markers.length} markers have markerTypeId`)
+        if (markersWithType.length > 0) {
+          const sample = markersWithType[0]
+          const found = typeDefs.find(d => d.id === sample.markerTypeId)
+          console.log(`displayMap: Sample marker markerTypeId="${sample.markerTypeId}" — type def ${found ? `FOUND (${found.name})` : 'NOT FOUND in loaded definitions'}`)
+          if (!found && typeDefs.length > 0) {
+            console.log('displayMap: Available type def IDs:', typeDefs.map(d => `${d.name}(${d.id})`).join(', '))
+          }
+        }
+      } catch (typeError) {
+        console.warn('Could not load marker type definitions:', typeError)
+      }
+
       // CRITICAL: Call render once more AFTER markers are set, to ensure they are drawn.
       app.mapRenderer.render()
 

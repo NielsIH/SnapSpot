@@ -19,6 +19,9 @@
 /* Metadata definition modal specific styles */
 @import url('./modals/metadata-definition.css');
 
+/* Marker type definition modal specific styles */
+@import url('./modals/marker-type-definition.css');
+
 /* Marker details modal specific styles */
 @import url('./modals/marker-details.css');
 

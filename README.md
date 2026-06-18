@@ -26,6 +26,17 @@ A Progressive Web App for mapping photos to specific locations on any map, floor
 - Lock markers to prevent accidental movement
 - Limit visible markers to the most recent ones
 
+### Custom Marker Types
+- Define custom marker shapes: circle, square, diamond, and arrow
+- Directional arrow markers with 0-360° rotation
+- Customize colors, labels, and visibility for each type
+- Built-in Photo Marker and Line Marker types (color customizable)
+- Preset library: Point of Interest, Hazard Zone, Direction Arrow
+- Toggle types on/off to show only what you need
+- Set a default marker type for one-tap placement
+- Type definitions included in exports for team sharing
+- Backward compatible with all existing markers and exports
+
 ### Photo Management
 - Associate photos with specific map locations
 - Full-size photo viewer with zoom capability

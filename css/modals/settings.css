@@ -347,3 +347,234 @@
     width: 100%;
   }
 }
+
+/* ========================================
+   Marker Types Settings Styles
+   ======================================== */
+
+.marker-types-section {
+  margin-bottom: var(--spacing-lg);
+}
+
+.marker-types-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.marker-type-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-xs);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color-light);
+  border-radius: 6px;
+  transition: box-shadow 0.2s ease;
+  flex-wrap: wrap;
+}
+
+.marker-type-row:hover {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.marker-type-toggle-label {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.marker-type-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.marker-type-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+  min-width: 100px;
+}
+
+.marker-type-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.marker-type-badge.builtin {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.marker-type-badge.preset {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+}
+
+[data-theme="dark"] .marker-type-badge.builtin {
+  background-color: #1565c0;
+  color: #bbdefb;
+}
+
+[data-theme="dark"] .marker-type-badge.preset {
+  background-color: #6a1b9a;
+  color: #e1bee7;
+}
+
+.marker-type-color-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.marker-type-color-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.marker-type-shape-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  flex-shrink: 0;
+}
+
+.marker-type-number-indicator {
+  font-size: 0.85rem;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.marker-type-actions {
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.marker-type-actions .btn-sm {
+  padding: 2px 8px;
+  font-size: 0.8rem;
+}
+
+.marker-types-empty {
+  padding: var(--spacing-md);
+}
+
+.marker-types-actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.marker-types-default-selector {
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+.marker-types-default-selector label {
+  font-weight: 600;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: var(--spacing-xs);
+}
+
+#default-marker-type-select {
+  width: 100%;
+  max-width: 300px;
+}
+
+/* Color Picker Popup */
+.marker-type-color-popup {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: var(--spacing-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 10000;
+  min-width: 200px;
+}
+
+.marker-type-color-popup .color-swatch-grid {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.marker-type-color-popup .color-swatch-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.marker-type-color-popup .color-swatch-btn:hover {
+  transform: scale(1.15);
+}
+
+.marker-type-color-popup .color-swatch-btn.selected {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--primary-color);
+}
+
+.marker-type-color-popup .color-custom-input input {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+/* Responsive marker type rows */
+@media (max-width: 768px) {
+  .marker-type-row {
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+  }
+
+  .marker-type-name {
+    min-width: 80px;
+  }
+
+  .marker-type-actions {
+    width: 100%;
+    margin-left: 0;
+    margin-top: var(--spacing-xs);
+  }
+
+  .marker-type-actions .btn {
+    flex: 1;
+  }
+
+  .marker-types-actions {
+    flex-direction: column;
+  }
+
+  .marker-types-actions .btn {
+    width: 100%;
+  }
+
+  #default-marker-type-select {
+    max-width: none;
+  }
+
+  .marker-type-shape-label {
+    display: none;
+  }
+}

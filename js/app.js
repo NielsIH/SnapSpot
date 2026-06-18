@@ -23,7 +23,7 @@ import { ModalManager } from './ui/modals.js'
 import * as MapInteractions from './app-map-interactions.js'
 import {
   placeMarker,
-  placeLinePair,
+  openCustomTypePicker,
   showMapPhotoGallery,
   handleViewImageInViewer
 } from './app-marker-photo-manager.js'
@@ -117,6 +117,10 @@ class SnapSpotApp {
     this.autoCloseMarkerDetails = localStorage.getItem('autoCloseMarkerDetails') === 'true' || false
     this.allowDuplicatePhotos = localStorage.getItem('allowDuplicatePhotos') === 'true' || false
     this.notificationsEnabled = localStorage.getItem('notificationsEnabled') === 'true' || true
+
+    // Default Marker Type (Phase 4: Custom Marker Types)
+    // null = legacy Photo Marker, otherwise a marker type definition ID
+    this.defaultMarkerTypeId = localStorage.getItem('defaultMarkerTypeId') || 'builtin-photo-marker'
 
     this.isDragging = false // Flag to indicate if map is being dragged
     this.lastX = 0 // Last X coordinate of mouse/touch for panning
@@ -264,12 +268,14 @@ class SnapSpotApp {
     // Place marker button
     const placeMarkerBtn = document.getElementById('btn-place-marker')
     if (placeMarkerBtn) {
-      placeMarkerBtn.addEventListener('click', () => placeMarker(this))
+      placeMarkerBtn.addEventListener('click', () => placeMarker(this, {
+        markerTypeId: this.defaultMarkerTypeId
+      }))
     }
 
-    const placeLineBtn = document.getElementById('btn-place-line')
-    if (placeLineBtn) {
-      placeLineBtn.addEventListener('click', () => placeLinePair(this))
+    const placeCustomBtn = document.getElementById('btn-place-custom')
+    if (placeCustomBtn) {
+      placeCustomBtn.addEventListener('click', () => openCustomTypePicker(this))
     }
 
     // Toggle Marker Lock button
@@ -554,11 +560,37 @@ class SnapSpotApp {
 
       this.mapRenderer.setCustomColorRules(this.customMarkerRules) // Ensure mapRenderer has the latest rules
       this.mapRenderer.setMarkers(this.markers)
+
+      // Phase 3: Load marker type definitions for rendering
+      try {
+        const typeDefs = await this.storage.getMarkerTypeDefinitionsForMap(this.currentMap.id)
+        this.mapRenderer.setMarkerTypeDefinitions(typeDefs)
+      } catch (typeError) {
+        console.warn('Could not load marker type definitions:', typeError)
+      }
+
       this.mapRenderer.render()
 
       console.log(`App: Displaying ${this.markers.length} of ${fetchedMarkers.length} total markers`)
     } catch (error) {
       console.error('Failed to refresh markers display:', error)
+    }
+  }
+
+  /**
+   * Refresh marker type definitions in the renderer.
+   * Called after CRUD operations on marker types in settings.
+   * Phase 3: Custom Marker Types — pushes updated definitions to MapRenderer.
+   */
+  async refreshMarkerTypeDefinitions () {
+    if (!this.currentMap) return
+
+    try {
+      const typeDefs = await this.storage.getMarkerTypeDefinitionsForMap(this.currentMap.id)
+      this.mapRenderer.setMarkerTypeDefinitions(typeDefs)
+      console.log('App: Marker type definitions refreshed in renderer')
+    } catch (error) {
+      console.warn('Could not refresh marker type definitions:', error)
     }
   }
 

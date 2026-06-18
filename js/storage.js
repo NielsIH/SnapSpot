@@ -15,13 +15,14 @@ import { ImageProcessor } from './imageProcessor.js'
 export class MapStorage {
   constructor (imageProcessor = null) {
     this.dbName = 'SnapSpotDB'
-    this.version = 5 // Increment the database version for schema changes!
+    this.version = 7 // Increment the database version for schema changes!
     this.db = null
     this.mapStoreName = 'maps'
     this.markerStoreName = 'markers'
     this.photoStoreName = 'photos'
     this.metadataDefinitionsStoreName = 'metadataDefinitions'
     this.metadataValuesStoreName = 'metadataValues'
+    this.markerTypeDefinitionsStoreName = 'markerTypeDefinitions'
     this.keyPath = 'id'
     this.imageProcessor = imageProcessor
   }
@@ -122,6 +123,195 @@ export class MapStorage {
           metadataValStore.createIndex('entityId', 'entityId', { unique: false }) // Find all values for an entity
           metadataValStore.createIndex('entityTypeAndId', ['entityType', 'entityId'], { unique: false }) // Compound index
           console.log('MapStorage: Metadata values object store created with indexes')
+        }
+
+        // Create marker type definitions object store (v6)
+        if (!db.objectStoreNames.contains(this.markerTypeDefinitionsStoreName)) {
+          const markerTypeStore = db.createObjectStore(this.markerTypeDefinitionsStoreName, {
+            keyPath: this.keyPath
+          })
+          markerTypeStore.createIndex('scope', 'scope', { unique: false }) // Filter global vs map-specific (reserved)
+          markerTypeStore.createIndex('name', 'name', { unique: false }) // Search by type name
+          markerTypeStore.createIndex('isBuiltIn', 'isBuiltIn', { unique: false }) // Filter built-in types
+          console.log('MapStorage: Marker type definitions object store created with indexes')
+
+          // Auto-create preset library definitions (idempotent — only on first upgrade to v6)
+          const now = new Date().toISOString()
+          const presets = [
+            {
+              id: 'builtin-photo-marker',
+              name: 'Photo Marker',
+              shape: 'circle',
+              color: '#6b7280',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isBuiltIn: true,
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'builtin-line-marker',
+              name: 'Line Marker',
+              shape: 'diamond',
+              color: '#e53e3e',
+              size: 'normal',
+              label: '',
+              behavior: 'line-pair',
+              supportsPhotos: false,
+              showNumber: false,
+              scope: 'global',
+              isBuiltIn: true,
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'preset-point-interest',
+              name: 'Point of Interest',
+              shape: 'circle',
+              color: '#22c55e',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'preset-hazard-zone',
+              name: 'Hazard Zone',
+              shape: 'square',
+              color: '#f59e0b',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'preset-direction-arrow',
+              name: 'Direction Arrow',
+              shape: 'arrow',
+              color: '#3b82f6',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            }
+          ]
+
+          for (const preset of presets) {
+            markerTypeStore.put(preset)
+          }
+          console.log(`MapStorage: ${presets.length} preset marker type definitions created`)
+        }
+
+        // v7 migration: refresh all preset definitions with current defaults
+        // Ensures showNumber, colors, and other fields are up-to-date
+        if (event.oldVersion < 7 && db.objectStoreNames.contains(this.markerTypeDefinitionsStoreName)) {
+          const now = new Date().toISOString()
+          const presets = [
+            {
+              id: 'builtin-photo-marker',
+              name: 'Photo Marker',
+              shape: 'circle',
+              color: '#6b7280',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isBuiltIn: true,
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'builtin-line-marker',
+              name: 'Line Marker',
+              shape: 'diamond',
+              color: '#e53e3e',
+              size: 'normal',
+              label: '',
+              behavior: 'line-pair',
+              supportsPhotos: false,
+              showNumber: false,
+              scope: 'global',
+              isBuiltIn: true,
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'preset-point-interest',
+              name: 'Point of Interest',
+              shape: 'circle',
+              color: '#22c55e',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'preset-hazard-zone',
+              name: 'Hazard Zone',
+              shape: 'square',
+              color: '#f59e0b',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            },
+            {
+              id: 'preset-direction-arrow',
+              name: 'Direction Arrow',
+              shape: 'arrow',
+              color: '#3b82f6',
+              size: 'normal',
+              label: '',
+              behavior: 'point',
+              supportsPhotos: true,
+              showNumber: true,
+              scope: 'global',
+              isPreset: true,
+              createdDate: now,
+              lastModified: now
+            }
+          ]
+
+          const markerTypeStore = transaction.objectStore(this.markerTypeDefinitionsStoreName)
+          for (const preset of presets) {
+            markerTypeStore.put(preset)
+          }
+          console.log(`MapStorage: v7 migration — refreshed ${presets.length} preset marker type definitions`)
         }
       }
     })
@@ -652,6 +842,8 @@ export class MapStorage {
       description: markerData.description || '',
       photoIds: markerData.photoIds || [], // Array of photo IDs linked to this marker
       ...(markerData.type ? { type: markerData.type } : {}),
+      ...(markerData.markerTypeId ? { markerTypeId: markerData.markerTypeId } : {}),
+      ...(markerData.direction !== undefined ? { direction: markerData.direction } : {}),
       ...(markerData.lineGroupId ? { lineGroupId: markerData.lineGroupId } : {}),
       ...(markerData.lineColor ? { lineColor: markerData.lineColor } : {}),
       ...(markerData.lineCaption !== undefined ? { lineCaption: markerData.lineCaption } : {})
@@ -2125,6 +2317,369 @@ export class MapStorage {
   }
 
   // ========================================
+  // Marker Type Definition CRUD Methods
+  // ========================================
+
+  /**
+   * Validate a marker type definition object
+   * @param {Object} definition - Marker type definition to validate
+   * @param {boolean} isNew - Whether this is a new definition (insert) or update
+   * @private
+   */
+  _validateMarkerTypeDefinition (definition, isNew = true) {
+    // Required fields
+    if (!definition.name || typeof definition.name !== 'string' || definition.name.trim() === '') {
+      throw new Error('Marker type definition name is required and must be a non-empty string')
+    }
+    if (definition.name.length > 100) {
+      throw new Error('Marker type definition name must be 100 characters or less')
+    }
+
+    const validShapes = ['circle', 'square', 'diamond', 'arrow']
+    if (!definition.shape || !validShapes.includes(definition.shape)) {
+      throw new Error(`Invalid shape. Must be one of: ${validShapes.join(', ')}`)
+    }
+
+    if (!definition.color || typeof definition.color !== 'string') {
+      throw new Error('Marker type definition color is required')
+    }
+    if (!/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/.test(definition.color)) {
+      throw new Error('Marker type definition color must be a valid hex color (#RRGGBB or #RGB)')
+    }
+
+    const validBehaviors = ['point', 'line-pair']
+    if (!definition.behavior || !validBehaviors.includes(definition.behavior)) {
+      throw new Error(`Invalid behavior. Must be one of: ${validBehaviors.join(', ')}`)
+    }
+
+    if (!definition.scope || typeof definition.scope !== 'string') {
+      throw new Error('Marker type definition scope is required')
+    }
+
+    // Optional fields validation
+    if (definition.size && !['small', 'normal', 'large'].includes(definition.size)) {
+      throw new Error('Size must be one of: small, normal, large')
+    }
+
+    if (definition.label !== undefined && definition.label !== null) {
+      if (typeof definition.label !== 'string') {
+        throw new Error('Label must be a string')
+      }
+      if (definition.label.length > 4) {
+        throw new Error('Label must be 4 characters or less')
+      }
+    }
+
+    if (definition.isBuiltIn !== undefined && typeof definition.isBuiltIn !== 'boolean') {
+      throw new Error('isBuiltIn must be a boolean')
+    }
+
+    if (definition.isPreset !== undefined && typeof definition.isPreset !== 'boolean') {
+      throw new Error('isPreset must be a boolean')
+    }
+
+    if (definition.supportsPhotos !== undefined && typeof definition.supportsPhotos !== 'boolean') {
+      throw new Error('supportsPhotos must be a boolean')
+    }
+
+    if (definition.showNumber !== undefined && typeof definition.showNumber !== 'boolean') {
+      throw new Error('showNumber must be a boolean')
+    }
+  }
+
+  /**
+   * Add a new marker type definition
+   * @param {Object} definition - Marker type definition object
+   * @returns {Promise<Object>} - The saved marker type definition
+   */
+  async addMarkerTypeDefinition (definition) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    this._validateMarkerTypeDefinition(definition, true)
+
+    const markerTypeDef = {
+      id: definition.id || crypto.randomUUID(),
+      name: definition.name.trim(),
+      shape: definition.shape,
+      color: definition.color,
+      size: definition.size || 'normal',
+      label: definition.label || '',
+      behavior: definition.behavior,
+      supportsPhotos: definition.supportsPhotos !== undefined ? definition.supportsPhotos : true,
+      showNumber: definition.showNumber !== undefined ? definition.showNumber : (definition.supportsPhotos !== false),
+      scope: definition.scope || 'global',
+      isBuiltIn: definition.isBuiltIn || false,
+      isPreset: definition.isPreset || false,
+      createdDate: definition.createdDate || new Date().toISOString(),
+      lastModified: new Date().toISOString()
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.markerTypeDefinitionsStoreName], 'readwrite')
+      const store = transaction.objectStore(this.markerTypeDefinitionsStoreName)
+      const request = store.add(markerTypeDef)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Marker type definition added successfully', markerTypeDef.id)
+        resolve(markerTypeDef)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to add marker type definition', request.error)
+        reject(new Error(`Failed to save marker type definition: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get a specific marker type definition by ID
+   * @param {string} id - Marker type definition ID
+   * @returns {Promise<Object|null>} - Marker type definition or null if not found
+   */
+  async getMarkerTypeDefinition (id) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.markerTypeDefinitionsStoreName], 'readonly')
+      const store = transaction.objectStore(this.markerTypeDefinitionsStoreName)
+      const request = store.get(id)
+
+      request.onsuccess = () => {
+        resolve(request.result || null)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get marker type definition', request.error)
+        reject(new Error(`Failed to retrieve marker type definition: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get all marker type definitions
+   * @param {IDBTransaction|null} transaction - Optional existing transaction
+   * @returns {Promise<Array>} - Array of all marker type definitions
+   */
+  async getAllMarkerTypeDefinitions (transaction = null) {
+    if (!this.db && !transaction) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const tx = transaction || this.db.transaction([this.markerTypeDefinitionsStoreName], 'readonly')
+      const store = tx.objectStore(this.markerTypeDefinitionsStoreName)
+      const request = store.getAll()
+
+      request.onsuccess = () => {
+        resolve(request.result || [])
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to get all marker type definitions', request.error)
+        reject(new Error(`Failed to retrieve marker type definitions: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get all enabled marker type definitions
+   * Enabled = toggled on in settings (not disabled by user)
+   * @returns {Promise<Array>} - Array of enabled marker type definitions
+   */
+  async getEnabledMarkerTypeDefinitions () {
+    const allDefs = await this.getAllMarkerTypeDefinitions()
+    return allDefs.filter(def => {
+      // Built-in types are always enabled
+      if (def.isBuiltIn) return true
+      // Check localStorage toggle for presets and user-created types
+      const toggleKey = `markerType_enabled_${def.id}`
+      const stored = window.localStorage.getItem(toggleKey)
+      // Default to enabled if no toggle set
+      return stored === null || stored === 'true'
+    })
+  }
+
+  /**
+   * Get marker type definitions for a specific map
+   * Currently returns all global definitions (map-specific scoping reserved for future)
+   * @param {string} mapId - Map ID (reserved for future map-specific scoping)
+   * @returns {Promise<Array>} - Array of marker type definitions
+   */
+  async getMarkerTypeDefinitionsForMap (mapId) {
+    // Currently all definitions are global; mapId param reserved for future
+    return this.getEnabledMarkerTypeDefinitions()
+  }
+
+  /**
+   * Update an existing marker type definition
+   * @param {Object} definition - Updated marker type definition (must include id)
+   * @returns {Promise<Object>} - The updated marker type definition
+   */
+  async updateMarkerTypeDefinition (definition) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    if (!definition.id) {
+      throw new Error('Marker type definition ID is required for update')
+    }
+
+    // Fetch existing to merge and check built-in constraints
+    const existing = await this.getMarkerTypeDefinition(definition.id)
+    if (!existing) {
+      throw new Error(`Marker type definition not found: ${definition.id}`)
+    }
+
+    // Validate the incoming definition fields
+    this._validateMarkerTypeDefinition({ ...existing, ...definition }, false)
+
+    // Built-in protection: only color can be changed
+    if (existing.isBuiltIn) {
+      const lockedFields = []
+      if (definition.name && definition.name !== existing.name) lockedFields.push('name')
+      if (definition.shape && definition.shape !== existing.shape) lockedFields.push('shape')
+      if (definition.size && definition.size !== existing.size) lockedFields.push('size')
+      if (definition.label !== undefined && definition.label !== existing.label) lockedFields.push('label')
+      if (definition.behavior && definition.behavior !== existing.behavior) lockedFields.push('behavior')
+      if (definition.supportsPhotos !== undefined && definition.supportsPhotos !== existing.supportsPhotos) lockedFields.push('supportsPhotos')
+      if (definition.showNumber !== undefined && definition.showNumber !== existing.showNumber) lockedFields.push('showNumber')
+
+      if (lockedFields.length > 0) {
+        throw new Error(
+          `Cannot change ${lockedFields.join(', ')} of built-in marker type "${existing.name}". ` +
+          'Only color can be customized for built-in types.'
+        )
+      }
+    }
+
+    // Preset protection: presets are immutable (toggle only — no field edits)
+    if (existing.isPreset && !existing.isBuiltIn) {
+      throw new Error(
+        `Cannot edit preset marker type "${existing.name}". ` +
+        'Presets are immutable — duplicate them to create a customizable copy.'
+      )
+    }
+
+    const updated = {
+      ...existing,
+      name: definition.name ? definition.name.trim() : existing.name,
+      shape: definition.shape || existing.shape,
+      color: definition.color || existing.color,
+      size: definition.size || existing.size,
+      label: definition.label !== undefined ? definition.label : existing.label,
+      behavior: definition.behavior || existing.behavior,
+      supportsPhotos: definition.supportsPhotos !== undefined ? definition.supportsPhotos : existing.supportsPhotos,
+      showNumber: definition.showNumber !== undefined ? definition.showNumber : existing.showNumber,
+      scope: definition.scope || existing.scope,
+      isBuiltIn: existing.isBuiltIn, // Cannot change isBuiltIn
+      isPreset: definition.isPreset !== undefined ? definition.isPreset : existing.isPreset,
+      lastModified: new Date().toISOString()
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.markerTypeDefinitionsStoreName], 'readwrite')
+      const store = transaction.objectStore(this.markerTypeDefinitionsStoreName)
+      const request = store.put(updated)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Marker type definition updated successfully', updated.id)
+        resolve(updated)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to update marker type definition', request.error)
+        reject(new Error(`Failed to update marker type definition: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Get the count of markers using a specific marker type
+   * @param {string} typeId - Marker type definition ID
+   * @returns {Promise<number>} - Count of markers referencing this type
+   */
+  async getMarkerCountByType (typeId) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.markerStoreName], 'readonly')
+      const store = transaction.objectStore(this.markerStoreName)
+      const request = store.getAll()
+
+      request.onsuccess = () => {
+        const markers = request.result || []
+        const count = markers.filter(m => m.markerTypeId === typeId).length
+        resolve(count)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to count markers by type', request.error)
+        reject(new Error(`Failed to count markers by type: ${request.error}`))
+      }
+    })
+  }
+
+  /**
+   * Delete a marker type definition
+   * Blocks deletion if markers reference this type (no cascade).
+   * Built-in types cannot be deleted (enforced by isBuiltIn check).
+   * @param {string} id - Marker type definition ID
+   * @returns {Promise<boolean>} - Success status
+   */
+  async deleteMarkerTypeDefinition (id) {
+    if (!this.db) {
+      throw new Error('Storage not initialized')
+    }
+
+    // Fetch the definition first
+    const existing = await this.getMarkerTypeDefinition(id)
+    if (!existing) {
+      throw new Error(`Marker type definition not found: ${id}`)
+    }
+
+    // Block deletion of built-in types
+    if (existing.isBuiltIn) {
+      throw new Error(`Cannot delete built-in marker type "${existing.name}". Built-in types cannot be removed.`)
+    }
+
+    // Block deletion of preset types
+    if (existing.isPreset) {
+      throw new Error(`Cannot delete preset marker type "${existing.name}". Presets can be disabled but not deleted.`)
+    }
+
+    // Check for existing markers using this type
+    const markerCount = await this.getMarkerCountByType(id)
+    if (markerCount > 0) {
+      throw new Error(
+        `Cannot delete type "${existing.name}": ${markerCount} marker${markerCount === 1 ? '' : 's'} use${markerCount === 1 ? 's' : ''} this type. ` +
+        'Reassign or delete those markers first.'
+      )
+    }
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([this.markerTypeDefinitionsStoreName], 'readwrite')
+      const store = transaction.objectStore(this.markerTypeDefinitionsStoreName)
+      const request = store.delete(id)
+
+      request.onsuccess = () => {
+        console.log('MapStorage: Marker type definition deleted successfully', id)
+        resolve(true)
+      }
+
+      request.onerror = () => {
+        console.error('MapStorage: Failed to delete marker type definition', request.error)
+        reject(new Error(`Failed to delete marker type definition: ${request.error}`))
+      }
+    })
+  }
+
+  // ========================================
   // Remaining Utility Methods
   // ========================================
 
@@ -2342,7 +2897,9 @@ export class MapStorage {
       ...(markerData.type ? { type: markerData.type } : {}),
       ...(markerData.lineGroupId ? { lineGroupId: markerData.lineGroupId } : {}),
       ...(markerData.lineColor ? { lineColor: markerData.lineColor } : {}),
-      ...(markerData.lineCaption !== undefined ? { lineCaption: markerData.lineCaption } : {})
+      ...(markerData.lineCaption !== undefined ? { lineCaption: markerData.lineCaption } : {}),
+      ...(markerData.markerTypeId ? { markerTypeId: markerData.markerTypeId } : {}),
+      ...(markerData.direction != null ? { direction: markerData.direction } : {})
     }
 
     return new Promise((resolve, reject) => {

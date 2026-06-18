@@ -1,4 +1,4 @@
-/* global DOMParser requestAnimationFrame */
+/* global DOMParser requestAnimationFrame localStorage */
 
 /**
  * SnapSpot PWA - Settings Modal Module
@@ -68,6 +68,7 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
               <button class="tab-button" data-tab="image-processing-settings">Image Processing</button>
               <button class="tab-button" data-tab="data-management-settings">Data Management</button>
               <button class="tab-button" data-tab="metadata-settings">Metadata</button>
+              <button class="tab-button" data-tab="marker-types-settings">Marker Types</button>
               <button class="tab-button" data-tab="maps-management-settings">Maps Management</button>
               <button class="tab-button" data-tab="danger-zone-settings">Danger Zone</button>
             </div>
@@ -78,6 +79,7 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
               <option value="image-processing-settings">Image Processing</option>
               <option value="data-management-settings">Data Management</option>
               <option value="metadata-settings">Metadata</option>
+              <option value="marker-types-settings">Marker Types</option>
               <option value="maps-management-settings">Maps Management</option>
               <option value="danger-zone-settings">Danger Zone</option>
             </select>
@@ -186,6 +188,49 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
                     📥 <span class="btn-text">Import Definitions</span>
                   </button>
                   <input type="file" id="import-metadata-definitions-input" accept=".json" style="display: none" />
+                </div>
+              </div>
+              <div id="marker-types-settings" class="tab-pane">
+                <h4>Marker Types</h4>
+                <p class="text-secondary mb-md">Customize how markers look and behave on your maps.</p>
+
+                <div id="marker-types-builtin-section" class="marker-types-section">
+                  <!-- Built-in types injected by JS -->
+                </div>
+
+                <div id="marker-types-presets-section" class="marker-types-section">
+                  <h5 class="marker-types-section-title">Presets</h5>
+                  <div id="marker-types-presets-container">
+                    <!-- Preset types injected by JS -->
+                  </div>
+                </div>
+
+                <div id="marker-types-custom-section" class="marker-types-section">
+                  <h5 class="marker-types-section-title">Custom</h5>
+                  <div id="marker-types-custom-container">
+                    <!-- Custom types injected by JS -->
+                  </div>
+                </div>
+
+                <div class="marker-types-actions mt-md">
+                  <button class="btn btn-primary" id="add-marker-type-btn">
+                    ➕ <span class="btn-text">Add Custom Type</span>
+                  </button>
+                  <button class="btn btn-secondary" id="export-marker-types-btn">
+                    📤 <span class="btn-text">Export Types</span>
+                  </button>
+                  <button class="btn btn-secondary" id="import-marker-types-btn">
+                    📥 <span class="btn-text">Import Types</span>
+                  </button>
+                  <input type="file" id="import-marker-types-input" accept=".json" style="display: none" />
+                </div>
+
+                <div class="marker-types-default-selector mt-lg">
+                  <label for="default-marker-type-select">Default marker type:</label>
+                  <select id="default-marker-type-select" class="form-control">
+                    <!-- Options injected by JS -->
+                  </select>
+                  <small class="text-secondary mt-xs">Used when tapping "Place Marker".</small>
                 </div>
               </div>
               <div id="maps-management-settings" class="tab-pane">
@@ -600,6 +645,259 @@ export function createSettingsModal (modalManager, callbacks, maps, activeMapId,
   if (initialTab === 'metadata-settings') {
     requestAnimationFrame(() => {
       renderMetadataDefinitions()
+    })
+  }
+
+  // ========================================
+  // Marker Types Tab Functionality
+  // ========================================
+
+  const SHAPE_ICONS = {
+    circle: '●',
+    square: '■',
+    diamond: '◆',
+    arrow: '▲'
+  }
+
+  /**
+   * Render the marker types list (built-in, presets, custom)
+   */
+  const renderMarkerTypes = async () => {
+    if (!callbacks.getMarkerTypeDefinitions) return
+
+    const allDefinitions = await callbacks.getMarkerTypeDefinitions()
+
+    // Build enabled IDs set from localStorage
+    const enabledIds = new Set(allDefinitions.map(d => d.id))
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('markerType_enabled_')) {
+        const typeId = key.slice('markerType_enabled_'.length)
+        if (localStorage.getItem(key) === 'false') {
+          enabledIds.delete(typeId)
+        }
+      }
+    }
+
+    const builtIns = allDefinitions.filter(d => d.isBuiltIn)
+    const presets = allDefinitions.filter(d => d.isPreset && !d.isBuiltIn)
+    const customs = allDefinitions.filter(d => !d.isPreset && !d.isBuiltIn)
+
+    // Render built-in section
+    const builtinContainer = modal.querySelector('#marker-types-builtin-section')
+    if (builtinContainer) {
+      builtinContainer.innerHTML = builtIns.length === 0
+        ? ''
+        : `
+        <h5 class="marker-types-section-title">Built-in</h5>
+        ${builtIns.map(def => renderMarkerTypeRow(def, true, enabledIds)).join('')}
+      `
+    }
+
+    // Render presets section
+    const presetsContainer = modal.querySelector('#marker-types-presets-container')
+    if (presetsContainer) {
+      presetsContainer.innerHTML = presets.length === 0
+        ? '<p class="text-secondary text-center">No preset types available.</p>'
+        : presets.map(def => renderMarkerTypeRow(def, false, enabledIds)).join('')
+    }
+
+    // Render custom section
+    const customContainer = modal.querySelector('#marker-types-custom-container')
+    if (customContainer) {
+      customContainer.innerHTML = customs.length === 0
+        ? '<p class="text-secondary text-center marker-types-empty">No custom types yet. Add one below.</p>'
+        : customs.map(def => renderMarkerTypeRow(def, false, enabledIds)).join('')
+    }
+
+    // Refresh default type dropdown
+    renderDefaultTypeDropdown(allDefinitions, enabledIds)
+
+    // Wire up event listeners
+    wireMarkerTypeEvents()
+  }
+
+  /**
+   * Render a single marker type row
+   */
+  const renderMarkerTypeRow = (def, isBuiltIn, enabledIds) => {
+    const enabled = enabledIds.has(def.id)
+    const shapeIcon = SHAPE_ICONS[def.shape] || '●'
+    const displayColor = def.color || '#ef4444'
+    const badgeHtml = isBuiltIn
+      ? '<span class="marker-type-badge builtin">built-in</span>'
+      : (def.isPreset ? '<span class="marker-type-badge preset">preset</span>' : '')
+
+    const toggleDisabled = isBuiltIn ? 'disabled' : ''
+    const toggleChecked = enabled ? 'checked' : ''
+    // showNumber defaults: undefined → fall back to supportsPhotos (true for photo-capable, false for line-pair)
+    const effectiveShowNumber = def.showNumber !== undefined ? def.showNumber : (def.supportsPhotos !== false)
+    const showNumberIndicator = effectiveShowNumber
+      ? '<span class="marker-type-number-indicator" title="Shows number on map">🔢</span>'
+      : ''
+
+    // Built-in colors are contextual (locked/unlocked, has photos), so show "varies" instead of a swatch
+    const colorDisplayHtml = isBuiltIn
+      ? '<span class="marker-type-color-label" title="Color varies by marker state">varies</span>'
+      : `<span class="marker-type-color-swatch" style="background-color: ${displayColor};" title="${displayColor}"></span>`
+
+    const editBtnHtml = isBuiltIn
+      ? `<button class="btn btn-sm btn-secondary edit-marker-type-color" data-type-id="${def.id}">🎨 <span class="btn-text">Edit Color</span></button>`
+      : (def.isPreset
+          ? ''
+          : `<button class="btn btn-sm btn-secondary edit-marker-type" data-type-id="${def.id}">✏️ <span class="btn-text">Edit</span></button>
+           <button class="btn btn-sm btn-danger delete-marker-type" data-type-id="${def.id}">🗑️ <span class="btn-text">Delete</span></button>`)
+
+    return `
+      <div class="marker-type-row" data-type-id="${def.id}">
+        <label class="checkbox-label toggle-switch-label marker-type-toggle-label">
+          <input type="checkbox" class="marker-type-toggle" data-type-id="${def.id}" ${toggleChecked} ${toggleDisabled} />
+          <span class="toggle-switch-slider"></span>
+        </label>
+        <span class="marker-type-icon" style="color: ${displayColor};">${shapeIcon}</span>
+        <span class="marker-type-name">${def.name}</span>
+        ${badgeHtml}
+        ${colorDisplayHtml}
+        <span class="marker-type-shape-label">${def.shape}</span>
+        ${showNumberIndicator}
+        <span class="marker-type-actions">
+          ${editBtnHtml}
+        </span>
+      </div>
+    `
+  }
+
+  /**
+   * Render the default marker type dropdown
+   */
+  const defaultTypeChangeHandler = () => {
+    const select = modal.querySelector('#default-marker-type-select')
+    if (select && callbacks.onChangeDefaultMarkerType) {
+      callbacks.onChangeDefaultMarkerType(select.value)
+    }
+  }
+
+  let defaultTypeListenerAttached = false
+  const renderDefaultTypeDropdown = (allDefinitions, enabledIds) => {
+    const select = modal.querySelector('#default-marker-type-select')
+    if (!select) return
+
+    // Only point-behavior types (not line-pair) can be default
+    const pointTypes = allDefinitions.filter(d =>
+      d.behavior === 'point' && enabledIds.has(d.id)
+    )
+
+    const currentDefault = callbacks.getDefaultMarkerTypeId
+      ? callbacks.getDefaultMarkerTypeId()
+      : 'builtin-photo-marker'
+
+    select.innerHTML = pointTypes.map(def => {
+      const selected = def.id === currentDefault ? 'selected' : ''
+      return `<option value="${def.id}" ${selected}>${SHAPE_ICONS[def.shape] || '●'} ${def.name}</option>`
+    }).join('')
+
+    // Attach listener once — replacing innerHTML does not remove event listeners
+    if (!defaultTypeListenerAttached) {
+      select.addEventListener('change', defaultTypeChangeHandler)
+      defaultTypeListenerAttached = true
+    }
+  }
+
+  /**
+   * Wire up event listeners on marker type rows
+   */
+  const wireMarkerTypeEvents = () => {
+    // Toggle switches
+    modal.querySelectorAll('.marker-type-toggle:not([disabled])').forEach(toggle => {
+      toggle.addEventListener('change', () => {
+        const typeId = toggle.dataset.typeId
+        const enabled = toggle.checked
+        if (callbacks.onToggleMarkerType) {
+          callbacks.onToggleMarkerType(typeId, enabled)
+          // Re-render to update default type dropdown
+          renderMarkerTypes()
+        }
+      })
+    })
+
+    // Edit color for built-in types
+    modal.querySelectorAll('.edit-marker-type-color').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const typeId = btn.dataset.typeId
+        if (callbacks.onEditBuiltinMarkerTypeColor) {
+          callbacks.onEditBuiltinMarkerTypeColor(typeId, () => renderMarkerTypes())
+        }
+      })
+    })
+
+    // Edit custom type
+    modal.querySelectorAll('.edit-marker-type').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const typeId = btn.dataset.typeId
+        if (callbacks.onEditMarkerType) {
+          callbacks.onEditMarkerType(typeId, () => renderMarkerTypes())
+        }
+      })
+    })
+
+    // Delete custom type
+    modal.querySelectorAll('.delete-marker-type').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const typeId = btn.dataset.typeId
+        if (callbacks.onDeleteMarkerType) {
+          await callbacks.onDeleteMarkerType(typeId)
+          await renderMarkerTypes()
+        }
+      })
+    })
+  }
+
+  // Add custom type button
+  modal.querySelector('#add-marker-type-btn')?.addEventListener('click', () => {
+    if (callbacks.onAddMarkerType) {
+      callbacks.onAddMarkerType(() => renderMarkerTypes())
+    }
+  })
+
+  // Export marker types button (placeholder until Phase 5)
+  modal.querySelector('#export-marker-types-btn')?.addEventListener('click', () => {
+    if (callbacks.onExportMarkerTypes) {
+      callbacks.onExportMarkerTypes()
+    } else {
+      // Placeholder: show info notification via a generic mechanism
+      console.log('Marker type export will be implemented in Phase 5')
+    }
+  })
+
+  // Import marker types button (placeholder until Phase 5)
+  const importMarkerTypesInput = modal.querySelector('#import-marker-types-input')
+  modal.querySelector('#import-marker-types-btn')?.addEventListener('click', () => {
+    importMarkerTypesInput?.click()
+  })
+
+  importMarkerTypesInput?.addEventListener('change', async (e) => {
+    const file = e.target.files[0]
+    if (file && callbacks.onImportMarkerTypes) {
+      await callbacks.onImportMarkerTypes(file)
+      await renderMarkerTypes()
+      e.target.value = ''
+    } else if (file) {
+      console.log('Marker type import will be implemented in Phase 5')
+    }
+  })
+
+  // Load marker types when tab is activated
+  const markerTypesTabButton = modal.querySelector('.tab-button[data-tab="marker-types-settings"]')
+  if (markerTypesTabButton) {
+    markerTypesTabButton.addEventListener('click', () => {
+      renderMarkerTypes()
+    })
+  }
+
+  // If marker types tab is initial tab, load now
+  if (initialTab === 'marker-types-settings') {
+    requestAnimationFrame(() => {
+      renderMarkerTypes()
     })
   }
 

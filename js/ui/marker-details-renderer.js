@@ -22,6 +22,7 @@ export function generateModalHtml (markerDetails, metadataViewHtml = '') {
         </div>
         <div class="modal-body">
           ${generateMarkerInfoSection(markerDetails, metadataViewHtml)}
+          ${generateDirectionSection(markerDetails)}
           ${generatePhotoListSection(photoThumbnailsHtml)}
         </div>
         <div class="modal-footer">
@@ -41,8 +42,12 @@ export function generateModalHtml (markerDetails, metadataViewHtml = '') {
 function generateMarkerInfoSection (markerDetails, metadataViewHtml = '') {
   const escapedDescription = escapeHtml(markerDetails.description || '')
 
+  // Phase 4: Generate marker type info
+  const typeInfoHtml = generateMarkerTypeInfo(markerDetails)
+
   return `
     <div class="marker-info-section">
+      ${typeInfoHtml}
       <p><strong>ID:</strong> <span class="text-xs text-secondary">${markerDetails.id}</span></p>
       <p><strong>Coordinates:</strong> ${markerDetails.coords}</p>
       <p>
@@ -53,6 +58,94 @@ function generateMarkerInfoSection (markerDetails, metadataViewHtml = '') {
       ${metadataViewHtml}
       <div class="marker-metadata-edit hidden" id="marker-metadata-edit"></div>
       <p><strong>Photos:</strong> <span class="marker-photo-count">${markerDetails.photoCount}</span> associated</p>
+    </div>
+  `
+}
+
+/**
+ * Phase 4: Generate marker type info display and edit dropdown
+ * @param {Object} markerDetails - Marker data with type info
+ * @returns {string} HTML for type info row
+ */
+function generateMarkerTypeInfo (markerDetails) {
+  const SHAPE_ICONS = { circle: '●', square: '■', diamond: '◆', arrow: '▲' }
+  const typeDef = markerDetails.markerTypeDef
+  const isLine = markerDetails.markerTypeId === 'builtin-line-marker'
+
+  // Determine display name
+  let typeName = 'Photo Marker (default)'
+  let typeIcon = '●'
+  let typeColor = '#6b7280'
+
+  if (typeDef) {
+    typeName = escapeHtml(typeDef.name)
+    typeIcon = SHAPE_ICONS[typeDef.shape] || '●'
+    typeColor = typeDef.color || '#6b7280'
+  } else if (isLine) {
+    typeName = 'Line Marker (default)'
+    typeIcon = '◆'
+    typeColor = '#e53e3e'
+  }
+
+  // Build type change dropdown (edit mode only, not for line markers)
+  const allTypeDefs = markerDetails.allTypeDefs || []
+  const pointTypes = allTypeDefs.filter(d => d.behavior === 'point')
+  const typeDropdownHtml = isLine
+    ? '<p class="text-secondary text-sm">Line marker type cannot be changed.</p>'
+    : `
+      <select class="form-control marker-type-select hidden" id="marker-type-select">
+        ${pointTypes.map(def => {
+          const selected = def.id === markerDetails.markerTypeId ? 'selected' : ''
+          return `<option value="${def.id}" ${selected}>${SHAPE_ICONS[def.shape] || '●'} ${escapeHtml(def.name)}</option>`
+        }).join('')}
+        <option value="" ${!markerDetails.markerTypeId ? 'selected' : ''}>● Photo Marker (default)</option>
+      </select>
+    `
+
+  return `
+    <p class="marker-type-info">
+      <strong>Type:</strong>
+      <span class="marker-type-display">
+        <span style="color: ${typeColor};">${typeIcon}</span> ${typeName}
+      </span>
+      <span class="marker-type-edit hidden" id="marker-type-edit">
+        ${typeDropdownHtml}
+      </span>
+    </p>
+  `
+}
+
+/**
+ * Phase 4: Generate direction control section for arrow markers
+ * @param {Object} markerDetails - Marker data with direction info
+ * @returns {string} HTML for direction section
+ */
+function generateDirectionSection (markerDetails) {
+  if (!markerDetails.hasDirection) return ''
+
+  const currentDirection = markerDetails.direction || 0
+
+  return `
+    <div class="direction-section" id="marker-direction-section">
+      <h4>Direction</h4>
+      <div class="direction-view" id="direction-view">
+        <p><strong>Direction:</strong> <span id="direction-value-display">${currentDirection}°</span></p>
+      </div>
+      <div class="direction-edit hidden" id="direction-edit">
+        <div class="direction-preview-wrapper">
+          <canvas class="direction-preview-canvas" id="direction-preview-canvas" width="72" height="72"></canvas>
+        </div>
+        <div class="direction-slider-wrapper">
+          <input type="range" class="direction-slider" id="direction-slider"
+            min="0" max="360" value="${currentDirection}" step="1"
+            aria-label="Direction angle" />
+          <div class="direction-slider-labels">
+            <span>0°</span>
+            <span class="direction-current-value" id="direction-current-value">${currentDirection}°</span>
+            <span>360°</span>
+          </div>
+        </div>
+      </div>
     </div>
   `
 }

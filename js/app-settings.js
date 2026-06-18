@@ -4,7 +4,7 @@
  * All functions take `app` instance as first param.
  */
 
-/* global localStorage confirm crypto Blob URL document */
+/* global localStorage confirm crypto Blob URL document FileReader */
 
 import { handleViewImageInViewer } from './app-marker-photo-manager.js'
 
@@ -157,6 +157,51 @@ export function getCurrentCustomMarkerRules (app) {
  */
 export function setAndPersistCustomMarkerRules (app, rules) {
   setCustomMarkerColorRules(app, rules)
+}
+
+// ========================================
+// Marker Type Helpers
+// ========================================
+
+/**
+ * Get the set of disabled marker type IDs from localStorage.
+ * Types without a key (or with key='true') are considered enabled.
+ */
+export function getDisabledMarkerTypeIds () {
+  const disabledIds = new Set()
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key && key.startsWith('markerType_enabled_')) {
+      const typeId = key.slice('markerType_enabled_'.length)
+      if (localStorage.getItem(key) === 'false') {
+        disabledIds.add(typeId)
+      }
+    }
+  }
+  return disabledIds
+}
+
+/**
+ * Get the default marker type ID from localStorage.
+ */
+export function getDefaultMarkerTypeId () {
+  return localStorage.getItem('defaultMarkerTypeId') || 'builtin-photo-marker'
+}
+
+/**
+ * Set the default marker type ID and persist.
+ */
+export function setDefaultMarkerTypeId (typeId) {
+  localStorage.setItem('defaultMarkerTypeId', typeId)
+  console.log('Default marker type set to:', typeId)
+}
+
+/**
+ * Toggle a marker type enabled/disabled in localStorage.
+ */
+export function setMarkerTypeEnabled (typeId, enabled) {
+  localStorage.setItem(`markerType_enabled_${typeId}`, enabled ? 'true' : 'false')
+  console.log(`Marker type ${typeId} ${enabled ? 'enabled' : 'disabled'}`)
 }
 
 /**
@@ -391,6 +436,254 @@ export async function showSettings (app, initialTab = 'general-settings') {
         } catch (error) {
           console.error('Error importing metadata definitions:', error)
           app.showNotification('Failed to import metadata definitions.', 'error')
+        }
+      },
+      // Marker Types Callbacks
+      getMarkerTypeDefinitions: async () => {
+        return await app.storage.getAllMarkerTypeDefinitions()
+      },
+      getDefaultMarkerTypeId: () => getDefaultMarkerTypeId(),
+      onChangeDefaultMarkerType: (typeId) => {
+        setDefaultMarkerTypeId(typeId)
+        if (app.defaultMarkerTypeId !== undefined) {
+          app.defaultMarkerTypeId = typeId
+        }
+        app.showNotification('Default marker type updated.', 'info')
+      },
+      onToggleMarkerType: (typeId, enabled) => {
+        setMarkerTypeEnabled(typeId, enabled)
+        // Refresh renderer with updated type definitions
+        if (app.refreshMarkerTypeDefinitions) {
+          app.refreshMarkerTypeDefinitions()
+        }
+      },
+      onUpdateMarkerTypeColor: async (typeId, newColor) => {
+        try {
+          const def = await app.storage.getMarkerTypeDefinition(typeId)
+          if (!def) {
+            app.showNotification('Marker type not found.', 'error')
+            return
+          }
+          def.color = newColor
+          await app.storage.updateMarkerTypeDefinition(def)
+          app.showNotification(`Color updated for "${def.name}".`, 'success')
+          // Refresh renderer with updated type definitions
+          if (app.refreshMarkerTypeDefinitions) {
+            app.refreshMarkerTypeDefinitions()
+          }
+        } catch (error) {
+          console.error('Error updating marker type color:', error)
+          app.showNotification('Failed to update marker type color.', 'error')
+        }
+      },
+      onAddMarkerType: async (onComplete) => {
+        const { createMarkerTypeDefinitionModal } = await import('./ui/marker-type-definition-modal.js')
+        createMarkerTypeDefinitionModal(app.modalManager, {
+          definition: null,
+          onSave: async (definitionData) => {
+            try {
+              await app.storage.addMarkerTypeDefinition(definitionData)
+              app.showNotification(`Marker type "${definitionData.name}" created.`, 'success')
+              // Refresh renderer with updated type definitions
+              if (app.refreshMarkerTypeDefinitions) {
+                app.refreshMarkerTypeDefinitions()
+              }
+              if (onComplete) onComplete()
+            } catch (error) {
+              console.error('Error saving marker type definition:', error)
+              app.showNotification('Failed to create marker type.', 'error')
+            }
+          }
+        })
+      },
+      onEditBuiltinMarkerTypeColor: async (typeId, onComplete) => {
+        const definition = await app.storage.getMarkerTypeDefinition(typeId)
+        if (!definition) {
+          app.showNotification('Marker type not found.', 'error')
+          return
+        }
+        if (!definition.isBuiltIn) {
+          app.showNotification('This type is not a built-in type.', 'error')
+          return
+        }
+        const { createMarkerTypeDefinitionModal } = await import('./ui/marker-type-definition-modal.js')
+        createMarkerTypeDefinitionModal(app.modalManager, {
+          definition,
+          onSave: async (definitionData) => {
+            try {
+              // For built-ins, only color is passed — merge with existing
+              const merged = { ...definition, color: definitionData.color }
+              await app.storage.updateMarkerTypeDefinition(merged)
+              app.showNotification(`Color updated for "${definition.name}".`, 'success')
+              if (app.refreshMarkerTypeDefinitions) {
+                app.refreshMarkerTypeDefinitions()
+              }
+              if (onComplete) onComplete()
+            } catch (error) {
+              console.error('Error updating built-in marker type color:', error)
+              app.showNotification('Failed to update color.', 'error')
+            }
+          }
+        })
+      },
+      onEditMarkerType: async (typeId, onComplete) => {
+        const definition = await app.storage.getMarkerTypeDefinition(typeId)
+        if (!definition) {
+          app.showNotification('Marker type not found.', 'error')
+          return
+        }
+        const { createMarkerTypeDefinitionModal } = await import('./ui/marker-type-definition-modal.js')
+        createMarkerTypeDefinitionModal(app.modalManager, {
+          definition,
+          onSave: async (definitionData) => {
+            try {
+              await app.storage.updateMarkerTypeDefinition(definitionData)
+              app.showNotification(`Marker type "${definitionData.name}" updated.`, 'success')
+              // Refresh renderer with updated type definitions
+              if (app.refreshMarkerTypeDefinitions) {
+                app.refreshMarkerTypeDefinitions()
+              }
+              if (onComplete) onComplete()
+            } catch (error) {
+              console.error('Error updating marker type definition:', error)
+              app.showNotification('Failed to update marker type.', 'error')
+            }
+          }
+        })
+      },
+      onDeleteMarkerType: async (typeId) => {
+        try {
+          const definition = await app.storage.getMarkerTypeDefinition(typeId)
+          if (!definition) {
+            app.showNotification('Marker type not found.', 'error')
+            return
+          }
+          // Check reference count
+          const count = await app.storage.getMarkerCountByType(typeId)
+          if (count > 0) {
+            app.showNotification(
+              `Cannot delete "${definition.name}": ${count} marker${count === 1 ? '' : 's'} use${count === 1 ? 's' : ''} this type.`,
+              'error'
+            )
+            return
+          }
+          if (!confirm(`Delete "${definition.name}"?\n\nThis cannot be undone.`)) {
+            return
+          }
+          await app.storage.deleteMarkerTypeDefinition(typeId)
+          app.showNotification(`Marker type "${definition.name}" deleted.`, 'success')
+          // Refresh renderer with updated type definitions
+          if (app.refreshMarkerTypeDefinitions) {
+            app.refreshMarkerTypeDefinitions()
+          }
+        } catch (error) {
+          console.error('Error deleting marker type definition:', error)
+          app.showNotification(error.message || 'Failed to delete marker type.', 'error')
+        }
+      },
+      onExportMarkerTypes: async () => {
+        try {
+          app.updateAppStatus('Exporting marker types...', 'info', true)
+
+          // Get all marker type definitions
+          const typeDefs = await app.storage.getAllMarkerTypeDefinitions()
+          const customDefs = typeDefs.filter(def => !def.isBuiltIn)
+
+          if (customDefs.length === 0) {
+            app.showNotification('No custom marker types to export.', 'info')
+            return
+          }
+
+          // Build definitions-only export
+          const { buildMarkerTypeDefinitionsExport } = await import('../lib/snapspot-data/writer.js')
+          const exportObj = buildMarkerTypeDefinitionsExport(typeDefs, 'SnapSpot PWA')
+          const jsonString = JSON.stringify(exportObj, null, 2)
+
+          // Trigger download
+          const blob = new Blob([jsonString], { type: 'application/json' })
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          const dateStr = new Date().toISOString().slice(0, 10)
+          a.download = `snapspot-marker-type-definitions-${dateStr}.json`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+
+          app.showNotification(`Exported ${customDefs.length} marker type(s) successfully.`, 'success')
+          app.updateAppStatus('Marker types exported')
+        } catch (error) {
+          console.error('Error exporting marker types:', error)
+          app.showNotification('Failed to export marker types: ' + error.message, 'error')
+        }
+      },
+      onImportMarkerTypes: async (file) => {
+        try {
+          app.updateAppStatus(`Importing marker types from "${file.name}"...`, 'info', true)
+
+          // Read file
+          const jsonString = await new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = (e) => resolve(e.target.result)
+            reader.onerror = (e) => reject(new Error('Failed to read file'))
+            reader.readAsText(file)
+          })
+
+          // Parse JSON
+          let exportData
+          try {
+            exportData = JSON.parse(jsonString)
+          } catch (error) {
+            throw new Error(`Invalid JSON: ${error.message}`)
+          }
+
+          // Validate as marker type definitions export
+          const { validateMarkerTypeDefinitionsExport } = await import('../lib/snapspot-data/validator.js')
+          const validation = validateMarkerTypeDefinitionsExport(exportData)
+          if (!validation.isValid) {
+            throw new Error(`Invalid marker type export:\n  - ${validation.errors.join('\n  - ')}`)
+          }
+
+          // Import definitions
+          let importedCount = 0
+          const existingDefs = await app.storage.getAllMarkerTypeDefinitions()
+          const existingByName = new Map()
+          for (const def of existingDefs) {
+            existingByName.set(def.name.toLowerCase(), def)
+          }
+
+          for (const typeDef of exportData.definitions) {
+            // Skip built-in
+            if (typeDef.isBuiltIn) {
+              console.log(`Settings: Skipping built-in marker type "${typeDef.name}"`)
+              continue
+            }
+
+            // Check for duplicate by name
+            if (existingByName.has(typeDef.name.toLowerCase())) {
+              console.log(`Settings: Skipping duplicate marker type "${typeDef.name}"`)
+              continue
+            }
+
+            try {
+              await app.storage.addMarkerTypeDefinition(typeDef)
+              existingByName.set(typeDef.name.toLowerCase(), typeDef)
+              importedCount++
+              console.log(`Settings: Imported marker type "${typeDef.name}"`)
+            } catch (error) {
+              console.warn(`Settings: Failed to import marker type "${typeDef.name}":`, error)
+            }
+          }
+
+          // Refresh renderer
+          await app.refreshMarkerTypeDefinitions()
+
+          app.showNotification(`Imported ${importedCount} marker type(s) successfully.`, 'success')
+          app.updateAppStatus('Marker types imported')
+        } catch (error) {
+          console.error('Error importing marker types:', error)
+          app.showNotification('Failed to import marker types: ' + error.message, 'error')
         }
       }
     }
